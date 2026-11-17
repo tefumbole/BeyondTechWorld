@@ -33,6 +33,7 @@
                     <th>{{trans('file.Email')}}</th>
                     <th>{{trans('file.Phone Number')}}</th>
                     <th>{{trans('file.Department')}}</th>
+                    <th>Role and pay</th>
                     <th>{{trans('file.Address')}}</th>
                     <th class="not-exported">{{trans('file.action')}}</th>
                 </tr>
@@ -51,7 +52,14 @@
                     <td>{{ $employee->name }}</td>
                     <td>{{ $employee->email}}</td>
                     <td>{{ $employee->phone_number}}</td>
-                    <td>{{ $department->name }}</td>
+                    <td>{{ $department ? $department->name : '—' }}</td>
+                    <td>
+                        @php $payRole = isset($payRoles) ? $payRoles->firstWhere('id', $employee->pay_role_id) : null; @endphp
+                        {{ $payRole ? $payRole->name : '—' }}
+                        @if($employee->pay_type === 'daily') · {{ number_format((int) $employee->daily_rate) }} / day
+                        @elseif($employee->pay_type === 'monthly') · {{ number_format((int) $employee->monthly_salary) }} / month
+                        @endif
+                    </td>
                     <td>{{ $employee->address}}
                             @if($employee->city){{ ', '.$employee->city}}@endif
                             @if($employee->state){{ ', '.$employee->state}}@endif
@@ -66,7 +74,7 @@
                             <ul class="dropdown-menu edit-options dropdown-menu-right dropdown-default" user="menu">
                                 @if(in_array("employees-edit", $all_permission))
                                 <li>
-                                    <button type="button" data-id="{{$employee->id}}" data-name="{{$employee->name}}" data-email="{{$employee->email}}" data-phone_number="{{$employee->phone_number}}" data-department_id="{{$employee->department_id}}" data-address="{{$employee->address}}" data-city="{{$employee->city}}" data-country="{{$employee->country}}" class="edit-btn btn btn-link" data-toggle="modal" data-target="#editModal"><i class="dripicons-document-edit"></i> {{trans('file.edit')}}</button> 
+                                    <button type="button" data-id="{{$employee->id}}" data-name="{{$employee->name}}" data-email="{{$employee->email}}" data-phone_number="{{$employee->phone_number}}" data-department_id="{{$employee->department_id}}" data-address="{{$employee->address}}" data-city="{{$employee->city}}" data-country="{{$employee->country}}" data-pay_role_id="{{$employee->pay_role_id}}" data-pay_type="{{$employee->pay_type}}" data-daily_rate="{{$employee->daily_rate}}" data-monthly_salary="{{$employee->monthly_salary}}" class="edit-btn btn btn-link" data-toggle="modal" data-target="#editModal"><i class="dripicons-document-edit"></i> {{trans('file.edit')}}</button> 
                                 </li>
                                 @endif
                                 <li class="divider"></li>
@@ -135,6 +143,28 @@
                         <label>{{trans('file.Country')}}</label>
                         <input type="text" name="country" class="form-control">
                     </div>
+                    <div class="col-md-6 form-group">
+                        <label>Role and salary</label>
+                        <select name="pay_role_id" class="form-control">
+                            <option value="">None</option>
+                            @foreach(($payRoles ?? []) as $payRole)
+                                <option value="{{ $payRole->id }}">{{ $payRole->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-6 form-group">
+                        <label class="d-block">Pay</label>
+                        <label class="mr-3"><input type="radio" name="pay_type" value="daily"> Daily</label>
+                        <label><input type="radio" name="pay_type" value="monthly"> Monthly</label>
+                    </div>
+                    <div class="col-md-6 form-group">
+                        <label>Daily pay (XAF)</label>
+                        <input type="number" name="daily_rate" class="form-control" min="0" value="0">
+                    </div>
+                    <div class="col-md-6 form-group">
+                        <label>Monthly take-home (XAF)</label>
+                        <input type="number" name="monthly_salary" class="form-control" min="0" value="0">
+                    </div>
                 </div>
                 <div class="form-group">
                     <button type="submit" class="btn btn-primary">{{trans('file.submit')}}</button>
@@ -176,6 +206,10 @@
         $("#editModal input[name='address']").val( $(this).data('address') );
         $("#editModal input[name='city']").val( $(this).data('city') );
         $("#editModal input[name='country']").val( $(this).data('country') );
+        $("#editModal select[name='pay_role_id']").val( $(this).data('pay_role_id') );
+        $("#editModal input[name='pay_type'][value='" + ($(this).data('pay_type') || 'monthly') + "']").prop('checked', true);
+        $("#editModal input[name='daily_rate']").val( $(this).data('daily_rate') || 0 );
+        $("#editModal input[name='monthly_salary']").val( $(this).data('monthly_salary') || 0 );
         $('.selectpicker').selectpicker('refresh');
     });
 

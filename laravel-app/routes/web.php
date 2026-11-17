@@ -1521,6 +1521,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 	Route::post('employees/deletebyselection', 'EmployeeController@deleteBySelection');
 	Route::post('employees/store/letter', 'EmployeeController@storeLetter')->name('employees.store.letter');
 	Route::resource('employees', 'EmployeeController');
+	Route::get('hr/pay-roles', 'StaffPayRoleController@index')->name('hr.pay-roles.index');
+	Route::post('hr/pay-roles', 'StaffPayRoleController@save')->name('hr.pay-roles.save');
+	Route::post('hr/pay-roles/import-events', 'StaffPayRoleController@importEvents')->name('hr.pay-roles.import');
 
 	Route::post('payroll/deletebyselection', 'PayrollController@deleteBySelection');
 	Route::resource('payroll', 'PayrollController');

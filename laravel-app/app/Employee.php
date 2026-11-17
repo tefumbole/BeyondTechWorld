@@ -13,7 +13,8 @@ class Employee extends Model
 
     protected $fillable =[
         "name", "image", "department_id", "email", "phone_number",
-        "user_id", "address", "city", "country", "is_active"
+        "user_id", "address", "city", "country", "is_active",
+        "pay_role_id", "pay_type", "daily_rate", "monthly_salary"
     ];
 
     public function payroll()

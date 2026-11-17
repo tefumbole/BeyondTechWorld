@@ -9,7 +9,11 @@ use App\Biller;
 use App\Employee;
 use App\User;
 use App\Department;
+use App\Payroll\StaffPayRoles;
+use App\Services\Payroll\CameroonPayrollService;
 use Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class EmployeeController extends Controller
@@ -26,7 +30,8 @@ class EmployeeController extends Controller
                 $all_permission[] = 'dummy text';
             $lims_employee_all = Employee::where('is_active', true)->get();
             $lims_department_list = Department::where('is_active', true)->get();
-            return view('employee.index', compact('lims_employee_all', 'lims_department_list', 'all_permission'));
+            $payRoles = StaffPayRoles::active();
+            return view('employee.index', compact('lims_employee_all', 'lims_department_list', 'all_permission', 'payRoles'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -40,8 +45,9 @@ class EmployeeController extends Controller
             $lims_warehouse_list = Warehouse::where('is_active', true)->get();
             $lims_biller_list = Biller::where('is_active', true)->get();
             $lims_department_list = Department::where('is_active', true)->get();
+            $payRoles = StaffPayRoles::active();
 
-            return view('employee.create', compact('lims_role_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_department_list'));
+            return view('employee.create', compact('lims_role_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_department_list', 'payRoles'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -99,7 +105,8 @@ class EmployeeController extends Controller
 
         $data['name'] = $data['employee_name'];
         $data['is_active'] = true;
-        Employee::create($data);
+        $employee = Employee::create($data);
+        $this->applyPay($employee, $request);
 
         return redirect('employees')->with('message', $message);
     }
@@ -176,6 +183,7 @@ class EmployeeController extends Controller
         }
 
         $lims_employee_data->update($data);
+        $this->applyPay($lims_employee_data->fresh(), $request);
         return redirect('employees')->with('message', 'Employee updated successfully');
     }
 
@@ -205,5 +213,44 @@ class EmployeeController extends Controller
         $lims_employee_data->is_active = false;
         $lims_employee_data->save();
         return redirect('employees')->with('not_permitted', 'Employee deleted successfully');
+    }
+
+    protected function applyPay(Employee $employee, Request $request)
+    {
+        if (! $employee || ! Schema::hasColumn('employees', 'pay_role_id')) {
+            return;
+        }
+        $payType = $request->input('pay_type') === 'daily' ? 'daily' : 'monthly';
+        $employee->pay_role_id = $request->input('pay_role_id') ?: null;
+        $employee->pay_type = $employee->pay_role_id ? $payType : null;
+        $employee->daily_rate = max(0, (int) $request->input('daily_rate'));
+        $employee->monthly_salary = max(0, (int) $request->input('monthly_salary'));
+        $employee->save();
+        if ($employee->pay_type !== 'monthly' || (int) $employee->monthly_salary < 1 || ! $employee->pay_role_id) {
+            return;
+        }
+        if (! Schema::hasTable('cm_salary_categories')) {
+            return;
+        }
+        $role = DB::table('cm_pay_roles')->where('id', $employee->pay_role_id)->first();
+        $code = $role && $role->salary_category_code ? $role->salary_category_code : 'engineer';
+        $category = DB::table('cm_salary_categories')->where('code', $code)->where('is_active', 1)->first();
+        if (! $category) {
+            return;
+        }
+        try {
+            app(CameroonPayrollService::class)->saveProfile([
+                'employee_id' => $employee->id,
+                'category_id' => $category->id,
+                'target_net' => (int) $employee->monthly_salary,
+                'other_deduction' => 0,
+                'cnps_number' => '',
+                'bank_name' => '',
+                'bank_account' => '',
+                'payment_method' => '',
+                'is_active' => 1,
+            ]);
+        } catch (\Throwable $e) {
+        }
     }
 }

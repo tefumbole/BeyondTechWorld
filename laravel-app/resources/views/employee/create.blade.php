@@ -34,6 +34,29 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
+                                    <label>Role and salary *</label>
+                                    <select name="pay_role_id" id="pay-role" class="form-control" required>
+                                        <option value="">Choose a role</option>
+                                        @foreach($payRoles as $payRole)
+                                            <option value="{{ $payRole->id }}" data-type="{{ $payRole->pay_type }}" data-daily="{{ $payRole->daily_rate }}" data-monthly="{{ $payRole->monthly_salary }}">{{ $payRole->name }} — {{ $payRole->pay_type === 'daily' ? number_format($payRole->daily_rate).' XAF / day' : number_format($payRole->monthly_salary).' XAF / month' }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted">Amounts are set under <a href="{{ route('hr.pay-roles.index') }}">Roles and Salaries</a>. Technician and the other event jobs are already listed.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label class="d-block">Pay</label>
+                                    <label class="mr-3"><input type="radio" name="pay_type" value="daily"> Daily pay</label>
+                                    <label><input type="radio" name="pay_type" value="monthly" checked> Monthly pay</label>
+                                </div>
+                                <div class="form-group">
+                                    <label>Daily pay (XAF)</label>
+                                    <input type="number" name="daily_rate" class="form-control" min="0" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Monthly take-home (XAF)</label>
+                                    <input type="number" name="monthly_salary" class="form-control" min="0" value="0">
+                                </div>
+                                <div class="form-group">
                                     <label>{{trans('file.Email')}} *</label>
                                     <input type="email" name="email" placeholder="example@example.com" required class="form-control">
                                     @if($errors->has('email'))
@@ -156,6 +179,14 @@
             $('select[name="warehouse_id"]').prop('required',false);
             $('select[name="biller_id"]').prop('required',false);
         }
+    });
+
+    $('#pay-role').on('change', function () {
+        var option = $(this).find('option:selected');
+        var type = option.data('type') || 'monthly';
+        $('input[name="pay_type"][value="' + type + '"]').prop('checked', true);
+        $('input[name="daily_rate"]').val(option.data('daily') || 0);
+        $('input[name="monthly_salary"]').val(option.data('monthly') || 0);
     });
 </script>
 @endsection

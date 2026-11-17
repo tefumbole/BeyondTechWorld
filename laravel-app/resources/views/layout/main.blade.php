@@ -1376,6 +1376,7 @@
                                         @endif
                                         @if($index_employee_active)
                                             <li id="employee-menu"><a href="{{route('employees.index')}}">{{trans('file.Employee')}}</a></li>
+                                            <li id="hr-pay-roles-menu"><a href="{{route('hr.pay-roles.index')}}">Roles and Salaries</a></li>
                                         @endif
                                         @if($attendance_active)
                                             <li id="attendance-menu"><a href="{{route('attendance.index')}}">{{trans('file.Attendance')}}</a></li>
