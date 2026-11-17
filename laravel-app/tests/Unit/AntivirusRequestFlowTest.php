@@ -61,7 +61,8 @@ class AntivirusRequestFlowTest extends TestCase
             $body
         );
         $invite = AntivirusNotice::where('kind', 'approver_link')->value('body');
-        $this->assertStringContainsString('Please review and sign here:', $invite);
+        $this->assertStringContainsString('The link below is for your approval.', $invite);
+        $this->assertStringContainsString('Requested by', $invite);
         $this->assertStringContainsString('Tefu Roland, IT Technician at Bafia District Hospital', $invite);
         $this->assertStringContainsString('CBC Health Services', $body);
         $this->assertStringNotContainsString('Beyond Enterprise', $body);

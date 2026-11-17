@@ -145,12 +145,40 @@ class AntivirusCatalog
         );
     }
 
+    public static function requesterLine(AntivirusRequest $row)
+    {
+        $name = trim((string) $row->requester_name);
+        $role = trim((string) self::roleLabel('requester', $row->requester_role, $row->requester_role_other));
+        $station = trim((string) $row->station);
+        $who = $name !== '' ? $name : 'A staff member';
+        if ($role !== '' && strcasecmp($role, (string) $row->requester_role) !== 0) {
+            $who .= ', '.$role;
+        }
+        if ($station !== '') {
+            $who .= ' at '.$station;
+        }
+
+        return $who;
+    }
+
     public static function approverInviteMessage(AntivirusRequest $row, $link, $approverName = '')
     {
-        $qty = (int) $row->quantity;
-        $line = $qty.' '.($qty === 1 ? 'Anti Virus has' : 'Anti Viruses have').' been requested by '.$row->requester_name.'.';
+        $qty = max(0, (int) $row->quantity);
+        $noun = $qty === 1 ? 'Anti Virus has' : 'Anti Viruses have';
+        $who = self::requesterLine($row);
+        $dear = trim((string) $approverName) !== '' ? $approverName : 'Approver';
 
-        return $line."\n\n".$link;
+        return self::cbcMessage(
+            'Anti Virus Approval',
+            $dear,
+            $qty.' '.$noun.' been requested by *'.$who.'*.',
+            [
+                'Requested by' => $who,
+                'Number of Anti Viruses' => (string) $qty,
+            ],
+            "The link below is for your approval.\n".$link,
+            $row->reference
+        );
     }
 
     public static function approverSignedCopyMessage(AntivirusRequest $row, $approverName = '')
@@ -212,7 +240,7 @@ class AntivirusCatalog
                 'Requester' => $row->requester_name,
                 'Number of licences' => (string) $row->quantity,
             ],
-            "Open Antivirus Requests to review and sign:\n".$dashboardUrl,
+            "The link below is for your approval.\n".$dashboardUrl,
             $row->reference
         );
     }

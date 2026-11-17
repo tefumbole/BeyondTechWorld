@@ -738,6 +738,60 @@ class AntivirusRequestService
         return count($ids);
     }
 
+    /**
+     * One fresh approval link for every signer who was asked and has not signed.
+     *
+     * @return array<int, array<string, string>>
+     */
+    public function remindUnsignedSigners()
+    {
+        $context = app(CloudTenantContext::class);
+        $approvers = $context->withoutIsolation(function () {
+            return AntivirusApprover::with('requestRow')->where('status', 'pending')->get();
+        });
+        $chiefRows = $context->withoutIsolation(function () {
+            return AntivirusRequest::where('status', 'awaiting_chief')->whereNull('chief_signed_at')->get();
+        });
+
+        $sent = [];
+        foreach ($approvers as $approver) {
+            $request = $approver->requestRow;
+            if (! $request || $request->status !== 'awaiting_station') {
+                continue;
+            }
+            $this->adoptTenant($request->cloud_tenant_id);
+            $this->resendApprover($approver);
+            $sent[] = [
+                'kind' => 'approver',
+                'reference' => (string) $request->reference,
+                'name' => (string) $approver->name,
+                'phone' => (string) $approver->phone,
+            ];
+        }
+        foreach ($chiefRows as $request) {
+            try {
+                $this->adoptTenant($request->cloud_tenant_id);
+                $this->resendChief($request);
+                $settings = $this->settings();
+                $sent[] = [
+                    'kind' => 'chief',
+                    'reference' => (string) $request->reference,
+                    'name' => (string) ($settings->chief_name ?: 'Chief of Administration and Finance'),
+                    'phone' => (string) $settings->chief_phone,
+                ];
+            } catch (AntivirusRuleException $e) {
+                $sent[] = [
+                    'kind' => 'chief_skipped',
+                    'reference' => (string) $request->reference,
+                    'name' => '',
+                    'phone' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return $sent;
+    }
+
     public function resendApprover(AntivirusApprover $approver)
     {
         $request = $approver->requestRow;
