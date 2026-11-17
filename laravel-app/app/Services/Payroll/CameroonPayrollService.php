@@ -378,7 +378,14 @@ class CameroonPayrollService
         if ($general && ! empty($general->site_logo)) {
             $file = public_path('logo/'.$general->site_logo);
             if (is_file($file)) {
-                $logo = 'data:image/png;base64,'.base64_encode(file_get_contents($file));
+                $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                $mime = 'image/png';
+                if ($ext === 'jpg' || $ext === 'jpeg') {
+                    $mime = 'image/jpeg';
+                } elseif ($ext === 'gif') {
+                    $mime = 'image/gif';
+                }
+                $logo = 'data:'.$mime.';base64,'.base64_encode(file_get_contents($file));
             }
         }
 

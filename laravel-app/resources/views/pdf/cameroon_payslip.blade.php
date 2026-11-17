@@ -52,12 +52,14 @@ th, td { padding: 2px 3px; vertical-align: top; }
     @endif
 @endforeach
 @if($calc['overtime'] > 0)<tr class="line"><td>Overtime / Heures supplémentaires</td><td class="right">{{ number_format($calc['overtime']) }}</td><td></td><td></td></tr>@endif
+@if(!empty($calc['leave_pay']))<tr class="line"><td>Leave pay / Congés</td><td class="right">{{ number_format($calc['leave_pay']) }}</td><td></td><td></td></tr>@endif
 <tr class="line"><td></td><td></td><td>IRPP</td><td class="right">{{ number_format($calc['irpp']) }}</td></tr>
 <tr class="line"><td></td><td></td><td>CAC 10%</td><td class="right">{{ number_format($calc['cac']) }}</td></tr>
 <tr class="line"><td></td><td></td><td>CFC 1%</td><td class="right">{{ number_format($calc['cfc_employee']) }}</td></tr>
 <tr class="line"><td></td><td></td><td>RAV / CRTV</td><td class="right">{{ number_format($calc['rav']) }}</td></tr>
 <tr class="line"><td></td><td></td><td>TDL</td><td class="right">{{ number_format($calc['tdl']) }}</td></tr>
 @if($calc['advance'] > 0)<tr class="line"><td></td><td></td><td>Advance / Avance</td><td class="right">{{ number_format($calc['advance']) }}</td></tr>@endif
+@if(!empty($calc['other_deduction']))<tr class="line"><td></td><td></td><td>Other / Autre retenue</td><td class="right">{{ number_format($calc['other_deduction']) }}</td></tr>@endif
 <tr class="line"><td><strong>Gross / Brut</strong></td><td class="right"><strong>{{ number_format($calc['gross']) }}</strong></td><td><strong>Total deductions</strong></td><td class="right"><strong>{{ number_format($calc['total_deductions']) }}</strong></td></tr>
 </table>
 <div class="net">Net salary / Salaire net : {{ number_format($calc['net']) }} XAF</div>
@@ -72,8 +74,8 @@ Employer cost / Coût employeur {{ number_format($calc['employer_cost']) }} XAF.
 </div>
 <table style="margin-top:8px;">
 <tr>
-<td>Prepared / Établi — status {{ $run->status }}@if($run->approved_at)<br>Approved {{ $run->approved_at }}@endif</td>
-<td class="right">Verify / Vérifier<br>{{ $line->verification_code }}<br>{{ $verify }}</td>
+<td>Prepared / Établi — status {{ $run->status }}@if($run->approved_at)<br>Approved {{ $run->approved_at }}@endif<br><br>Authorized signature / Signature autorisée<br>____________________</td>
+<td class="right">@if(!empty($qr))<img src="{{ $qr }}" style="width:58px;height:58px;"><br>@endif Verify / Vérifier<br>{{ $line->verification_code }}<br>{{ $verify }}</td>
 </tr>
 </table>
 </body>

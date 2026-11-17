@@ -6,7 +6,7 @@
     @csrf
 @endif
 <table class="table table-sm">
-    <thead><tr><th>Payslip</th><th>Employee</th><th>Gross</th><th>Net</th><th>Overtime</th><th>Advance</th><th></th></tr></thead>
+    <thead><tr><th>Payslip</th><th>Employee</th><th>Gross</th><th>Net</th><th>Overtime</th><th>Leave</th><th>Advance</th><th>Other</th><th></th></tr></thead>
     <tbody>
     @foreach($lines as $line)
         @php $snap = json_decode($line->snapshot_json, true); $calc = $snap['calculation']; @endphp
@@ -15,8 +15,10 @@
             <td>{{ $snap['employee'] }}<div class="text-muted">{{ $snap['category'] }}</div></td>
             <td>{{ number_format($line->gross) }}</td>
             <td><strong>{{ number_format($line->net) }}</strong></td>
-            <td>@if(in_array($run->status, ['calculated','draft']))<input name="line[{{ $line->id }}][overtime]" value="{{ $calc['overtime'] }}" class="form-control" style="width:110px;">@else{{ number_format($calc['overtime']) }}@endif</td>
-            <td>@if(in_array($run->status, ['calculated','draft']))<input name="line[{{ $line->id }}][advance]" value="{{ $calc['advance'] }}" class="form-control" style="width:110px;">@else{{ number_format($calc['advance']) }}@endif</td>
+            <td>@if(in_array($run->status, ['calculated','draft']))<input name="line[{{ $line->id }}][overtime]" value="{{ $calc['overtime'] }}" class="form-control" style="width:90px;">@else{{ number_format($calc['overtime']) }}@endif</td>
+            <td>@if(in_array($run->status, ['calculated','draft']))<input name="line[{{ $line->id }}][leave_pay]" value="{{ isset($calc['leave_pay']) ? $calc['leave_pay'] : 0 }}" class="form-control" style="width:90px;">@else{{ number_format(isset($calc['leave_pay']) ? $calc['leave_pay'] : 0) }}@endif</td>
+            <td>@if(in_array($run->status, ['calculated','draft']))<input name="line[{{ $line->id }}][advance]" value="{{ $calc['advance'] }}" class="form-control" style="width:90px;">@else{{ number_format($calc['advance']) }}@endif</td>
+            <td>@if(in_array($run->status, ['calculated','draft']))<input name="line[{{ $line->id }}][other_deduction]" value="{{ isset($calc['other_deduction']) ? $calc['other_deduction'] : 0 }}" class="form-control" style="width:90px;">@else{{ number_format(isset($calc['other_deduction']) ? $calc['other_deduction'] : 0) }}@endif</td>
             <td><a href="{{ route('hr.payroll.payslip', $line->id) }}">A5 PDF</a></td>
         </tr>
     @endforeach

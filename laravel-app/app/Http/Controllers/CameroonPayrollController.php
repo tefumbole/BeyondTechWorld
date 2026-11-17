@@ -279,12 +279,20 @@ class CameroonPayrollController extends Controller
         if (! $this->canSeeLine($line, $run)) {
             abort(403);
         }
+        $verify = url('/payroll/verify/'.$line->verification_code);
+        $qr = '';
+        try {
+            $qr = \App\Support\OnlineInvitationQr::dataUri($verify, 140, 1);
+        } catch (\Throwable $e) {
+            $qr = '';
+        }
         $pdf = \PDF::loadView('pdf.cameroon_payslip', [
             'line' => $line,
             'run' => $run,
             'snap' => json_decode($line->snapshot_json, true),
             'company' => $this->payroll->company(),
-            'verify' => url('/payroll/verify/'.$line->verification_code),
+            'verify' => $verify,
+            'qr' => $qr,
         ])->setPaper('a5', 'portrait');
 
         return $pdf->download($line->payslip_no.'.pdf');
