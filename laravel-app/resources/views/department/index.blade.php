@@ -73,10 +73,7 @@
                 <label>{{trans('file.name')}} *</label>
                 {{Form::text('name',null,array('required' => 'required', 'class' => 'form-control', 'placeholder' => 'Type department name...'))}}
             </div>
-              <div class="form-group">
-                  <label>{{trans('file.Code')}} </label>
-                  {{Form::number('code',null,array( 'class' => 'form-control', 'placeholder' => 'Type department code...'))}}
-              </div>
+            <p class="text-muted"><small>Code is assigned automatically: 001, 002, 003…</small></p>
             <div class="form-group">
               <input type="submit" value="{{trans('file.submit')}}" class="btn btn-primary">
             </div>

@@ -26,8 +26,9 @@ class DepartmentController extends Controller
             ],
         ]);
 
-        $data = $request->all();
+        $data = $request->only('name');
         $data['is_active'] = true;
+        $data['code'] = $this->nextCode();
         Department::create($data);
         return redirect('departments')->with('message', 'Department created successfully');
     }
@@ -100,10 +101,41 @@ class DepartmentController extends Controller
 
 
             $account->name = $data['name'];
-            $account->code = $data['code'];
+            $importedCode = isset($data['code']) ? trim((string) $data['code']) : '';
+            if ($importedCode !== '') {
+                $account->code = $importedCode;
+            } elseif (trim((string) $account->code) === '') {
+                $account->code = $this->nextCode();
+            }
             $account->is_active = true;
             $account->save();
         }
         return redirect('departments')->with('message', 'Departments imported successfully');
+    }
+
+    /**
+     * Next department code, continuing 001, 002, 003 from the highest number already used.
+     */
+    protected function nextCode()
+    {
+        $used = [];
+        $max = 0;
+        foreach (Department::pluck('code') as $code) {
+            $code = trim((string) $code);
+            if ($code === '') {
+                continue;
+            }
+            $used[$code] = true;
+            if (preg_match('/^\d+$/', $code)) {
+                $max = max($max, (int) $code);
+            }
+        }
+        $next = $max + 1;
+        do {
+            $candidate = str_pad((string) $next, max(3, strlen((string) $next)), '0', STR_PAD_LEFT);
+            $next++;
+        } while (isset($used[$candidate]));
+
+        return $candidate;
     }
 }
