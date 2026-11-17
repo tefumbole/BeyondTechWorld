@@ -391,8 +391,12 @@ class PayoutController extends Controller
             }
             $count = 0;
             $noticeLines = [];
+            $requesterDigits = preg_replace('/\D/', '', $this->requesterPhone($batch));
             foreach ($batch->lines as $line) {
-                $this->sendSubmitted($line->phone, $this->systemName($line), $line->amount, $batch->note, $this->reviewUrl($batch->id), (string) $batch->requester_name);
+                $payeeDigits = preg_replace('/\D/', '', (string) $line->phone);
+                if ($requesterDigits === '' || $payeeDigits !== $requesterDigits) {
+                    $this->sendSubmitted($line->phone, $this->systemName($line), $line->amount, $batch->note, $this->reviewUrl($batch->id), (string) $batch->requester_name);
+                }
                 $noticeLines[] = ['person_name' => $this->systemName($line), 'amount' => $line->amount];
                 $count++;
             }
@@ -1013,6 +1017,10 @@ class PayoutController extends Controller
         if ($this->recentDuplicate($link->cloud_tenant_id, $requester, $note, $parts)) {
             return redirect()->route('payout.request.form', ['token' => $token])->with('message', 'This request is already waiting for approval.');
         }
+        $lockKey = 'payout-request:'.md5((string) $link->cloud_tenant_id.'|'.$this->requestKey($requester, $note, $parts));
+        if (! \Illuminate\Support\Facades\Cache::add($lockKey, 1, now()->addMinutes(2))) {
+            return redirect()->route('payout.request.form', ['token' => $token])->with('message', 'This request is already waiting for approval.');
+        }
 
         $batch = new CampayPayoutRequest();
         $batch->cloud_tenant_id = $link->cloud_tenant_id;
@@ -1040,7 +1048,12 @@ class PayoutController extends Controller
         }
 
         $reviewUrl = $this->reviewUrl($batch->id);
+        $requesterDigits = preg_replace('/\D/', '', (string) $requesterPhone);
         foreach ($lines as $line) {
+            $payeeDigits = preg_replace('/\D/', '', (string) $line['phone']);
+            if ($requesterDigits !== '' && $payeeDigits === $requesterDigits) {
+                continue;
+            }
             $this->sendSubmitted($line['phone'], $line['person_name'], $line['amount'], $batch->note, $reviewUrl, $requester);
         }
         $this->tellRequesterSubmitted($requesterPhone, $requester, $batch->note, $lines, $reviewUrl);
