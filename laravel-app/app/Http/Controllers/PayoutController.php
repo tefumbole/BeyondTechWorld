@@ -396,7 +396,7 @@ class PayoutController extends Controller
                 $noticeLines[] = ['person_name' => $this->systemName($line), 'amount' => $line->amount];
                 $count++;
             }
-            $this->tellRequesterSubmitted($this->requesterPhone($batch), (string) $batch->requester_name, $batch->note, $noticeLines);
+            $this->tellRequesterSubmitted($this->requesterPhone($batch), (string) $batch->requester_name, $batch->note, $noticeLines, $this->reviewUrl($batch->id));
 
             return redirect()->route('payout.index')->with('message', 'Resent to '.$count.' '.($count === 1 ? 'person' : 'people').'.');
         }
@@ -1043,7 +1043,7 @@ class PayoutController extends Controller
         foreach ($lines as $line) {
             $this->sendSubmitted($line['phone'], $line['person_name'], $line['amount'], $batch->note, $reviewUrl, $requester);
         }
-        $this->tellRequesterSubmitted($requesterPhone, $requester, $batch->note, $lines);
+        $this->tellRequesterSubmitted($requesterPhone, $requester, $batch->note, $lines, $reviewUrl);
 
         return redirect()->route('payout.request.form', ['token' => $token])->with('message', 'Sent. The payment is waiting for approval.');
     }
@@ -1185,7 +1185,7 @@ class PayoutController extends Controller
         }
     }
 
-    protected function tellRequesterSubmitted($phone, $name, $reason, array $lines)
+    protected function tellRequesterSubmitted($phone, $name, $reason, array $lines, $url = '')
     {
         $phone = preg_replace('/\D/', '', (string) $phone);
         if ($phone === '' || count($lines) < 1) {
@@ -1195,10 +1195,10 @@ class PayoutController extends Controller
         if ($name === '' || strcasecmp($name, 'Payout') === 0) {
             $name = 'Requestor';
         }
-        app(\App\Services\ClientNoticeService::class)->send($phone, $this->requesterSubmittedText($name, $reason, $lines), false);
+        app(\App\Services\ClientNoticeService::class)->send($phone, $this->requesterSubmittedText($name, $reason, $lines, $url), false);
     }
 
-    protected function requesterSubmittedText($name, $reason, array $lines)
+    protected function requesterSubmittedText($name, $reason, array $lines, $url = '')
     {
         $msg = \App\Support\WhatsAppMessage::statusBlock('📨', 'Request received');
         $msg .= 'Dear *'.$name.'*,'."\n\n";
@@ -1214,6 +1214,7 @@ class PayoutController extends Controller
         if ($reason !== '') {
             $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Note', $reason);
         }
+        $msg .= $this->requestOpenLink($url);
         $msg .= \App\Support\WhatsAppMessage::footer();
 
         return $msg;
@@ -1237,10 +1238,10 @@ class PayoutController extends Controller
         if ($name === '' || strcasecmp($name, 'Payout') === 0) {
             $name = 'Requestor';
         }
-        app(\App\Services\ClientNoticeService::class)->send($phone, $this->requesterPaidText($name, $this->systemName($line), $line->amount, $line->note), false);
+        app(\App\Services\ClientNoticeService::class)->send($phone, $this->requesterPaidText($name, $this->systemName($line), $line->amount, $line->note, $this->reviewUrl($batch->id)), false);
     }
 
-    protected function requesterPaidText($name, $paidTo, $amount, $reason)
+    protected function requesterPaidText($name, $paidTo, $amount, $reason, $url = '')
     {
         $msg = \App\Support\WhatsAppMessage::statusBlock('✅', 'Payment made');
         $msg .= 'Dear *'.$name.'*,'."\n\n";
@@ -1251,6 +1252,7 @@ class PayoutController extends Controller
         if ($reason !== '' && strcasecmp($reason, 'Payout') !== 0) {
             $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Note', $reason);
         }
+        $msg .= $this->requestOpenLink($url);
         $msg .= \App\Support\WhatsAppMessage::footer();
 
         return $msg;
@@ -1279,7 +1281,7 @@ class PayoutController extends Controller
         }
         $sent = 0;
         foreach ($phones as $phone => $name) {
-            if ($this->sendRejected($phone, $name, $reason, (string) $batch->note) !== 'none') {
+            if ($this->sendRejected($phone, $name, $reason, (string) $batch->note, $this->reviewUrl($batch->id)) !== 'none') {
                 $sent++;
             }
         }
@@ -1320,15 +1322,15 @@ class PayoutController extends Controller
         return '';
     }
 
-    protected function sendRejected($phone, $name, $reason, $note)
+    protected function sendRejected($phone, $name, $reason, $note, $url = '')
     {
         $reason = trim((string) $reason);
         $note = trim((string) $note);
 
-        return app(\App\Services\ClientNoticeService::class)->send($phone, $this->rejectedText($name, $reason, $note), false);
+        return app(\App\Services\ClientNoticeService::class)->send($phone, $this->rejectedText($name, $reason, $note, $url), false);
     }
 
-    protected function rejectedText($name, $reason, $note)
+    protected function rejectedText($name, $reason, $note, $url = '')
     {
         $msg = \App\Support\WhatsAppMessage::statusBlock('❌', 'Request Rejected');
         $msg .= 'Dear *'.$name.'*,'."\n\n";
@@ -1338,9 +1340,20 @@ class PayoutController extends Controller
         if ($note !== '') {
             $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Request', $note);
         }
+        $msg .= $this->requestOpenLink($url);
         $msg .= \App\Support\WhatsAppMessage::footer();
 
         return $msg;
+    }
+
+    protected function requestOpenLink($url)
+    {
+        $url = trim((string) $url);
+        if ($url === '') {
+            return '';
+        }
+
+        return \App\Support\WhatsAppMessage::actionLink('Open request', $url);
     }
 
     protected function requesterName(CampayPayout $line)
