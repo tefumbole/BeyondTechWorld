@@ -32,8 +32,8 @@
                 @endphp
                 <tr data-id="{{$attendance->id}}">
                     <td>{{$key}}</td>
-                    <td>{{ date($general_setting->date_format, strtotime($attendance->date)) }}</td>
-                    <td>{{ $employee->name }}</td>
+                    <td>{{ date(($general_setting && $general_setting->date_format) ? $general_setting->date_format : 'd-m-Y', strtotime((string) $attendance->date)) }}</td>
+                    <td>{{ $employee ? $employee->name : '—' }}</td>
                     <td>{{ $attendance->checkin }}</td>
                     <td>{{ $attendance->checkout }}</td>
                     @if($attendance->status)
@@ -41,7 +41,7 @@
                     @else()
                         <td><div class="badge badge-danger">{{trans('file.Late')}}</div></td>
                     @endif
-                    <td>{{$user->name}}</td>
+                    <td>{{ $user ? $user->name : '—' }}</td>
                     <td>
                         <div class="btn-group">
                             {{ Form::open(['route' => ['attendance.destroy', $attendance->id], 'method' => 'DELETE'] ) }}
