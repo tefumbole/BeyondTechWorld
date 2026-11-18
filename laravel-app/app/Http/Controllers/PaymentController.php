@@ -20,60 +20,169 @@ use Illuminate\Support\Facades\Schema;
 
 class PaymentController extends Controller
 {
-    public function momoPayments()
+    public function momoPayments(Request $request)
+    {
+        $ledger = $this->momoLedger();
+        $kind = (string) $request->input('kind');
+        if ($kind !== 'deposit' && $kind !== 'withdrawal') {
+            $kind = '';
+        }
+        $search = trim((string) $request->input('q'));
+        $rows = $ledger;
+        if ($kind !== '') {
+            $rows = $rows->where('kind_key', $kind)->values();
+        }
+        if ($search !== '') {
+            $needle = function_exists('mb_strtolower') ? mb_strtolower($search) : strtolower($search);
+            $rows = $rows->filter(function ($row) use ($needle) {
+                $hay = $row['person'].' '.$row['phone'].' '.$row['reference'].' '.$row['note'].' '.$row['kind'];
+                $hay = function_exists('mb_strtolower') ? mb_strtolower($hay) : strtolower($hay);
+
+                return strpos($hay, $needle) !== false;
+            })->values();
+        }
+        $paidIn = 0;
+        $paidOut = 0;
+        $depositCount = 0;
+        $withdrawalCount = 0;
+        foreach ($ledger as $row) {
+            if ($row['kind_key'] === 'deposit') {
+                $depositCount++;
+            } else {
+                $withdrawalCount++;
+            }
+            if ($row['status'] !== 'Paid') {
+                continue;
+            }
+            if ($row['kind_key'] === 'deposit') {
+                $paidIn += $row['amount'];
+            } else {
+                $paidOut += $row['amount'];
+            }
+        }
+
+        return view('payment.momo', compact('rows', 'kind', 'search', 'paidIn', 'paidOut', 'depositCount', 'withdrawalCount'));
+    }
+
+    protected function momoLedger()
     {
         $rows = collect();
         $seen = [];
-        foreach ($this->campayDeposits()->with('customer')->orderByDesc('id')->get() as $deposit) {
+        foreach ($this->campayDeposits()->with(['customer', 'user'])->orderByDesc('id')->get() as $deposit) {
             $ref = trim((string) $deposit->campay_reference);
             if ($ref !== '') {
                 $seen[$ref] = true;
             }
             $paid = (int) $deposit->status === 1;
             $waiting = (int) $deposit->status === 0;
-            $rows->push([
-                'at' => $deposit->created_at,
-                'kind' => 'Deposit',
-                'person' => optional($deposit->customer)->name ?: '—',
-                'amount' => (int) round((float) $deposit->amount),
-                'status' => $paid ? 'Paid' : ($waiting ? 'Pending' : 'Not paid'),
-                'tone' => $paid ? 'ok' : ($waiting ? 'wait' : 'no'),
-                'note' => (string) $deposit->note,
-            ]);
+            $rows->push($this->momoRow(
+                $deposit->created_at,
+                'deposit',
+                optional($deposit->customer)->name ?: '—',
+                optional($deposit->customer)->phone_number,
+                (int) round((float) $deposit->amount),
+                $paid ? 'Paid' : ($waiting ? 'Pending' : 'Not paid'),
+                $paid ? 'ok' : ($waiting ? 'wait' : 'no'),
+                $ref !== '' ? $ref : (string) $deposit->id,
+                trim((string) $deposit->note)
+            ));
         }
         foreach ($this->paidCampayDonations() as $donation) {
             $ref = trim((string) $donation->campay_reference);
             if ($ref !== '' && isset($seen[$ref])) {
                 continue;
             }
-            $rows->push([
-                'at' => $donation->created_at,
-                'kind' => 'Deposit',
-                'person' => trim((string) $donation->person_name) !== '' ? $donation->person_name : '—',
-                'amount' => (int) round((float) $donation->amount),
-                'status' => 'Paid',
-                'tone' => 'ok',
-                'note' => (string) $donation->note,
-            ]);
+            if ($ref !== '') {
+                $seen[$ref] = true;
+            }
+            $rows->push($this->momoRow(
+                $donation->created_at,
+                'deposit',
+                trim((string) $donation->person_name) !== '' ? $donation->person_name : '—',
+                $donation->phone,
+                (int) round((float) $donation->amount),
+                'Paid',
+                'ok',
+                $ref,
+                trim((string) $donation->note)
+            ));
+        }
+        if (Schema::hasTable('payments')) {
+            $payments = \App\Payment::query()
+                ->whereIn('paying_method', ['MOMO/OM', 'Momo/Orange', 'Mobile Money'])
+                ->orderByDesc('id')
+                ->get();
+            $sales = Sale::with('customer')->whereIn('id', $payments->pluck('sale_id')->filter()->unique()->all())->get()->keyBy('id');
+            $hasProvider = Schema::hasColumn('payments', 'provider_reference');
+            foreach ($payments as $payment) {
+                $ref = $hasProvider ? trim((string) $payment->provider_reference) : '';
+                if ($ref === '' && preg_match('/Campay\s+(\S+)/', (string) $payment->payment_note, $match)) {
+                    $ref = $match[1];
+                }
+                if ($ref !== '' && isset($seen[$ref])) {
+                    continue;
+                }
+                if ($ref !== '') {
+                    $seen[$ref] = true;
+                }
+                $sale = $sales->get($payment->sale_id);
+                $note = $sale ? 'Sale '.$sale->reference_no : 'Sale payment';
+                $rows->push($this->momoRow(
+                    $payment->created_at,
+                    'deposit',
+                    $sale && $sale->customer ? $sale->customer->name : '—',
+                    $sale && $sale->customer ? $sale->customer->phone_number : '',
+                    (int) round((float) $payment->amount),
+                    'Paid',
+                    'ok',
+                    $ref !== '' ? $ref : (string) $payment->payment_reference,
+                    $note
+                ));
+            }
         }
         foreach (CampayPayout::orderByDesc('id')->get() as $payout) {
             $paid = $payout->status === 'paid';
             $waiting = $payout->status === 'pending';
-            $rows->push([
-                'at' => $payout->created_at,
-                'kind' => 'Withdrawal',
-                'person' => $payout->person_name ?: '—',
-                'amount' => (int) $payout->amount,
-                'status' => $paid ? 'Paid' : ($waiting ? 'Pending' : 'Not paid'),
-                'tone' => $paid ? 'ok' : ($waiting ? 'wait' : 'no'),
-                'note' => (string) $payout->note,
-            ]);
+            $ref = trim((string) $payout->campay_reference);
+            if ($ref === '') {
+                $ref = trim((string) $payout->external_reference);
+            }
+            $note = trim((string) $payout->note);
+            if (trim((string) $payout->operator) !== '') {
+                $note = trim($note.' '.$payout->operator);
+            }
+            $rows->push($this->momoRow(
+                $payout->created_at,
+                'withdrawal',
+                $payout->person_name ?: ($payout->momo_name ?: '—'),
+                $payout->phone,
+                (int) $payout->amount,
+                $paid ? 'Paid' : ($waiting ? 'Pending' : 'Not paid'),
+                $paid ? 'ok' : ($waiting ? 'wait' : 'no'),
+                $ref,
+                $note
+            ));
         }
-        $rows = $rows->sortByDesc(function ($row) {
+
+        return $rows->sortByDesc(function ($row) {
             return $row['at'] ? $row['at']->timestamp : 0;
         })->values();
+    }
 
-        return view('payment.momo', compact('rows'));
+    protected function momoRow($at, $kindKey, $person, $phone, $amount, $status, $tone, $reference, $note)
+    {
+        return [
+            'at' => $at,
+            'kind_key' => $kindKey,
+            'kind' => $kindKey === 'withdrawal' ? 'Withdrawal' : 'Deposit',
+            'person' => $person ?: '—',
+            'phone' => trim((string) $phone) !== '' ? $phone : '—',
+            'amount' => (int) $amount,
+            'status' => $status,
+            'tone' => $tone,
+            'reference' => trim((string) $reference) !== '' ? $reference : '—',
+            'note' => $note !== '' ? $note : '—',
+        ];
     }
 
     public function index()
