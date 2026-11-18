@@ -71,6 +71,27 @@
             line-height: 1em;
         }
         body.beyond-pos-active .pos-section .btn-default .dripicons-plus:before { font-size: 16px; }
+        body.beyond-pos-active .payment-options {
+            left: 230px;
+            right: 0;
+            width: auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px 12px 10px;
+            box-sizing: border-box;
+        }
+        body.beyond-pos-active .payment-options .column-5 {
+            float: none;
+            min-width: 0;
+            flex: 1 1 140px;
+            margin: 0;
+            padding: 0;
+        }
+        body.beyond-pos-active .payment-options .btn-custom { width: 100%; }
+        @media (max-width: 1199.98px) {
+            body.beyond-pos-active .payment-options { left: 0; }
+        }
     </style>
     <script>document.body.classList.add('beyond-pos-active');</script>
     @if(false)
@@ -1447,22 +1468,10 @@
                                         {{--                            <button style="background: #0984e3" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="credit-card-btn"><i class="fa fa-credit-card"></i> Card</button>--}}
                                         {{--                        </div>--}}
                                         <div class="column-5">
-                                            <button style="background-color: #213170" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="pay-later-btn"><i class="fa fa-paypal"></i> Send to Payment</button>
+                                            <button style="background-color: #213170" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="pay-later-btn"><i class="fa fa-paper-plane"></i> Send to payment</button>
                                         </div>
-
-                                            @if(in_array("JE-method", $all_permission))
-                                                <div class="column-5">
-                                                    <button style="background: #0984e3" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="credit-card-btn"><i class="fa fa-credit-card"></i> JE </button>
-                                                </div>
-                                            @endif
                                             <div class="column-5">
                                                 <button style="background-color: #00cec9" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="cash-btn"><i class="fa fa-money"></i> Cash</button>
-                                            </div>
-                                            <div class="column-5">
-                                                <button style="background-color: #5f27cd" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="credit-btn"><i class="fa fa-credit-card-alt"></i> Credit</button>
-                                            </div>
-                                            <div class="column-5">
-                                                <button style="background-color: #45cd27" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="group-credit-btn"><i class="fa fa-credit-card-alt"></i> Group Credit</button>
                                             </div>
                                             <div class="column-5">
                                                 <button style="background-color: #da7828" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="momo-btn"><i class="fa fa-money"></i> MOMO/OM</button>
@@ -1506,6 +1515,7 @@
                                             <input type="tel" name="momo_phone" id="momo_phone" class="form-control momo-payer" autocomplete="off" placeholder="6xxxxxxxx">
                                             <p id="momo_holder" class="pay-sheet-holder"></p>
                                             <div class="pay-sheet-grid">
+                                                <button type="button" class="pay-choice" data-paid-by="9"><strong>Send to payment</strong><small>Leave the bill due</small></button>
                                                 <button type="button" class="pay-choice" data-paid-by="1"><strong>Cash</strong><small>Submit</small></button>
                                                 <button type="button" class="pay-choice" data-paid-by="8"><strong>MoMo / OM</strong><small>Wait for the phone</small></button>
                                                 <button type="button" class="pay-choice" data-fill="full"><strong>Full amount</strong><small>Pay everything due</small></button>
@@ -1546,12 +1556,7 @@
                                                             <select name="paid_by_id_select" class="form-control selectpicker">
                                                                 <option value="1">Cash</option>
                                                                 <option value="8">MOMO/OM</option>
-                                                                <option value="9">Send to Payment</option>
-                                                                <option value="10">Credit</option>
-                                                                <option value="11">Group Credit</option>
-                                                                @if(in_array("JE-method", $all_permission))
-                                                                    <option value="3">JE</option>
-                                                                @endif
+                                                                <option value="9">Send to payment</option>
                                                                 <option value="6">Deposit</option>
                                                             </select>
                                                         </div>
@@ -3533,10 +3538,10 @@
             $('#pos-sheet-ref').text($('input[name="reference_no"]').val() || '');
             $('#pos-sheet-due').text(due.toLocaleString() + ' XAF');
             $('#pos-sheet-left').text('Left after this payment: ' + Math.max(0, due - paid).toLocaleString() + ' XAF');
-            var momo = String($('select[name="paid_by_id_select"]').val()) === '8';
+            var paidBy = String($('select[name="paid_by_id_select"]').val());
             $('#pos-sheet-hint').text($('#pos-pay-mode').val() === 'split'
                 ? 'Each number pays its own amount.'
-                : (momo ? 'This waits for the phone to approve.' : 'This records the cash payment.'));
+                : (paidBy === '8' ? 'This waits for the phone to approve.' : (paidBy === '9' ? 'This sends the bill to payment and leaves it due.' : 'This records the cash payment.')));
         }
         function posSplitRow(phone, amount) {
             var row = $('<tr>');
@@ -3579,6 +3584,11 @@
                     picker.selectpicker('refresh');
                 }
                 picker.trigger('change');
+                if (by === '9') {
+                    $('input[name="paid_amount"]').val(0).prop('readonly', true);
+                } else {
+                    $('input[name="paid_amount"]').prop('readonly', false);
+                }
                 $('#add-payment .pay-choice[data-paid-by]').removeClass('is-on');
                 $(this).addClass('is-on');
                 paintPosDue();

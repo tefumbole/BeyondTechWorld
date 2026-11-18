@@ -463,6 +463,9 @@ class SaleController extends Controller
 
         $posSplit = [];
         if($data['pos']) {
+            if (in_array((int) $data['paid_by_id'], [3, 10, 11], true)) {
+                return back()->with('not_permitted', 'Use Cash, MoMo, Deposit, or Send to payment.');
+            }
             if(!isset($data['reference_no']))
                 $data['reference_no'] = 'posr-' . date("Ymd") . '-'. date("his");
 

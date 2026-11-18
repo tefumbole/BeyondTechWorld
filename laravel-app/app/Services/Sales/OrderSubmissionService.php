@@ -28,10 +28,7 @@ class OrderSubmissionService
 
     public function keyFrom(Request $request)
     {
-        $open = $this->blockingKey((int) Auth::id());
-        if ($open) {
-            return $open;
-        }
+        $this->forgetStalePending((int) Auth::id());
         $key = trim((string) $request->input('checkout_key'));
         if ($this->validKey($key)) {
             return $key;
@@ -85,6 +82,15 @@ class OrderSubmissionService
         $key = $this->keyFrom($request);
         $hash = $this->hashPos($data);
         $existing = $this->find($key);
+        if ($existing && ! hash_equals((string) $existing->payload_hash, (string) $hash)) {
+            if (! $this->momoInFlight($existing)) {
+                $existing->delete();
+            }
+            session()->forget('pos.checkout.'.(int) Auth::id());
+            $key = 'pos-'.bin2hex(random_bytes(16));
+            session(['pos.checkout.'.(int) Auth::id() => $key]);
+            $existing = null;
+        }
         if ($existing) {
             return ['response' => $this->replay($request, $existing, $hash), 'submission' => null, 'key' => $key];
         }
@@ -194,25 +200,21 @@ class OrderSubmissionService
             || strpos($message, 'Duplicate') !== false;
     }
 
-    protected function blockingKey($userId)
+    protected function forgetStalePending($userId)
     {
         if ($userId < 1 || ! Schema::hasTable('order_submissions')) {
-            return null;
+            return;
         }
-        $row = OrderSubmission::where('cloud_tenant_id', $this->tenantId())
+        OrderSubmission::where('cloud_tenant_id', $this->tenantId())
             ->where('user_id', $userId)
-            ->whereIn('status', ['pending', 'linked'])
-            ->orderByDesc('id')
-            ->first();
-        if (! $row) {
-            return null;
-        }
-        if ($row->status === 'pending' && ! $row->sale_id && $row->created_at && $row->created_at->lt(now()->subMinutes(2))) {
-            $row->delete();
+            ->where('status', 'pending')
+            ->whereNull('sale_id')
+            ->where('created_at', '<', now()->subMinutes(2))
+            ->delete();
+    }
 
-            return null;
-        }
-
-        return $row->idempotency_key;
+    protected function momoInFlight(OrderSubmission $existing)
+    {
+        return $existing->sale_id && Cache::get('pos_momo:'.$existing->sale_id);
     }
 }
