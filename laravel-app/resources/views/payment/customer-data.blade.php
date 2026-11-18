@@ -18,11 +18,28 @@
         @include('payout.partials.style')
         <style>
             .pay-app .dataTables_wrapper { padding: 8px 12px 16px; }
-            .pay-app table.dataTable thead th { background: #f8fafc; color: #6f7b91; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
             .pay-app .pay-toolbar { justify-content: flex-start; }
             .await-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+            .await-table { border-collapse: separate; border-spacing: 0; }
+            .await-table thead th,
+            .pay-app .dataTables_scrollHead thead th {
+                position: sticky;
+                top: 0;
+                z-index: 2;
+                background: #0b3f90 !important;
+                color: #fff !important;
+                white-space: nowrap;
+            }
+            .await-table td { vertical-align: middle; }
+            .await-table .await-when { white-space: nowrap; min-width: 168px; }
+            .await-table tbody tr:nth-child(odd) td { background: #fff; }
+            .await-table tbody tr:nth-child(even) td { background: #f3f6fb; }
+            .await-table tbody tr.clickable-row { cursor: pointer; }
+            .await-table tbody tr.clickable-row:hover td { background: #e8eef8; }
+            .await-pay { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+            .dataTables_scrollBody .await-table thead { visibility: collapse; }
             @media (max-width: 700px) {
-                .pay-app .sale-list { min-width: 680px; }
+                .pay-app .sale-list { min-width: 760px; }
             }
         </style>
 
@@ -38,43 +55,39 @@
         <div class="pay-card">
         <div class="pay-card-head"><h2>Awaiting Payment</h2></div>
         <div class="table-responsive">
-            <table id="biller-table" class="table sale-list">
+            <table id="biller-table" class="table sale-list await-table">
                 <thead>
                 <tr>
                     <th class="not-exported"></th>
                     <th>{{trans('file.Customer Name')}}</th>
-                    <th>Unique ID</th>
-                    <th>Order Id</th>
                     <th>{{trans('file.Phone Number')}}</th>
                     <th>{{trans('file.Amount')}}</th>
                     <th>{{trans('file.Paid Amount')}}</th>
                     <th>{{trans('file.Due')}}</th>
                     <th>{{trans('file.Payment Status')}}</th>
                     <th>{{trans('file.Date')}}</th>
-                    <th>{{trans('file.Add Payment')}}</th>
+                    <th class="not-exported"></th>
                 </tr>
                 </thead>
                 <tbody>
                 @foreach($sales as $key=>$sale)
-                    <tr data-id="{{$sale->id}}">
+                    @php $dueNow = (int) round(max(0, (float) $sale->grand_total - (float) $sale->paid_amount)); @endphp
+                    <tr class="clickable-row" data-id="{{$sale->id}}" data-href="{{ route('sale.invoice', $sale->id) }}">
                         <td>{{$key}}</td>
                         <td>{{ optional($sale->customer)->name }}</td>
-                        <td>{{ optional($sale->customer)->unique_id }}</td>
-                        <td>{{ $sale->reference_no }}</td>
                         <td>{{ optional($sale->customer)->phone_number }}</td>
                         <td>{{ number_format($sale->grand_total, 2) }}</td>
-                        <td>{{ number_format($sale->paid_amount, 2) ?? 0 }}</td>
+                        <td>{{ number_format((float) $sale->paid_amount, 2) }}</td>
                         <td>{{ number_format($sale->grand_total - $sale->paid_amount, 2) }}</td>
-                        <td><span class="pay-pill pay-pill-wait">{{ (int) $sale->payment_status === 3 ? 'Partial' : ((int) $sale->payment_status === 1 ? 'Pending' : 'Due') }}</span></td>
-                        <td>{{ $sale->created_at }}</td>
+                        <td><span class="pay-pill {{ (int) $sale->payment_status === 3 ? 'pay-pill-wait' : 'pay-pill-no' }}">{{ (int) $sale->payment_status === 3 ? 'Partial' : ((int) $sale->payment_status === 1 ? 'Pending' : 'Due') }}</span></td>
+                        <td class="await-when" data-order="{{ $sale->created_at ? $sale->created_at->timestamp : 0 }}">{{ $sale->created_at ? $sale->created_at->format('d M Y H:i') : '' }}</td>
                         <td>
-                            @php $dueNow = (int) round(max(0, (float) $sale->grand_total - (float) $sale->paid_amount)); @endphp
-                            @if($dueNow >= 100)
-                                <button type="button" class="request-payment btn btn-sm btn-primary" data-id="{{ $sale->id }}" data-due="{{ $dueNow }}" data-name="{{ optional($sale->customer)->name }}" data-ref="{{ $sale->reference_no }}"><i class="fa fa-whatsapp"></i> Request payment</button>
-                            @endif
-                            <button type="button" class="add-payment btn btn-sm btn-success" data-id="{{ $sale->id }}" data-name="{{ optional($sale->customer)->name }}" data-phone="{{ optional($sale->customer)->phone_number }}" data-ref="{{ $sale->reference_no }}" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i>{{ trans('file.Add Payment') }}</button>
-                            <button type="button" class="get-payment btn btn-info btn-sm" data-id = "{{ $sale->id }}"><i class="fa fa-money"></i>{{ trans('file.View') }}</button>
-                            <a class="get-payment btn btn-warning btn-sm" href="{{ route('sales.edit',$sale->id ) }}"><i class="fa fa-pencil"></i> Edit Sale</a>
+                            <div class="await-pay">
+                                @if($dueNow >= 100)
+                                    <button type="button" class="request-payment btn btn-sm btn-primary" data-id="{{ $sale->id }}" data-due="{{ $dueNow }}" data-name="{{ optional($sale->customer)->name }}" data-ref="{{ $sale->reference_no }}"><i class="fa fa-whatsapp"></i> Request payment</button>
+                                @endif
+                                <button type="button" class="add-payment btn btn-sm btn-success" data-id="{{ $sale->id }}" data-due="{{ $dueNow }}" data-name="{{ optional($sale->customer)->name }}" data-phone="{{ optional($sale->customer)->phone_number }}" data-ref="{{ $sale->reference_no }}" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i>{{ trans('file.Add Payment') }}</button>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -147,17 +160,27 @@
             }
         });
 
-        $(document).on("click", "table.sale-list tbody .add-payment", function() {
+        $(document).on("click", "table.sale-list tbody .add-payment", function(event) {
+            event.stopPropagation();
             $('select[name="paid_by_id"]').val(1);
-            $('.selectpicker').selectpicker('refresh');
-            rowindex = $(this).closest('tr').index();
+            if ($.fn.selectpicker) {
+                $('.selectpicker').selectpicker('refresh');
+            }
             var sale_id = $(this).data('id').toString();
-            var balance = $('table.sale-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(8)').text();
-            balance = parseFloat(balance.replace(/,/g, ''));
+            var balance = parseFloat($(this).data('due')) || 0;
             $('input[name="paying_amount"]').val(balance);
             $('#add-payment input[name="balance"]').val(balance);
             $('input[name="amount"]').val(balance);
             $('input[name="sale_id"]').val(sale_id);
+        });
+        $(document).on('click', '#biller-table tbody .request-payment', function (event) {
+            event.stopPropagation();
+        });
+        $(document).on('click', '#biller-table tbody tr.clickable-row td:not(:first-child):not(:last-child)', function () {
+            var href = $(this).closest('tr').data('href');
+            if (href) {
+                window.location = href;
+            }
         });
 
         $('input[name="paying_amount"]').on("input", function() {
@@ -231,7 +254,9 @@
         var awaitingTable = $('#biller-table').DataTable( {
             "order": [],
             "deferRender": true,
-            "pageLength": 10,
+            "pageLength": 25,
+            scrollY: 'calc(100vh - 340px)',
+            scrollCollapse: true,
             'language': {
                 'lengthMenu': '_MENU_ {{trans("file.records per page")}}',
                 "info":      '<small>{{trans("file.Showing")}} _START_ - _END_ (_TOTAL_)</small>',
@@ -244,7 +269,7 @@
             'columnDefs': [
                 {
                     "orderable": false,
-                    'targets': [0, 1, 3]
+                    'targets': [0, 8]
                 },
                 {
                     'render': function(data, type, row, meta){
