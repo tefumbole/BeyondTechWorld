@@ -36,8 +36,8 @@
             @endif
             <td style="border: 1px solid #000; padding: 5px">{{$qty[$key]}}</td>
             <td style="border: 1px solid #000; padding: 5px">{{$start[$key]}} - {{$end[$key]}}</td>
-            <td style="border: 1px solid #000; padding: 5px">{{number_format((float)($total[$key] / $qty[$key]), 2)}}</td>
-            <td style="border: 1px solid #000; padding: 5px">{{number_format($total[$key], 2)}}</td>
+            <td style="border: 1px solid #000; padding: 5px">{{number_format((float)($total[$key] / $qty[$key]), 0)}}</td>
+            <td style="border: 1px solid #000; padding: 5px">{{number_format($total[$key], 0)}}</td>
         </tr>
     @endforeach
     <tr>
@@ -67,18 +67,18 @@
     </tr>
     <tr>
         <td colspan="6" style="border: 1px solid #000; padding: 5px"><strong>Grand Total</strong></td>
-        <td style="border: 1px solid #000; padding: 5px">{{number_format($grand_total, 2)}}</td>
+        <td style="border: 1px solid #000; padding: 5px">{{number_format($grand_total, 0)}}</td>
     </tr>
     <tr>
         <td colspan="6" style="border: 1px solid #000; padding: 5px"><strong>Paid Amount</strong></td>
         <td style="border: 1px solid #000; padding: 5px">
-            @if($paid_amount){{number_format($paid_amount, 2)}}
+            @if($paid_amount){{number_format($paid_amount, 0)}}
             @else 0 @endif
         </td>
     </tr>
     <tr>
         <td colspan="6" style="border: 1px solid #000; padding: 5px"><strong>Due</strong></td>
-        <td style="border: 1px solid #000; padding: 5px">{{number_format((float)($grand_total - $paid_amount), 2)}}</td>
+        <td style="border: 1px solid #000; padding: 5px">{{number_format((float)($grand_total - $paid_amount), 0)}}</td>
     </tr>
     </tbody>
 </table>

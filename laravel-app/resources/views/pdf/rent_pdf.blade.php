@@ -117,8 +117,8 @@
                 <span class="inv-sub"><strong>Return:</strong> {{ $product_sale_data->end ? date('d-m-Y H:i', strtotime($product_sale_data->end)) : '—' }}</span>
             </td>
             <td class="inv-qty">{{ $product_sale_data->qty + 0 }}</td>
-            <td class="inv-money">{{ number_format((float) $product_sale_data->net_unit_price, 2) }}</td>
-            <td class="inv-money">{{ number_format((float) $product_sale_data->net_unit_price * $product_sale_data->qty, 2) }}</td>
+            <td class="inv-money">{{ number_format((float) $product_sale_data->net_unit_price, 0) }}</td>
+            <td class="inv-money">{{ number_format((float) $product_sale_data->net_unit_price * $product_sale_data->qty, 0) }}</td>
         </tr>
     @endforeach
     </tbody>
@@ -143,43 +143,43 @@
             <table class="inv-totals">
                 <tr>
                     <th>{{ trans('file.Total') }}</th>
-                    <td>{{ number_format((float) $lims_sale_data->total_price, 2) }}</td>
+                    <td>{{ number_format((float) $lims_sale_data->total_price, 0) }}</td>
                 </tr>
                 @if($orderTax > 0)
                     <tr>
                         <th>{{ trans('file.Order Tax') }}</th>
-                        <td>{{ number_format($orderTax, 2) }}</td>
+                        <td>{{ number_format($orderTax, 0) }}</td>
                     </tr>
                 @endif
                 @if($orderDiscount > 0)
                     <tr>
                         <th>{{ trans('file.Order Discount') }}</th>
-                        <td>{{ number_format($orderDiscount, 2) }}</td>
+                        <td>{{ number_format($orderDiscount, 0) }}</td>
                     </tr>
                 @endif
                 @if($couponDiscount > 0)
                     <tr>
                         <th>{{ trans('file.Coupon Discount') }}</th>
-                        <td>{{ number_format($couponDiscount, 2) }}</td>
+                        <td>{{ number_format($couponDiscount, 0) }}</td>
                     </tr>
                 @endif
                 @if($shippingCost > 0)
                     <tr>
                         <th>{{ trans('file.Shipping Cost') }}</th>
-                        <td>{{ number_format($shippingCost, 2) }}</td>
+                        <td>{{ number_format($shippingCost, 0) }}</td>
                     </tr>
                 @endif
                 <tr class="inv-grand">
                     <th>{{ trans('file.grand total') }}</th>
-                    <td>{{ number_format((float) $lims_sale_data->grand_total, 2) }}</td>
+                    <td>{{ number_format((float) $lims_sale_data->grand_total, 0) }}</td>
                 </tr>
                 <tr>
                     <th>Amount Paid</th>
-                    <td>{{ number_format($paidAmount, 2) }}</td>
+                    <td>{{ number_format($paidAmount, 0) }}</td>
                 </tr>
                 <tr>
                     <th>Amount Pending</th>
-                    <td>{{ number_format($dueAmount, 2) }}</td>
+                    <td>{{ number_format($dueAmount, 0) }}</td>
                 </tr>
                 <tr>
                     <th>{{ trans('file.Payment Status') }}</th>

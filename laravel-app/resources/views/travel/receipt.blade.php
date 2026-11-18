@@ -113,12 +113,12 @@
                 <td>1</td>
                 <td>{{ $parcel->description }}<br>{{ $origin }} to {{ $destination }}@if($parcel->expected_on) · expected {{ \Carbon\Carbon::parse($parcel->expected_on)->format('d-m-Y') }}@endif</td>
                 <td class="qty">{{ $packages }}</td>
-                <td class="money">{{ number_format($fee, 2) }}</td>
-                <td class="money">{{ number_format($fee, 2) }}</td>
+                <td class="money">{{ number_format($fee, 0) }}</td>
+                <td class="money">{{ number_format($fee, 0) }}</td>
             </tr>
             <tr class="total-row">
                 <td colspan="4" style="text-align:right;">Total</td>
-                <td class="money">{{ number_format($fee, 2) }}</td>
+                <td class="money">{{ number_format($fee, 0) }}</td>
             </tr>
             </tbody>
         </table>
@@ -133,22 +133,22 @@
                     @endif
                     <div class="box">
                         <span class="label">Payment</span>
-                        {{ $channel }}: {{ number_format($paid ? $fee : 0, 2) }}
+                        {{ $channel }}: {{ number_format($paid ? $fee : 0, 0) }}
                     </div>
                 </td>
                 <td class="summary-right">
                     <table class="totals">
                         <tr class="grand">
                             <th>Grand total</th>
-                            <td>{{ number_format($fee, 2) }}</td>
+                            <td>{{ number_format($fee, 0) }}</td>
                         </tr>
                         <tr>
                             <th>Amount paid</th>
-                            <td>{{ number_format($paid ? $fee : 0, 2) }}</td>
+                            <td>{{ number_format($paid ? $fee : 0, 0) }}</td>
                         </tr>
                         <tr>
                             <th>Amount pending</th>
-                            <td>{{ number_format($paid ? 0 : $fee, 2) }}</td>
+                            <td>{{ number_format($paid ? 0 : $fee, 0) }}</td>
                         </tr>
                         <tr>
                             <th>Payment status</th>

@@ -40,13 +40,13 @@
                     <td>{{ $item->name }}</td>
                     <td>{{ $item->phone }}</td>
 {{--                    <td>{{ $item->email }}</td>--}}
-                    <td>{{ number_format($item->grand_total, 2)  }}</td>
+                    <td>{{ number_format($item->grand_total, 0)  }}</td>
                     @php
                       $commission_amount = $item->vendor->commission ?? 10;
                       $commission = $commission_amount/100*$item->grand_total;
                     @endphp
-                    <td>{{ number_format($commission, 2)  }}</td>
-                    <td>{{ number_format($item->grand_total - $commission, 2)  }}</td>
+                    <td>{{ number_format($commission, 0)  }}</td>
+                    <td>{{ number_format($item->grand_total - $commission, 0)  }}</td>
                     @if($item->is_approve == 0)
                         <td><span class="badge badge-warning">No</span></td>
                     @elseif($item->is_approve == 1)

@@ -77,8 +77,8 @@
                                 <td>{{ $item['code'] }}</td>
                                 <td>{{ $item['booking_method'] ?? 'Hourly' }}@if(!empty($item['number_duration'])) × {{ $item['number_duration'] }}@endif</td>
                                 <td>{{ $item['qty'] }}</td>
-                                <td>{{ number_format($item['unit_price'], 2) }}</td>
-                                <td>{{ number_format($item['total'], 2) }}</td>
+                                <td>{{ number_format($item['unit_price'], 0) }}</td>
+                                <td>{{ number_format($item['total'], 0) }}</td>
                                 <td>{{ $item['start'] ? date('d M Y, H:i', strtotime($item['start'])) : 'As agreed' }}</td>
                                 <td>{{ $item['end'] ? date('d M Y, H:i', strtotime($item['end'])) : 'As agreed' }}</td>
                             </tr>
@@ -86,7 +86,7 @@
                     </tbody>
                 </table>
             </div>
-            <p><strong>Grand Total: {{ number_format($booking->grand_total, 2) }}</strong></p>
+            <p><strong>Grand Total: {{ number_format($booking->grand_total, 0) }}</strong></p>
         </div>
     @elseif($type === 'software_license')
         <div class="contract-section mb-3">
@@ -122,8 +122,8 @@
                                 <td>{{ $item['name'] }}</td>
                                 <td>{{ $item['code'] }}</td>
                                 <td>{{ $item['qty'] }}</td>
-                                <td>{{ number_format($item['unit_price'], 2) }}</td>
-                                <td>{{ number_format($item['total'], 2) }}</td>
+                                <td>{{ number_format($item['unit_price'], 0) }}</td>
+                                <td>{{ number_format($item['total'], 0) }}</td>
                                 <td>{{ $item['start'] ? date('d M Y', strtotime($item['start'])) : 'As agreed' }}</td>
                                 <td>{{ $item['end'] ? date('d M Y', strtotime($item['end'])) : 'As agreed' }}</td>
                             </tr>
@@ -131,7 +131,7 @@
                     </tbody>
                 </table>
             </div>
-            <p><strong>Grand Total: {{ number_format($booking->grand_total, 2) }}</strong></p>
+            <p><strong>Grand Total: {{ number_format($booking->grand_total, 0) }}</strong></p>
         </div>
     @elseif($type === 'accommodation')
         <div class="contract-section mb-3">
@@ -158,15 +158,15 @@
                                 <td>{{ $item['name'] }}</td>
                                 <td>{{ $item['code'] }}</td>
                                 <td>{{ $item['qty'] }}</td>
-                                <td>{{ number_format($item['unit_price'], 2) }}</td>
-                                <td>{{ number_format($item['total'], 2) }}</td>
+                                <td>{{ number_format($item['unit_price'], 0) }}</td>
+                                <td>{{ number_format($item['total'], 0) }}</td>
                                 <td>{{ $item['end'] ? date('d M Y', strtotime($item['end'])) : 'As scheduled' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-            <p><strong>Grand Total: {{ number_format($booking->grand_total, 2) }}</strong></p>
+            <p><strong>Grand Total: {{ number_format($booking->grand_total, 0) }}</strong></p>
         </div>
     @else
         <div class="contract-section mb-3">
@@ -201,15 +201,15 @@
                                 <td>{{ $item['name'] }}</td>
                                 <td>{{ $item['code'] }}</td>
                                 <td>{{ $item['qty'] }}</td>
-                                <td>{{ number_format($item['unit_price'], 2) }}</td>
-                                <td>{{ number_format($item['total'], 2) }}</td>
+                                <td>{{ number_format($item['unit_price'], 0) }}</td>
+                                <td>{{ number_format($item['total'], 0) }}</td>
                                 <td>{{ $item['end'] ? date('d M Y, H:i', strtotime($item['end'])) : 'As scheduled' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-            <p><strong>Grand Total: {{ number_format($booking->grand_total, 2) }}</strong></p>
+            <p><strong>Grand Total: {{ number_format($booking->grand_total, 0) }}</strong></p>
         </div>
     @endif
 

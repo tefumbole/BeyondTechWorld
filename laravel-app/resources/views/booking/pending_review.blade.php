@@ -35,7 +35,7 @@
                                     <td>{{ $booking->reference_no ?? '-' }}</td>
                                     <td>{{ optional($booking->customer)->name ?? '-' }}</td>
                                     <td>{{ optional($booking->user)->name ?? '-' }}</td>
-                                    <td>{{ $booking ? number_format($booking->grand_total, 2) : '-' }}</td>
+                                    <td>{{ $booking ? number_format($booking->grand_total, 0) : '-' }}</td>
                                     <td>
                                         <a href="{{ route('booking.contract.view', $contract->id) }}" class="btn btn-sm btn-info"><i class="dripicons-preview"></i> View</a>
                                         <a href="{{ route('booking.contract.review', $contract->id) }}" class="btn btn-sm btn-primary"><i class="dripicons-pencil"></i> Review & Sign</a>

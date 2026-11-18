@@ -41,7 +41,7 @@
                     <p class="mb-1"><strong>Submitted:</strong> {{ optional($submission->submitted_at)->format('D d M Y H:i') ?: '—' }}</p>
                     <p class="mb-1"><strong>Hours logged on this task:</strong>
                         @if($totalHours > 0)
-                            {{ rtrim(rtrim(number_format($totalHours, 2), '0'), '.') }} h over {{ $hours->count() }} {{ $hours->count() === 1 ? 'day' : 'days' }}
+                            {{ rtrim(rtrim(number_format($totalHours, 0), '0'), '.') }} h over {{ $hours->count() }} {{ $hours->count() === 1 ? 'day' : 'days' }}
                         @else
                             <span class="ip-badge warn">No timesheet entry</span>
                         @endif
@@ -97,7 +97,7 @@
                             @endif
                             <div class="ip-shot-body">
                                 <a href="{{ route('internship.supervisor.file', $f->id) }}" target="_blank">{{ $f->original_name }}</a>
-                                <div class="ip-meta">{{ $f->size ? number_format($f->size / 1048576, 2).' MB' : '' }}</div>
+                                <div class="ip-meta">{{ $f->size ? number_format($f->size / 1048576, 0).' MB' : '' }}</div>
                                 @if($f->caption)
                                     <div class="ip-shot-note">{{ $f->caption }}</div>
                                 @endif
@@ -134,7 +134,7 @@
                             @foreach($hours as $h)
                                 <tr>
                                     <td>{{ \Carbon\Carbon::parse($h->entry_date)->format('D d M Y') }}</td>
-                                    <td>{{ rtrim(rtrim(number_format($h->hours, 2), '0'), '.') }}</td>
+                                    <td>{{ rtrim(rtrim(number_format($h->hours, 0), '0'), '.') }}</td>
                                     <td>{{ $h->activity_name ?: '—' }}</td>
                                     <td>{{ $h->notes ?: '—' }}</td>
                                     <td><span class="ip-badge {{ $h->status === 'approved' ? 'active' : ($h->status === 'rejected' ? 'warn' : '') }}">{{ $h->status }}</span></td>

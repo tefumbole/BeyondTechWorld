@@ -209,9 +209,9 @@ class PurchaseController extends Controller
                 else
                     $nestedData['payment_status'] = '<div class="badge badge-success">'.trans('file.Paid').'</div>';
 
-                $nestedData['grand_total'] = number_format($purchase->grand_total, 2);
-                $nestedData['paid_amount'] = number_format($purchase->paid_amount, 2);
-                $nestedData['due'] = number_format($purchase->grand_total - $purchase->paid_amount, 2);
+                $nestedData['grand_total'] = number_format($purchase->grand_total, 0);
+                $nestedData['paid_amount'] = number_format($purchase->paid_amount, 0);
+                $nestedData['due'] = number_format($purchase->grand_total - $purchase->paid_amount, 0);
                 $nestedData['options'] = '<div class="btn-group">
                             <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">'.trans("file.action").'
                               <span class="caret"></span>

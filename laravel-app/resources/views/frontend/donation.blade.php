@@ -52,7 +52,7 @@
                                                     </div>
                                                     <span class="font-xs color-gray-500">({{ count($product->reviews) }})</span>
                                                 </div>
-{{--                                                    <h5 class="color-brand-3 price-main d-inline-block mr-10">{{ number_format($product->price, 2) }} {{ $currency->code }}</h5>--}}
+{{--                                                    <h5 class="color-brand-3 price-main d-inline-block mr-10">{{ number_format($product->price, 0) }} {{ $currency->code }}</h5>--}}
 
                                                 <div class="mt-20 box-btn-cart"><a class="btn btn-cart" href="{{ route('donate', ['id' => $product->id] ) }}">Donate Now</a></div>
 

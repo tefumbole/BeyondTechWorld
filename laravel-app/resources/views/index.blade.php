@@ -155,14 +155,14 @@
         <a href="{{ route('sales.index') }}" class="beyond-stat-card" title="Open Sale List">
           <div>
             <div class="label">{{ trans('file.revenue') }}</div>
-            <div class="value revenue-data">{{ number_format((float)$revenue, 2, '.', ',') }}</div>
+            <div class="value revenue-data">{{ number_format((float)$revenue, 0, '.', ',') }}</div>
           </div>
           <div class="beyond-stat-icon blue"><i class="dripicons-graph-bar"></i></div>
         </a>
         <a href="javascript:void(0)" id="beyond-profit-stat-link" class="beyond-stat-card" title="Open Summary / Profit Report">
           <div>
             <div class="label">{{ trans('file.profit') }}</div>
-            <div class="value profit-data">{{ number_format((float)$profit, 2, '.', ',') }}</div>
+            <div class="value profit-data">{{ number_format((float)$profit, 0, '.', ',') }}</div>
           </div>
           <div class="beyond-stat-icon green"><i class="dripicons-trophy"></i></div>
         </a>
@@ -207,7 +207,7 @@
           <div>
             <div class="label">Awaiting Signatures</div>
             <div class="value">{{ number_format((int) ($quoteOps['awaiting'] ?? 0)) }}</div>
-            <div class="hint">{{ number_format((float) ($quoteOps['awaiting_value'] ?? 0), 2, '.', ',') }} value pending</div>
+            <div class="hint">{{ number_format((float) ($quoteOps['awaiting_value'] ?? 0), 0, '.', ',') }} value pending</div>
           </div>
           <div class="beyond-stat-icon rose"><i class="dripicons-document-edit"></i></div>
         </a>
@@ -499,12 +499,12 @@
                 <!-- legacy count widgets kept for filter JS -->
                 <div class="col-sm-3">
                   <div class="wrapper count-title text-center">
-                    <div class="count-number return-data">{{number_format((float)$return, 2, '.', '')}}</div>
+                    <div class="count-number return-data">{{number_format((float)$return, 0, '.', '')}}</div>
                   </div>
                 </div>
                 <div class="col-sm-3">
                   <div class="wrapper count-title text-center">
-                    <div class="count-number purchase_return-data">{{number_format((float)$purchase_return, 2, '.', '')}}</div>
+                    <div class="count-number purchase_return-data">{{number_format((float)$purchase_return, 0, '.', '')}}</div>
                   </div>
                 </div>
               </div>
@@ -801,7 +801,7 @@
                         <tr>
                           <td>{{$key + 1}}</td>
                           <td>{{$product->name}}<br>[{{$product->code}}]</td>
-                          <td>{{number_format((float)$sale->total_price, 2, '.', '')}}</td>
+                          <td>{{number_format((float)$sale->total_price, 0, '.', '')}}</td>
                         </tr>
                         @endforeach
                       </tbody>
@@ -861,19 +861,19 @@
 
     function dashboardFilter(data){
         $('.revenue-data').hide();
-        $('.revenue-data').html(parseFloat(data[0]).toFixed(2));
+        $('.revenue-data').html(parseFloat(data[0]).toFixed(0));
         $('.revenue-data').show(500);
 
         $('.return-data').hide();
-        $('.return-data').html(parseFloat(data[1]).toFixed(2));
+        $('.return-data').html(parseFloat(data[1]).toFixed(0));
         $('.return-data').show(500);
 
         $('.profit-data').hide();
-        $('.profit-data').html(parseFloat(data[2]).toFixed(2));
+        $('.profit-data').html(parseFloat(data[2]).toFixed(0));
         $('.profit-data').show(500);
 
         $('.purchase_return-data').hide();
-        $('.purchase_return-data').html(parseFloat(data[3]).toFixed(2));
+        $('.purchase_return-data').html(parseFloat(data[3]).toFixed(0));
         $('.purchase_return-data').show(500);
     }
 

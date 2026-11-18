@@ -72,7 +72,7 @@ class RentalReturnReminderCron extends Command
 
             $productName = optional($line->product)->name ?? 'Equipment';
             $returnAt = Carbon::parse($line->end)->format('d M Y, H:i');
-            $dailyRate = number_format((float) $line->net_unit_price, 2);
+            $dailyRate = number_format((float) $line->net_unit_price, 0);
 
             $msg = \App\Support\WhatsAppMessage::lateReturnNotice(
                 $customer->name,

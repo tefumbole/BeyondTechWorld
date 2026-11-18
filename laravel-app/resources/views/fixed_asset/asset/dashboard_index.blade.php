@@ -56,7 +56,7 @@
                         <td>{{ $item->name }}</td>
                         <td>{{ @$item->asset_type}}</td>
                         <td>{{ $item->physical_location}}</td>
-                        <td>{{ number_format($item->price, 2) }}</td>
+                        <td>{{ number_format($item->price, 0) }}</td>
                         <td>{{ $item->life_span}} Y</td>
                         @php
                             $asset_calcultion = \App\Asset::depricationCaluculate($item);
@@ -66,8 +66,8 @@
                                 $consume = $asset_calcultion['consume'];
                         @endphp
                         <td>{{ round($consume, 2) }} d</td>
-                        <td>{{ number_format($depreciation, 2) }}</td>
-                        <td>{{ number_format($book_value, 2) }}</td>
+                        <td>{{ number_format($depreciation, 0) }}</td>
+                        <td>{{ number_format($book_value, 0) }}</td>
                         <td>{{ $item->purchase_date}}</td>
                         <td>{{ $item->service_date}}</td>
                         <td>

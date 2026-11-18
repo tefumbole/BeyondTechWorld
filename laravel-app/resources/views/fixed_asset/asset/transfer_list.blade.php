@@ -50,8 +50,8 @@
                         <td>No Image</td>
                     @endif
                     <td>{{ $item->name }}</td>
-                    <td>{{ number_format(@$item->price, 2)}}</td>
-                    <td>{{ number_format(@$item->AssetTransfers->price, 2)}}</td>
+                    <td>{{ number_format(@$item->price, 0)}}</td>
+                    <td>{{ number_format(@$item->AssetTransfers->price, 0)}}</td>
                     <td>{{ $item->transfer_at}}</td>
                     <td>{{ $item->life_span ?? 'unknown'}} Y</td>
                     <td>{{ @$item->AssetTransfers->life_span ?? 'unknown'}} Y</td>

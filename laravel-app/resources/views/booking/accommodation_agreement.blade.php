@@ -137,8 +137,8 @@
                             <td>{{ $item['name'] }}</td>
                             <td>{{ $item['code'] }}</td>
                             <td>{{ $item['qty'] }}</td>
-                            <td>{{ number_format($item['unit_price'], 2) }}</td>
-                            <td>{{ number_format($item['total'], 2) }}</td>
+                            <td>{{ number_format($item['unit_price'], 0) }}</td>
+                            <td>{{ number_format($item['total'], 0) }}</td>
                             <td>{{ $item['end'] ? date('d M Y', strtotime($item['end'])) : 'As scheduled' }}</td>
                         </tr>
                     @endforeach
@@ -177,13 +177,13 @@
         @endif
         <div class="card">
             <div class="card-head"><div class="num">{{ !empty($booking->booking_note) ? '9' : '8' }}</div><h3>Payment Information</h3></div>
-            <p>Grand Total: <strong>{{ number_format($booking->grand_total, 2) }}</strong></p>
-            <p>Amount Paid: <strong>{{ number_format($booking->paid_amount, 2) }}</strong></p>
-            <p>Balance Due: <strong>{{ number_format($booking->grand_total - $booking->paid_amount, 2) }}</strong></p>
+            <p>Grand Total: <strong>{{ number_format($booking->grand_total, 0) }}</strong></p>
+            <p>Amount Paid: <strong>{{ number_format($booking->paid_amount, 0) }}</strong></p>
+            <p>Balance Due: <strong>{{ number_format($booking->grand_total - $booking->paid_amount, 0) }}</strong></p>
             @if(isset($payments) && $payments->count())
                 <ul>
                     @foreach($payments as $payment)
-                        <li>{{ $payment->paying_method }} — {{ number_format($payment->amount, 2) }} @if($payment->change > 0)(Change: {{ number_format($payment->change, 2) }})@endif</li>
+                        <li>{{ $payment->paying_method }} — {{ number_format($payment->amount, 0) }} @if($payment->change > 0)(Change: {{ number_format($payment->change, 0) }})@endif</li>
                     @endforeach
                 </ul>
             @endif

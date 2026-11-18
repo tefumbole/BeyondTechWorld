@@ -159,7 +159,7 @@
                                     @endif
                                 </div>
                                 <div class="flex items-center gap-3 shrink-0">
-                                    <span class="text-lg font-bold text-brand-blue whitespace-nowrap">{{ rtrim(rtrim(number_format($entry->hours, 2), '0'), '.') }} h</span>
+                                    <span class="text-lg font-bold text-brand-blue whitespace-nowrap">{{ rtrim(rtrim(number_format($entry->hours, 0), '0'), '.') }} h</span>
                                     <button type="button"
                                             @click="openEdit({{ json_encode($editPayload, JSON_HEX_APOS | JSON_HEX_QUOT) }})"
                                             class="text-gray-400 hover:text-brand-blue">

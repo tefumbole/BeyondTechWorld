@@ -76,7 +76,7 @@
                                 @elseif($rental->booking_status == 3) Returned
                                 @else Draft @endif
                             </td>
-                            <td>{{ number_format($rental->grand_total, 2) }}</td>
+                            <td>{{ number_format($rental->grand_total, 0) }}</td>
                             <td>
                                 @foreach($rental->bookingProduct as $line)
                                     {{ optional($line->product)->name }} (x{{ $line->qty }})<br>

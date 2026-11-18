@@ -7,11 +7,11 @@
         @include('wealth.partials.nav')
         @include('wealth.partials.filters')
         <div class="wm-kpis mb-3">
-            <div class="wm-kpi"><div class="lbl">Expected 20%</div><div class="val">{{ number_format($alloc['expected'], 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Actually invested</div><div class="val">{{ number_format($actual, 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Remaining allocation</div><div class="val">{{ number_format($alloc['remaining'], 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Estimated value</div><div class="val">{{ number_format($value, 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Gain / Loss</div><div class="val">{{ number_format($gain, 2) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Expected 20%</div><div class="val">{{ number_format($alloc['expected'], 0) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Actually invested</div><div class="val">{{ number_format($actual, 0) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Remaining allocation</div><div class="val">{{ number_format($alloc['remaining'], 0) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Estimated value</div><div class="val">{{ number_format($value, 0) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Gain / Loss</div><div class="val">{{ number_format($gain, 0) }}</div></div>
         </div>
         <div class="wm-card">
             <h5>Add investment</h5>
@@ -56,8 +56,8 @@
                         <td>{{ $row->type }}</td>
                         <td>{{ $row->invested_on }}</td>
                         <td>{{ strtoupper($row->status) }}</td>
-                        <td class="text-right">{{ number_format($row->amount_invested, 2) }}</td>
-                        <td class="text-right">{{ number_format($row->current_value !== null ? $row->current_value : $row->amount_invested, 2) }}</td>
+                        <td class="text-right">{{ number_format($row->amount_invested, 0) }}</td>
+                        <td class="text-right">{{ number_format($row->current_value !== null ? $row->current_value : $row->amount_invested, 0) }}</td>
                         <td>
                             <form method="POST" action="{{ route('wealth.investments.update', $row->id) }}" class="d-flex" style="gap:6px;align-items:center;">
                                 @csrf

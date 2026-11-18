@@ -6,7 +6,7 @@
         <h1 class="wm-title">Income</h1>
         @include('wealth.partials.nav')
         @include('wealth.partials.filters')
-        <div class="wm-kpi mb-3" style="max-width:240px;"><div class="lbl">Posted income</div><div class="val">{{ number_format($total, 2) }}</div></div>
+        <div class="wm-kpi mb-3" style="max-width:240px;"><div class="lbl">Posted income</div><div class="val">{{ number_format($total, 0) }}</div></div>
 
         <div class="wm-card">
             <h5>Add manual income</h5>
@@ -69,7 +69,7 @@
                         <td>{{ optional($row->program)->name }}</td>
                         <td>{{ $row->payment_method }}</td>
                         <td>{{ $row->status }}</td>
-                        <td class="text-right">{{ number_format($row->amount, 2) }} {{ $row->currency }}</td>
+                        <td class="text-right">{{ number_format($row->amount, 0) }} {{ $row->currency }}</td>
                         <td><a href="{{ route('wealth.income.show', $row->id) }}">Open</a></td>
                     </tr>
                 @endforeach

@@ -89,7 +89,7 @@
                                                 <div class="col-lg-6 col-6"><span class="font-md-bold color-brand-3">You can change donation amount:</span></div>
                                                 <div class="col-lg-6 col-6">
                                                     <h3 class="color-brand-3 price-main d-inline-block mr-10"><input type="number" name="donation_amount" class="form-control" value="{{$product->price}}"></h3>
-                                                    {{--                                        <span class="font-lg-bold color-brand-3">{{ number_format($product->price, 2) }} {{ $currency->code }}</span>--}}
+                                                    {{--                                        <span class="font-lg-bold color-brand-3">{{ number_format($product->price, 0) }} {{ $currency->code }}</span>--}}
                                                 </div>
                                             </div>
                                         </div>

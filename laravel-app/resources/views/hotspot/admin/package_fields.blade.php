@@ -8,7 +8,7 @@
     elseif ($row) { $unit = 'minutes'; }
     $dataGb = '';
     if ($row && $row->data_bytes) {
-        $dataGb = rtrim(rtrim(number_format($row->data_bytes / 1073741824, 2, '.', ''), '0'), '.');
+        $dataGb = rtrim(rtrim(number_format($row->data_bytes / 1073741824, 0, '.', ''), '0'), '.');
     }
     $uploadOpen = $row && ($row->rate_up === null || (int) $row->rate_up === 0);
     $downloadOpen = $row && ($row->rate_down === null || (int) $row->rate_down === 0);

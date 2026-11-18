@@ -578,7 +578,7 @@ class FrontendController extends Controller
             $data .= '<img src="'. url('public/images/product', $product_image) .'" alt="Ecom"></a></div>';
             $data .= '<div class="info-right"><a class="font-xs color-gray-500" href="">'. @$product->category->name .'</a><br>';
             $data .= '<a class="color-brand-3 font-sm-bold" href="'. route('product', ['id' => $product->id]) .'">'. $product->name .'</a>';
-            $data .= '<div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">'. number_format($product->price, 2) .' CFA</strong></div>';
+            $data .= '<div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">'. number_format($product->price, 0) .' CFA</strong></div>';
             if($product->qty > 0 || $product->type == 'digital') {
             $data .= '<div class="mt-20 box-btn-cart"><a class="btn btn-cart" onclick="addtocart(`'. $product->id .'`,`/addToCart`)">Add To Cart</a></div>';
             } else {

@@ -51,7 +51,7 @@ class WealthSettingsController extends WealthBaseController
         foreach ($lines as $bucketId => $pct) {
             WealthAllocationRuleLine::updateOrCreate(
                 ['rule_id' => $rule->id, 'bucket_id' => $bucketId],
-                ['percent' => number_format((float) $pct, 2, '.', '')]
+                ['percent' => number_format((float) $pct, 0, '.', '')]
             );
         }
 

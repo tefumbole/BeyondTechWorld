@@ -76,9 +76,9 @@
                         <td>{{$key}}</td>
                         <td>{{ optional($sale->customer)->name }}</td>
                         <td>{{ optional($sale->customer)->phone_number }}</td>
-                        <td>{{ number_format($sale->grand_total, 2) }}</td>
-                        <td>{{ number_format((float) $sale->paid_amount, 2) }}</td>
-                        <td>{{ number_format($sale->grand_total - $sale->paid_amount, 2) }}</td>
+                        <td>{{ number_format($sale->grand_total, 0) }}</td>
+                        <td>{{ number_format((float) $sale->paid_amount, 0) }}</td>
+                        <td>{{ number_format($sale->grand_total - $sale->paid_amount, 0) }}</td>
                         <td><span class="pay-pill {{ (int) $sale->payment_status === 3 ? 'pay-pill-wait' : 'pay-pill-no' }}">{{ (int) $sale->payment_status === 3 ? 'Partial' : ((int) $sale->payment_status === 1 ? 'Pending' : 'Due') }}</span></td>
                         <td class="await-when" data-order="{{ $sale->created_at ? $sale->created_at->timestamp : 0 }}">{{ $sale->created_at ? $sale->created_at->format('d M Y H:i') : '' }}</td>
                         <td>
@@ -184,7 +184,7 @@
         });
 
         $('input[name="paying_amount"]').on("input", function() {
-            $(".change").text(parseFloat( $(this).val() - $('input[name="amount"]').val() ).toFixed(2));
+            $(".change").text(parseFloat( $(this).val() - $('input[name="amount"]').val() ).toFixed(0));
         });
 
         $('input[name="amount"]').on("input", function() {
@@ -196,7 +196,7 @@
                 alert('Paying amount cannot be bigger than due amount');
                 $(this).val('');
             }
-            $(".change").text(parseFloat($('input[name="paying_amount"]').val() - $(this).val()).toFixed(2));
+            $(".change").text(parseFloat($('input[name="paying_amount"]').val() - $(this).val()).toFixed(0));
 
         });
 

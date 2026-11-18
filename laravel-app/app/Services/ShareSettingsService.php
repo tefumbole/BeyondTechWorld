@@ -32,7 +32,7 @@ class ShareSettingsService
         $num = (float) $amount;
         $symbols = ['USD' => '$', 'EUR' => '€', 'GBP' => '£', 'RWF' => 'RWF ', 'XAF' => 'FCFA '];
         $symbol = $symbols[$currency] ?? '$';
-        $formatted = number_format($num, 2);
+        $formatted = number_format($num, 0);
 
         return in_array($currency, ['RWF', 'XAF'], true) ? $symbol.$formatted : $symbol.$formatted;
     }

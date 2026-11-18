@@ -211,7 +211,7 @@
                         </div>
                         <div class="col-md-6 mt-1">
                             <label>{{trans('file.Change')}} : </label>
-                            <p class="change ml-2">0.00</p>
+                            <p class="change ml-2">0</p>
                         </div>
                         <div class="col-md-6 mt-1">
                             <label>{{trans('file.Paid By')}}</label>
@@ -586,14 +586,14 @@
             if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
                 var rows = dt_selector.rows( '.selected' ).indexes();
 
-                $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
-                $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(2));
-                $( dt_selector.column( 9 ).footer() ).html(dt_selector.cells( rows, 9, { page: 'current' } ).data().sum().toFixed(2));
+                $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(0));
+                $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(0));
+                $( dt_selector.column( 9 ).footer() ).html(dt_selector.cells( rows, 9, { page: 'current' } ).data().sum().toFixed(0));
             }
             else {
-                $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
-                $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(2));
-                $( dt_selector.column( 9 ).footer() ).html(dt_selector.cells( rows, 9, { page: 'current' } ).data().sum().toFixed(2));
+                $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(0));
+                $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(0));
+                $( dt_selector.column( 9 ).footer() ).html(dt_selector.cells( rows, 9, { page: 'current' } ).data().sum().toFixed(0));
             }
         }
 
@@ -710,13 +710,13 @@
             if( $('input[name="paying_amount"]').val() < parseFloat($('#amount').val()) ) {
                 alert('Paying amount cannot be bigger than recieved amount');
                 $('input[name="amount"]').val('');
-                $(".change").text(parseFloat( $('input[name="paying_amount"]').val() - $('#amount').val() ).toFixed(2));
+                $(".change").text(parseFloat( $('input[name="paying_amount"]').val() - $('#amount').val() ).toFixed(0));
                 e.preventDefault();
             }
             else if( $('input[name="edit_paying_amount"]').val() < parseFloat($('input[name="edit_amount"]').val()) ) {
                 alert('Paying amount cannot be bigger than recieved amount');
                 $('input[name="edit_amount"]').val('');
-                $(".change").text(parseFloat( $('input[name="edit_paying_amount"]').val() - $('input[name="edit_amount"]').val() ).toFixed(2));
+                $(".change").text(parseFloat( $('input[name="edit_paying_amount"]').val() - $('input[name="edit_amount"]').val() ).toFixed(0));
                 e.preventDefault();
             }
 

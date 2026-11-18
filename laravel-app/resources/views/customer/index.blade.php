@@ -216,10 +216,10 @@
                         <td>{{ $customer->tax_no}}</td>
                         <td contenteditable="true" class="editable customer-address" data-id="{{ $customer->id }}" data-field="address">{{ $customer->address }}</td>
                         <td class="customer-money {{ (float) $customer->points == 0 ? 'is-zero' : '' }}">{{$customer->points}}</td>
-                        <td class="customer-money {{ (float) $customer->deposit > 0 ? '' : 'is-zero' }}">@if($customer->deposit > 0) {{ number_format($customer->deposit, 2) }} @else 0 @endif </td>
-                        <td class="customer-money {{ (float) $customer->remaining == 0 ? 'is-zero' : '' }}">{{ number_format($customer->remaining, 2)}}</td>
-                        <td class="customer-money {{ (float) $customer->deposit < 0 ? '' : 'is-zero' }}">@if($customer->deposit < 0) {{ number_format($customer->deposit * -1, 2) }} @else 0 @endif </td>
-                        <td class="customer-money {{ ($customer->deposit - $customer->remaining) < 0 ? '' : 'is-zero' }}">@if($customer->deposit - $customer->remaining < 0 ) {{ number_format(abs($customer->deposit - $customer->remaining), 2) }} @else 0 @endif</td>
+                        <td class="customer-money {{ (float) $customer->deposit > 0 ? '' : 'is-zero' }}">@if($customer->deposit > 0) {{ number_format($customer->deposit, 0) }} @else 0 @endif </td>
+                        <td class="customer-money {{ (float) $customer->remaining == 0 ? 'is-zero' : '' }}">{{ number_format($customer->remaining, 0)}}</td>
+                        <td class="customer-money {{ (float) $customer->deposit < 0 ? '' : 'is-zero' }}">@if($customer->deposit < 0) {{ number_format($customer->deposit * -1, 0) }} @else 0 @endif </td>
+                        <td class="customer-money {{ ($customer->deposit - $customer->remaining) < 0 ? '' : 'is-zero' }}">@if($customer->deposit - $customer->remaining < 0 ) {{ number_format(abs($customer->deposit - $customer->remaining), 0) }} @else 0 @endif</td>
                         <td>
                             <div class="btn-group">
                                 <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{trans('file.action')}}

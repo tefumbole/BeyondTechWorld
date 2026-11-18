@@ -104,7 +104,7 @@
                         <td>{{ optional($row->expenseCategory)->name }}</td>
                         <td>@include('wealth.partials.badge', ['bucket' => $buckets->firstWhere('id', $row->allocation_bucket_id)])</td>
                         <td>{{ optional($programs->firstWhere('id', $row->program_id))->name }}</td>
-                        <td class="text-right">{{ number_format($row->amount, 2) }}</td>
+                        <td class="text-right">{{ number_format($row->amount, 0) }}</td>
                     </tr>
                 @endforeach
                 </tbody>

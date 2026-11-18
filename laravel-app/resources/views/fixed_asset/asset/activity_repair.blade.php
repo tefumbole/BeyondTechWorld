@@ -51,7 +51,7 @@
                     <td>{{ $expense->repairer_address }}</td>
                     <td>{{ $expense->repairer_location }}</td>
                     <td>{{ $expense->repair_status }}</td>
-                    <td>{{ number_format($expense->amount, 2) }}</td>
+                    <td>{{ number_format($expense->amount, 0) }}</td>
                     <td>{{ @$account->name }} - {{ @$account->account_no }}</td>
 {{--                    <td>{{ $expense->approved }}</td>--}}
                     <td>{{ $expense->note }}</td>
@@ -673,10 +673,10 @@ function confirmDelete() {
     function datatable_sum(dt_selector, is_calling_first) {
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(0));
         }
     }
 

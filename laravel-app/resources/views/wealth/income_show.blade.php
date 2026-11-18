@@ -7,7 +7,7 @@
         @include('wealth.partials.nav')
         <div class="wm-card">
             <p><strong>Source:</strong> {{ strtoupper($row->source_type) }} · {{ $row->status }}</p>
-            <p><strong>Amount:</strong> {{ number_format($row->amount, 2) }} {{ $row->currency }}</p>
+            <p><strong>Amount:</strong> {{ number_format($row->amount, 0) }} {{ $row->currency }}</p>
             <p><strong>Date:</strong> {{ $row->occurred_at }}</p>
             <p><strong>Customer:</strong> {{ optional($row->customer)->name ?: '—' }}</p>
             <p><strong>Company:</strong> {{ optional($row->biller)->name ?: '—' }}</p>

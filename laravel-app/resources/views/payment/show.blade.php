@@ -101,9 +101,9 @@
                                 <tr>
                                     <td><img src="{{ url('public/images/product', $product_image) }}" alt="product image" width="100px"></td>
                                     <td>{{ $orderProduct->product->name }}</td>
-                                    <td>{{ number_format($orderProduct->price, 2) }} {{ $currency->code }}</td>
+                                    <td>{{ number_format($orderProduct->price, 0) }} {{ $currency->code }}</td>
                                     <td>{{ $orderProduct->quantity }}</td>
-                                    <td>{{ number_format($orderProduct->price*$orderProduct->quantity, 2) }} {{ $currency->code }}</td>
+                                    <td>{{ number_format($orderProduct->price*$orderProduct->quantity, 0) }} {{ $currency->code }}</td>
                                     @php $total += $orderProduct->price*$orderProduct->quantity; @endphp
                                 </tr>
                             @endforeach
@@ -119,7 +119,7 @@
                                 <td></td>
                                 <td></td>
                                 <td>Grand Total</td>
-                                <td>{{ number_format($total, 2) }} {{ $currency->code }}</td>
+                                <td>{{ number_format($total, 0) }} {{ $currency->code }}</td>
                             </tr>
                         </table>
                     </div>

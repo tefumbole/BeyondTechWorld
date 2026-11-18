@@ -48,9 +48,9 @@
                     <div class="wm-card">
                         <h4 style="color:#0b3f90;font-weight:800;">{{ $p->name }}</h4>
                         <div class="small text-muted">{{ strtoupper($p->status) }} · {{ $p->code }}</div>
-                        <p class="mb-1">Income: {{ number_format($f['income'], 2) }} {{ $p->currency }}</p>
-                        <p class="mb-1">Expenses: {{ number_format($f['expenses'], 2) }}</p>
-                        <p class="mb-1">Balance: {{ number_format($f['balance'], 2) }}</p>
+                        <p class="mb-1">Income: {{ number_format($f['income'], 0) }} {{ $p->currency }}</p>
+                        <p class="mb-1">Expenses: {{ number_format($f['expenses'], 0) }}</p>
+                        <p class="mb-1">Balance: {{ number_format($f['balance'], 0) }}</p>
                         <p class="mb-2">Spent: {{ $f['spent_pct'] }}% · Remaining: {{ $f['remain_pct'] }}%</p>
                         <a class="wm-btn" href="{{ route('wealth.programs.show', $p->id) }}">View Financials</a>
                         <a class="wm-btn wm-btn-out" href="{{ route('wealth.income', ['program_id' => $p->id]) }}">Add Income</a>

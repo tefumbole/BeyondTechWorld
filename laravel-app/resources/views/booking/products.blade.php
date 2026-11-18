@@ -118,7 +118,7 @@
                         @endif
                         <td>{{ $item->product ? $item->product->name : 'NAN' }}</td>
                         <td>{{ $item->qty }}</td>
-                        <td>{{ number_format((float)$item->total, 2) }}</td>
+                        <td>{{ number_format((float)$item->total, 0) }}</td>
 
                         @if($item->is_return == 1)
                             <td><span class="badge badge-danger">Return</span></td>

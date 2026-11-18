@@ -165,11 +165,11 @@
                                 <hr>
                                 <div class="row mb-10">
                                     <div class="col-lg-6 col-6"><span class="font-md-bold color-brand-3">Subtotal</span></div>
-                                    <div class="col-lg-6 col-6 text-end"><span class="font-lg-bold color-brand-3">{{ number_format($product->price, 2) }} {{ $currency->code }}</span></div>
+                                    <div class="col-lg-6 col-6 text-end"><span class="font-lg-bold color-brand-3">{{ number_format($product->price, 0) }} {{ $currency->code }}</span></div>
                                 </div>
                                 <div class="row">
                                     <div class="col-lg-6 col-6"><span class="font-md-bold color-brand-3">Total</span></div>
-                                    <div class="col-lg-6 col-6 text-end"><span class="font-lg-bold color-brand-3">{{ number_format($product->price, 2) }} {{ $currency->code }}</span></div>
+                                    <div class="col-lg-6 col-6 text-end"><span class="font-lg-bold color-brand-3">{{ number_format($product->price, 0) }} {{ $currency->code }}</span></div>
                                 </div>
                             </div>
                         </div>

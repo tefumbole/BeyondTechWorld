@@ -7,9 +7,9 @@
         @include('wealth.partials.nav')
         @include('wealth.partials.filters')
         <div class="wm-kpis mb-3">
-            <div class="wm-kpi"><div class="lbl">Expected 10%</div><div class="val">{{ number_format($alloc['expected'], 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Charity given</div><div class="val">{{ number_format($given, 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Remaining</div><div class="val">{{ number_format($alloc['remaining'], 2) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Expected 10%</div><div class="val">{{ number_format($alloc['expected'], 0) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Charity given</div><div class="val">{{ number_format($given, 0) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Remaining</div><div class="val">{{ number_format($alloc['remaining'], 0) }}</div></div>
         </div>
         <div class="wm-card">
             <h5>Record charity</h5>
@@ -59,7 +59,7 @@
                         <td>{{ $row->beneficiary }}</td>
                         <td>{{ optional($row->subcategory)->name }}</td>
                         <td>{{ optional($row->program)->name }}</td>
-                        <td class="text-right">{{ number_format($row->amount, 2) }}</td>
+                        <td class="text-right">{{ number_format($row->amount, 0) }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="5" class="text-muted">No charity records yet.</td></tr>

@@ -13,9 +13,9 @@
             <button class="wm-btn wm-btn-out" type="button" onclick="window.print()">Print</button>
         </div>
         <div class="wm-kpis mb-3">
-            <div class="wm-kpi"><div class="lbl">Income</div><div class="val">{{ number_format($data['income'], 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Expenses</div><div class="val">{{ number_format($data['expenses'], 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Balance</div><div class="val">{{ number_format($data['balance'], 2) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Income</div><div class="val">{{ number_format($data['income'], 0) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Expenses</div><div class="val">{{ number_format($data['expenses'], 0) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Balance</div><div class="val">{{ number_format($data['balance'], 0) }}</div></div>
             <div class="wm-kpi"><div class="lbl">Health</div><div class="val">{{ $data['health']['overall_score'] }} / 100</div></div>
         </div>
         <div class="row">
@@ -23,7 +23,7 @@
                 <div class="col-md-4">
                     <div class="wm-card">
                         @include('wealth.partials.badge', ['bucket' => $row['bucket']])
-                        <p class="mb-0">Expected {{ number_format($row['expected'], 2) }} · Used {{ number_format($row['used'], 2) }} · Left {{ number_format($row['remaining'], 2) }}</p>
+                        <p class="mb-0">Expected {{ number_format($row['expected'], 0) }} · Used {{ number_format($row['used'], 0) }} · Left {{ number_format($row['remaining'], 0) }}</p>
                     </div>
                 </div>
             @endforeach
@@ -45,7 +45,7 @@
                         <td>{{ strtoupper($row->source_type) }}</td>
                         <td>{{ $row->reference }}</td>
                         <td>{{ optional($row->customer)->name }}</td>
-                        <td class="text-right">{{ number_format($row->amount, 2) }}</td>
+                        <td class="text-right">{{ number_format($row->amount, 0) }}</td>
                     </tr>
                 @endforeach
                 </tbody>
@@ -61,7 +61,7 @@
                         <td>{{ $row->created_at }}</td>
                         <td>{{ $row->reference_no }}</td>
                         <td>{{ optional($row->expenseCategory)->name }}</td>
-                        <td class="text-right">{{ number_format($row->amount, 2) }}</td>
+                        <td class="text-right">{{ number_format($row->amount, 0) }}</td>
                     </tr>
                 @endforeach
                 </tbody>

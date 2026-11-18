@@ -110,13 +110,13 @@
                                 <br>
                                 @endforeach
                             </td>
-                            <td>{{number_format((float) $sale->grand_total, 2, '.', '')}}</td>
+                            <td>{{number_format((float) $sale->grand_total, 0, '.', '')}}</td>
                             @if($sale->paid_amount)
-                            <td class="paid-amount">{{number_format((float) $sale->paid_amount, 2, '.', '')}}</td>
+                            <td class="paid-amount">{{number_format((float) $sale->paid_amount, 0, '.', '')}}</td>
                             @else
-                            <td>0.00</td>
+                            <td>0</td>
                             @endif
-                            <td>{{number_format((float)($sale->grand_total - $sale->paid_amount), 2, '.', '')}}</td>
+                            <td>{{number_format((float)($sale->grand_total - $sale->paid_amount), 0, '.', '')}}</td>
                             @if($sale->sale_status == 1)
                             <td><div class="badge badge-success">{{trans('file.Completed')}}</div></td>
                             @else
@@ -133,9 +133,9 @@
                             <th></th>
                             <th></th>
                             <th></th>
-                            <th>0.00</th>
-                            <th>0.00</th>
-                            <th>0.00</th>
+                            <th>0</th>
+                            <th>0</th>
+                            <th>0</th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -193,9 +193,9 @@
                                 <br>
                                 @endforeach
                             </td>
-                            <td>{{number_format((float)($purchase->grand_total), 2, '.', '')}}</td>
-                            <td>{{number_format((float)($purchase->paid_amount), 2, '.', '')}}</td>
-                            <td>{{number_format((float)($purchase->grand_total - $purchase->paid_amount), 2, '.', '')}}</td>
+                            <td>{{number_format((float)($purchase->grand_total), 0, '.', '')}}</td>
+                            <td>{{number_format((float)($purchase->paid_amount), 0, '.', '')}}</td>
+                            <td>{{number_format((float)($purchase->grand_total - $purchase->paid_amount), 0, '.', '')}}</td>
                             @if($purchase->status == 1)
                                <td><div class="badge badge-success">{{trans('file.Recieved')}}</div></td>
                             @elseif($purchase->status == 2)
@@ -216,9 +216,9 @@
                             <th></th>
                             <th></th>
                             <th></th>
-                            <th>0.00</th>
-                            <th>0.00</th>
-                            <th>0.00</th>
+                            <th>0</th>
+                            <th>0</th>
+                            <th>0</th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -267,7 +267,7 @@
                                 <br>
                                 @endforeach
                             </td>
-                            <td>{{number_format((float) $quotation->grand_total, 2, '.', '')}}</td>
+                            <td>{{number_format((float) $quotation->grand_total, 0, '.', '')}}</td>
 
                             @if($quotation->quotation_status == 2)
                             <td><div class="badge badge-success">{{trans('file.Sent')}}</div></td>
@@ -285,7 +285,7 @@
                             <th></th>
                             <th></th>
                             <th></th>
-                            <th>0.00</th>
+                            <th>0</th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -334,7 +334,7 @@
                                 <br>
                                 @endforeach
                             </td>
-                            <td>{{number_format((float) $transfer->grand_total, 2, '.', '')}}</td>
+                            <td>{{number_format((float) $transfer->grand_total, 0, '.', '')}}</td>
 
                             @if($transfer->status == 1)
                             <td><div class="badge badge-success">{{trans('file.Completed')}}</div></td>
@@ -354,7 +354,7 @@
                             <th></th>
                             <th></th>
                             <th></th>
-                            <th>0.00</th>
+                            <th>0</th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -390,7 +390,7 @@
                             <th></th>
                             <th>Total:</th>
                             <th></th>
-                            <th>0.00</th>
+                            <th>0</th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -432,7 +432,7 @@
                             <th></th>
                             <th></th>
                             <th></th>
-                            <th>0.00</th>
+                            <th>0</th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -477,7 +477,7 @@
                             <th>Total:</th>
                             <th></th>
                             <th></th>
-                            <th>0.00</th>
+                            <th>0</th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -576,15 +576,15 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
 
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(2));
-            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(0));
+            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(0));
         }
     }
 
@@ -668,14 +668,14 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(2));
-            $( dt_selector.column( 7 ).footer() ).html(dt_selector.column( 7, {page:'current'} ).data().sum().toFixed(2));
-            $( dt_selector.column( 8 ).footer() ).html(dt_selector.column( 8, {page:'current'} ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(0));
+            $( dt_selector.column( 7 ).footer() ).html(dt_selector.column( 7, {page:'current'} ).data().sum().toFixed(0));
+            $( dt_selector.column( 8 ).footer() ).html(dt_selector.column( 8, {page:'current'} ).data().sum().toFixed(0));
         }
     }
 
@@ -759,11 +759,11 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
 
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(0));
         }
     }
 
@@ -847,11 +847,11 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
 
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(0));
         }
     }
 
@@ -935,10 +935,10 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 3 ).footer() ).html(dt_selector.cells( rows, 3, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 3 ).footer() ).html(dt_selector.cells( rows, 3, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 3 ).footer() ).html(dt_selector.column( 3, {page:'current'} ).data().sum().toFixed(2));
+            $( dt_selector.column( 3 ).footer() ).html(dt_selector.column( 3, {page:'current'} ).data().sum().toFixed(0));
         }
     }
 
@@ -1022,10 +1022,10 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.column( 5, {page:'current'} ).data().sum().toFixed(2));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.column( 5, {page:'current'} ).data().sum().toFixed(0));
         }
     }
 
@@ -1109,10 +1109,10 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 4 ).footer() ).html(dt_selector.cells( rows, 4, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 4 ).footer() ).html(dt_selector.cells( rows, 4, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 4 ).footer() ).html(dt_selector.column( 4, {page:'current'} ).data().sum().toFixed(2));
+            $( dt_selector.column( 4 ).footer() ).html(dt_selector.column( 4, {page:'current'} ).data().sum().toFixed(0));
         }
     }
 

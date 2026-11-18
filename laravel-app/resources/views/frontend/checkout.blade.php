@@ -150,7 +150,7 @@
                                             <h5 class="color-gray-500">x{{ $item['quantity'] }}</h5>
                                         </div>
                                         <div class="wishlist-price">
-                                            <h4 class="color-brand-3 font-lg-bold">{{ number_format($item['price'] * $item['quantity'], 2) }} {{ $currency->code }}</h4>
+                                            <h4 class="color-brand-3 font-lg-bold">{{ number_format($item['price'] * $item['quantity'], 0) }} {{ $currency->code }}</h4>
                                         </div>
                                     </div>
                                         @php $total += $item['price'] * $item['quantity']; @endphp
@@ -165,7 +165,7 @@
                             <div class="form-group mb-0">
                                 <div class="row mb-10">
                                     <div class="col-lg-6 col-6"><span class="font-md-bold color-brand-3">Subtotal</span></div>
-                                    <div class="col-lg-6 col-6 text-end"><span class="font-lg-bold color-brand-3">{{ number_format($total, 2) }} {{ $currency->code }}</span></div>
+                                    <div class="col-lg-6 col-6 text-end"><span class="font-lg-bold color-brand-3">{{ number_format($total, 0) }} {{ $currency->code }}</span></div>
                                 </div>
                                 <div class="border-bottom mb-10 pb-5">
                                     <div class="row">
@@ -175,7 +175,7 @@
                                 </div>
                                 <div class="row">
                                     <div class="col-lg-6 col-6"><span class="font-md-bold color-brand-3">Total</span></div>
-                                    <div class="col-lg-6 col-6 text-end"><span class="font-lg-bold color-brand-3">{{ number_format($total, 2) }} {{ $currency->code }}</span></div>
+                                    <div class="col-lg-6 col-6 text-end"><span class="font-lg-bold color-brand-3">{{ number_format($total, 0) }} {{ $currency->code }}</span></div>
                                 </div>
                             </div>
                         </div>

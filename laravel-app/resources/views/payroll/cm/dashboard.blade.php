@@ -2,7 +2,7 @@
 @section('payroll')
 <div class="row">
     <div class="col-md-4"><div class="card p-3"><strong>{{ $profileCount }}</strong><div>Active salary profiles</div></div></div>
-    <div class="col-md-8"><div class="card p-3">Rules in force: {{ $rules['name'] ?? 'Cameroon payroll 2026' }}. Work-accident rate {{ number_format(($rules['cnps_accident_rate'] ?? 0.0175) * 100, 2) }}%.</div></div>
+    <div class="col-md-8"><div class="card p-3">Rules in force: {{ $rules['name'] ?? 'Cameroon payroll 2026' }}. Work-accident rate {{ number_format(($rules['cnps_accident_rate'] ?? 0.0175) * 100, 0) }}%.</div></div>
 </div>
 <table class="table mt-3">
     <thead><tr><th>Month</th><th>Status</th><th>Gross</th><th>Net</th><th>Employer cost</th></tr></thead>

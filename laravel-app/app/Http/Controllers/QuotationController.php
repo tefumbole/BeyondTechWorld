@@ -625,7 +625,7 @@ class QuotationController extends Controller
         $msg = WhatsAppMessage::quotationApprovalRequest(
             $lims_customer_data->name,
             $lims_quotation_data->reference_no,
-            number_format((float) $lims_quotation_data->grand_total, 2),
+            number_format((float) $lims_quotation_data->grand_total, 0),
             $approvalUrl,
             array_merge($pricing, ['products' => $products])
         );
@@ -802,7 +802,7 @@ class QuotationController extends Controller
     {
         $customer = Customer::find($quotation->customer_id);
         $customerName = $customer ? $customer->name : 'Client';
-        $grandTotal = number_format((float) $quotation->grand_total, 2);
+        $grandTotal = number_format((float) $quotation->grand_total, 0);
         $comment = (string) ($quotation->client_comment ?? '');
         $lines = $this->quotationWhatsAppProducts($quotation, $mail_data);
         $pricing = $this->quotationWhatsAppPricing($quotation, $mail_data);

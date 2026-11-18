@@ -52,7 +52,7 @@
                                                 <td><span class="label-delivery">Ready For Delivery</span></td>
                                             @endif
                                         </div>
-                                        <div class="head-right"><a class="btn btn-buy font-sm-bold w-auto">Total: {{ number_format($item->grand_total, 2) . ' ' . $currency->code}}</a></div>
+                                        <div class="head-right"><a class="btn btn-buy font-sm-bold w-auto">Total: {{ number_format($item->grand_total, 0) . ' ' . $currency->code}}</a></div>
                                     </div>
                                     <div class="body-orders">
                                         <div class="list-orders">
@@ -92,7 +92,7 @@
                                                     <p>Detail: {!! $orderProduct->product->product_details !!}</p>
                                                 </div>
                                                 <div class="quantity-orders">
-                                                    <h3>{{ number_format($orderProduct->price, 2) }} {{ $currency->code }}</h3>
+                                                    <h3>{{ number_format($orderProduct->price, 0) }} {{ $currency->code }}</h3>
                                                 </div>
                                             </div>
                                             @endforeach

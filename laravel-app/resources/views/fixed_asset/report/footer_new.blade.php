@@ -60,9 +60,9 @@
                     const priceSum = <?= json_encode($price_sum ?? 0) ?>;
                     const bookingsSum = <?= json_encode($book_value_sum ?? 0) ?>;
 
-                    const roundedPrice = parseFloat(priceSum).toFixed(2);
-                    const roundedBooking = parseFloat(bookingsSum).toFixed(2);
-                    const roundedDepreciation = parseFloat(depreciationSum).toFixed(2);
+                    const roundedPrice = parseFloat(priceSum).toFixed(0);
+                    const roundedBooking = parseFloat(bookingsSum).toFixed(0);
+                    const roundedDepreciation = parseFloat(depreciationSum).toFixed(0);
 
 
                     // Set page margins

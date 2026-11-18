@@ -41,7 +41,7 @@
                     <td>{{ $item->manager }}</td>
                     <td>{{ $item->purchase_date }}</td>
                     <td>{{ $item->service_date }}</td>
-                    <td>{{ number_format($item->price, 2) }}</td>
+                    <td>{{ number_format($item->price, 0) }}</td>
 {{--                    @php--}}
 {{--                        $depreciation = 0;--}}
 {{--                        $book_value = 0;--}}
@@ -86,7 +86,7 @@
                             $available = $asset_calcultion['available'];
                             $consume = $asset_calcultion['consume'];
                     @endphp
-                    <td>{{ number_format($book_value, 2) }}</td>
+                    <td>{{ number_format($book_value, 0) }}</td>
                     <td>{{ $item->serial_no }}</td>
                     <td>{{ $item->serial_no }}</td>
                     <td>{{ $item->serial_no }}</td>

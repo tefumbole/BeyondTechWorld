@@ -133,8 +133,8 @@
 		                                            <th></th>
 		                                            <th id="total">0</th>
 		                                            <th><i class="dripicons-trash"></i></th>
-                                                    <span id="total-discount" hidden>0.00</span>
-                                                    <span id="total-tax" hidden>0.00</span>
+                                                    <span id="total-discount" hidden>0</span>
+                                                    <span id="total-tax" hidden>0</span>
 		                                        </tfoot>
 		                                    </table>
 		                                </div>
@@ -741,7 +741,7 @@ function edit(){
     var qty = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.qty').val();
     $('input[name="edit_qty"]').val(qty);
 
-    $('input[name="edit_discount"]').val(parseFloat(product_discount[rowindex]).toFixed(2));
+    $('input[name="edit_discount"]').val(parseFloat(product_discount[rowindex]).toFixed(0));
 
     var tax_name_all = <?php echo json_encode($tax_name_all) ?>;
     pos = tax_name_all.indexOf(tax_name[rowindex]);
@@ -833,8 +833,8 @@ function calculateRowProductData(quantity) {
     else
         row_product_price = product_price[rowindex];
 
-    $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.discount').text((product_discount[rowindex] * quantity).toFixed(2));
-    $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.discount-value').val((product_discount[rowindex] * quantity).toFixed(2));
+    $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.discount').text((product_discount[rowindex] * quantity).toFixed(0));
+    $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.discount-value').val((product_discount[rowindex] * quantity).toFixed(0));
     $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.tax-rate').val(tax_rate[rowindex].toFixed(2));
 
     if (tax_method[rowindex] == 1) {
@@ -897,16 +897,16 @@ function calculateTotal() {
     $(".discount-value").each(function() {
         total_discount += parseFloat($(this).val()) || 0;
     });
-    $("#total-discount").text(total_discount.toFixed(2));
-    $('input[name="total_discount"]').val(total_discount.toFixed(2));
+    $("#total-discount").text(total_discount.toFixed(0));
+    $('input[name="total_discount"]').val(total_discount.toFixed(0));
 
     //Sum of tax
     var total_tax = 0;
     $(".tax-value").each(function() {
         total_tax += parseFloat($(this).val()) || 0;
     });
-    $("#total-tax").text(total_tax.toFixed(2));
-    $('input[name="total_tax"]').val(total_tax.toFixed(2));
+    $("#total-tax").text(total_tax.toFixed(0));
+    $('input[name="total_tax"]').val(total_tax.toFixed(0));
 
     //Sum of subtotal
     var total = 0;
@@ -914,7 +914,7 @@ function calculateTotal() {
         total += parseFloat($(this).text());
     });
     $("#total").text(moneyPlain(total));
-    $('input[name="total_price"]').val(total.toFixed(2));
+    $('input[name="total_price"]').val(total.toFixed(0));
 
     calculateGrandTotal();
 }
@@ -942,11 +942,11 @@ function calculateGrandTotal() {
     $('input[name="item"]').val($('table.order-list tbody tr:last').index() + 1);
     $('#subtotal').text(moneyPlain(subtotal));
     $('#order_tax').text(moneyPlain(order_tax));
-    $('input[name="order_tax"]').val(order_tax.toFixed(2));
+    $('input[name="order_tax"]').val(order_tax.toFixed(0));
     $('#order_discount').text(moneyPlain(order_discount));
     $('#shipping_cost').text(moneyPlain(shipping_cost));
     $('#grand_total').text(moneyPlain(grand_total));
-    $('input[name="grand_total"]').val(grand_total.toFixed(2));
+    $('input[name="grand_total"]').val(grand_total.toFixed(0));
 }
 
 @if(!empty($cloneQuotation))

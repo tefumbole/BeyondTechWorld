@@ -166,7 +166,7 @@ class MomoMiniReceipt
             return null;
         }
 
-        return number_format($total, 2, '.', ',');
+        return number_format($total, 0, '.', ',');
     }
 
     protected function money($amount)
@@ -236,10 +236,10 @@ class MomoMiniReceipt
             'clientPhone' => isset($receipt['client_phone']) && trim((string) $receipt['client_phone']) !== '' ? $receipt['client_phone'] : (isset($receipt['phone']) ? $receipt['phone'] : ''),
             'city' => isset($receipt['city']) ? $receipt['city'] : '',
             'reason' => isset($receipt['reason']) && trim((string) $receipt['reason']) !== '' ? $receipt['reason'] : 'Mobile Money payment',
-            'amount' => number_format($amount, 2, '.', ','),
-            'fee' => $this->feeAmount($receipt) > 0 ? number_format($this->feeAmount($receipt), 2, '.', ',') : '',
+            'amount' => number_format($amount, 0, '.', ','),
+            'fee' => $this->feeAmount($receipt) > 0 ? number_format($this->feeAmount($receipt), 0, '.', ',') : '',
             'feeLabel' => $this->chargeLabel($receipt, isset($receipt['client_phone']) ? $receipt['client_phone'] : ''),
-            'pending' => $this->hasPending($receipt) ? number_format($this->pendingAmount($receipt), 2, '.', ',') : '0.00',
+            'pending' => $this->hasPending($receipt) ? number_format($this->pendingAmount($receipt), 0, '.', ',') : '0.00',
             'words' => $words,
             'method' => isset($receipt['method']) && trim((string) $receipt['method']) !== '' ? $receipt['method'] : 'Mobile Money',
             'admin' => $admin ? $admin->name : 'Admin',
@@ -327,11 +327,11 @@ class MomoMiniReceipt
             'requestedPhone' => isset($receipt['requested_phone']) ? trim((string) $receipt['requested_phone']) : '',
             'reason' => isset($receipt['reason']) ? trim((string) $receipt['reason']) : '',
             'description' => $description,
-            'amount' => number_format($amount, 2, '.', ','),
+            'amount' => number_format($amount, 0, '.', ','),
             'invoiceTotal' => $this->invoiceTotal($receipt, $amount),
-            'fee' => $this->feeAmount($receipt) > 0 ? number_format($this->feeAmount($receipt), 2, '.', ',') : '',
+            'fee' => $this->feeAmount($receipt) > 0 ? number_format($this->feeAmount($receipt), 0, '.', ',') : '',
             'feeLabel' => $this->chargeLabel($receipt, isset($receipt['client_phone']) ? $receipt['client_phone'] : ''),
-            'pending' => $this->hasPending($receipt) ? number_format($this->pendingAmount($receipt), 2, '.', ',') : null,
+            'pending' => $this->hasPending($receipt) ? number_format($this->pendingAmount($receipt), 0, '.', ',') : null,
             'method' => $method,
             'createdBy' => $createdBy,
             'approvedBy' => $approvedBy,

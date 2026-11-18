@@ -43,7 +43,7 @@
                                             </div>
                                         </div>
                                         <div class="wishlist-price">
-                                            <h4 class="color-brand-3">{{ number_format($item['price'], 2) }} {{ $currency->code }}</h4>
+                                            <h4 class="color-brand-3">{{ number_format($item['price'], 0) }} {{ $currency->code }}</h4>
                                         </div>
                                         <div class="wishlist-status">
                                             <div class="box-quantity">
@@ -55,7 +55,7 @@
                                             </div>
                                         </div>
                                         <div class="wishlist-action">
-                                            <h4 class="color-brand-3">{{ number_format($item['price'] * $item['quantity'], 2) }} {{ $currency->code }}</h4>
+                                            <h4 class="color-brand-3">{{ number_format($item['price'] * $item['quantity'], 0) }} {{ $currency->code }}</h4>
                                         </div>
                                         <div class="wishlist-remove"><a class="btn btn-delete" onclick="updateCart({{ $item['products_id'] }},'/cart/delete')"></a></div>
                                     </div>
@@ -105,7 +105,7 @@
                                 <div class="row">
                                     <div class="col-6"><span class="font-md-bold color-gray-500">Subtotal</span></div>
                                     <div class="col-6 text-end">
-                                        <h4>	{{ number_format($total, 2) }} {{ $currency->code }}</h4>
+                                        <h4>	{{ number_format($total, 0) }} {{ $currency->code }}</h4>
                                     </div>
                                 </div>
                             </div>
@@ -129,7 +129,7 @@
                                 <div class="row">
                                     <div class="col-6"><span class="font-md-bold color-gray-500">Total</span></div>
                                     <div class="col-6 text-end">
-                                        <h4>	{{ number_format($total, 2) }} {{ $currency->code }}</h4>
+                                        <h4>	{{ number_format($total, 0) }} {{ $currency->code }}</h4>
                                     </div>
                                 </div>
                             </div>
@@ -156,7 +156,7 @@
                                     </div>
                                     <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
                                 </div>
-                                <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 2) }} {{ $currency->code }}</strong></div>
+                                <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 0) }} {{ $currency->code }}</strong></div>
                                 @if($item->qty > 0 || $item->type == 'digital')
                                 <div class="mt-20 box-btn-cart"><a class="btn btn-cart" onclick="addtocart({{ $item->id }},'/addToCart')">Add To Cart</a></div>
                                 @else
@@ -187,7 +187,7 @@
                                     </div>
                                     <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
                                 </div>
-                                <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 2) }} {{ $currency->code }}</strong></div>
+                                <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 0) }} {{ $currency->code }}</strong></div>
                             </div>
                         </div>
                     </div>

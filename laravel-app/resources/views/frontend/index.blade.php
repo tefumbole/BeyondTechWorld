@@ -96,7 +96,7 @@
                                                                 <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
                                                             </div>
                                                             <div class="box-prices">
-                                                                <div class="price-bold color-brand-3">{{ number_format($item->price, 2) }} {{ $currency->code }}</div>
+                                                                <div class="price-bold color-brand-3">{{ number_format($item->price, 0) }} {{ $currency->code }}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -146,7 +146,7 @@
                                                                 <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
                                                             </div>
                                                             <div class="box-prices">
-                                                                <div class="price-bold color-brand-3">{{ number_format($item->price, 2) }} {{ $currency->code }}</div>
+                                                                <div class="price-bold color-brand-3">{{ number_format($item->price, 0) }} {{ $currency->code }}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -197,7 +197,7 @@
                                                                 <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
                                                             </div>
                                                             <div class="box-prices">
-                                                                <div class="price-bold color-brand-3">{{ number_format($item->price, 2) }} {{ $currency->code }}</div>
+                                                                <div class="price-bold color-brand-3">{{ number_format($item->price, 0) }} {{ $currency->code }}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -271,7 +271,7 @@
                                                             <div class="product-rating" style="width: {{ $item->rating * 20 }}%"></div>
                                                         </div>
                                                         <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
-                                                    </div>                                        <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 2) }} {{ $currency->code }}</strong></div>
+                                                    </div>                                        <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 0) }} {{ $currency->code }}</strong></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -344,7 +344,7 @@
                                                             <div class="product-rating" style="width: {{ $item->rating * 20 }}%"></div>
                                                         </div>
                                                         <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
-                                                    </div>                                                <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 2) }} {{ $currency->code }}</strong></div>
+                                                    </div>                                                <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 0) }} {{ $currency->code }}</strong></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -429,7 +429,7 @@
                                                             <div class="product-rating" style="width: {{ $item->rating * 20 }}%"></div>
                                                         </div>
                                                         <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
-                                                    </div>                                                <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 2) }} {{ $currency->code }}</strong></div>
+                                                    </div>                                                <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 0) }} {{ $currency->code }}</strong></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -476,7 +476,7 @@
                                                             <div class="product-rating" style="width: {{ $item->rating * 20 }}%"></div>
                                                         </div>
                                                         <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
-                                                    </div>                                                <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 2) }} {{ $currency->code }}</strong></div>
+                                                    </div>                                                <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 0) }} {{ $currency->code }}</strong></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -522,7 +522,7 @@
                                                         </div>
                                                         <div class="info-right"><span class="font-xs color-gray-500">{{ @$item->category->name }}</span><br><a class="color-brand-3 font-xs-bold" href="{{ route('product', ['id' => $item->id]) }}">{{ $item->name }}</a>
                                                             {{--                                                    <div class="rating"><img src="{{ asset('public/assets/imgs/template/icons/star.svg')}}" alt="Product Image"><img src="{{ asset('public/assets/imgs/template/icons/star.svg')}}" alt="Product Image"><img src="{{ asset('public/assets/imgs/template/icons/star.svg')}}" alt="Product Image"><img src="{{ asset('public/assets/imgs/template/icons/star.svg')}}" alt="Product Image"><img src="{{ asset('public/assets/imgs/template/icons/star.svg')}}" alt="Product Image"><span class="font-xs color-gray-500"> (65)</span></div>--}}
-                                                            <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 2) }} {{ $currency->code }}</strong></div>
+                                                            <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 0) }} {{ $currency->code }}</strong></div>
                                                         </div>
                                                     </div>
                                                 @endforeach
@@ -542,7 +542,7 @@
                                                                     <div class="product-rating" style="width: {{ $item->rating * 20 }}%"></div>
                                                                 </div>
                                                                 <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
-                                                            </div>                                                        <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 2) }} {{ $currency->code }}</strong></div>
+                                                            </div>                                                        <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 0) }} {{ $currency->code }}</strong></div>
                                                         </div>
                                                     </div>
                                                 @endforeach
@@ -579,7 +579,7 @@
                                                                     <div class="product-rating" style="width: {{ $item->rating * 20 }}%"></div>
                                                                 </div>
                                                                 <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
-                                                            </div>                                                        <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 2) }} {{ $currency->code }}</strong></div>
+                                                            </div>                                                        <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 0) }} {{ $currency->code }}</strong></div>
                                                         </div>
                                                     </div>
                                                 @endforeach
@@ -616,7 +616,7 @@
                                                                     <div class="product-rating" style="width: {{ $item->rating * 20 }}%"></div>
                                                                 </div>
                                                                 <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
-                                                            </div>                                                        <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 2) }} {{ $currency->code }}</strong></div>
+                                                            </div>                                                        <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 0) }} {{ $currency->code }}</strong></div>
                                                         </div>
                                                     </div>
                                                 @endforeach
@@ -653,7 +653,7 @@
                                                                     <div class="product-rating" style="width: {{ $item->rating * 20 }}%"></div>
                                                                 </div>
                                                                 <span class="font-xs color-gray-500">({{ count($item->reviews) }})</span>
-                                                            </div>                                                        <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 2) }} {{ $currency->code }}</strong></div>
+                                                            </div>                                                        <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($item->price, 0) }} {{ $currency->code }}</strong></div>
                                                         </div>
                                                     </div>
                                                 @endforeach

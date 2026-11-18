@@ -61,7 +61,7 @@
                                                 }
                                                 @endphp
                                                 <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">
-                                                        {{ number_format($rent_price, 2) }} {{ $currency->code }}</strong></div>
+                                                        {{ number_format($rent_price, 0) }} {{ $currency->code }}</strong></div>
                                                 @if($product->qty > 0 || $product->type != 'standard')
                                                     @if($product->rent_price_per_hour > 0 || $product->rent_price_per_day > 0 || $product->rent_price_per_month > 0)
                                                         <div class="mt-20 box-btn-cart"><a class="btn btn-cart" onclick="addtoRentcart({{ $product->id }},'/addToRentCart')">Book / Rent</a></div>

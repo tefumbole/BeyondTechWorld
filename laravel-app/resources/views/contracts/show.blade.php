@@ -88,7 +88,7 @@
                             {{ $contract->start_date ? \Carbon\Carbon::parse($contract->start_date)->format('M j, Y') : '—' }}
                             – {{ $contract->end_date ? \Carbon\Carbon::parse($contract->end_date)->format('M j, Y') : '—' }}
                         </div>
-                        <div class="col-md-6 mb-2"><strong>Value:</strong> {{ $contract->value ? number_format((float) $contract->value, 2).' '.($contract->currency ?? '') : '—' }}</div>
+                        <div class="col-md-6 mb-2"><strong>Value:</strong> {{ $contract->value ? number_format((float) $contract->value, 0).' '.($contract->currency ?? '') : '—' }}</div>
                         <div class="col-md-6 mb-2"><strong>Jurisdiction:</strong> {{ $contract->jurisdiction ?: '—' }}</div>
                         <div class="col-md-12 mb-2"><strong>Purpose:</strong> {{ $contract->purpose ?: '—' }}</div>
                         <div class="col-md-12 mb-2"><strong>Payment schedule:</strong> {{ $contract->payment_schedule ?: '—' }}</div>

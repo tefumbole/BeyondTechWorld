@@ -41,15 +41,15 @@
                 </div>
                 <div class="flex justify-between border-b py-2.5">
                     <span class="text-gray-500">Amount</span>
-                    <span class="font-bold text-brand-blue">{{ number_format((float) $data['amount'], 2) }} {{ $data['currency'] }}</span>
+                    <span class="font-bold text-brand-blue">{{ number_format((float) $data['amount'], 0) }} {{ $data['currency'] }}</span>
                 </div>
                 <div class="flex justify-between border-b py-2.5">
                     <span class="text-gray-500">Amount paid</span>
-                    <span class="text-gray-800">{{ number_format((float) $data['paid'], 2) }}</span>
+                    <span class="text-gray-800">{{ number_format((float) $data['paid'], 0) }}</span>
                 </div>
                 <div class="flex justify-between border-b py-2.5">
                     <span class="text-gray-500">Amount pending</span>
-                    <span class="text-gray-800">{{ number_format((float) $data['pending'], 2) }}</span>
+                    <span class="text-gray-800">{{ number_format((float) $data['pending'], 0) }}</span>
                 </div>
                 <div class="flex justify-between py-2.5">
                     <span class="text-gray-500">Payment status</span>

@@ -14,7 +14,7 @@
 <body>
     <h1>Wealth Manager Report</h1>
     <p>{{ $filter->startDate }} to {{ $filter->endDate }}</p>
-    <p>Income {{ number_format($data['income'], 2) }} · Expenses {{ number_format($data['expenses'], 2) }} · Balance {{ number_format($data['balance'], 2) }}</p>
+    <p>Income {{ number_format($data['income'], 0) }} · Expenses {{ number_format($data['expenses'], 0) }} · Balance {{ number_format($data['balance'], 0) }}</p>
     <p>Financial Health {{ $data['health']['overall_score'] }} / 100 — {{ $data['health']['status_label'] }} (internal discipline score, not a credit score)</p>
     <h3>70 / 20 / 10</h3>
     <table>
@@ -22,9 +22,9 @@
         @foreach($data['allocation']['rows'] as $row)
             <tr>
                 <td>{{ optional($row['bucket'])->label }}</td>
-                <td>{{ number_format($row['expected'], 2) }}</td>
-                <td>{{ number_format($row['used'], 2) }}</td>
-                <td>{{ number_format($row['remaining'], 2) }}</td>
+                <td>{{ number_format($row['expected'], 0) }}</td>
+                <td>{{ number_format($row['used'], 0) }}</td>
+                <td>{{ number_format($row['remaining'], 0) }}</td>
             </tr>
         @endforeach
     </table>

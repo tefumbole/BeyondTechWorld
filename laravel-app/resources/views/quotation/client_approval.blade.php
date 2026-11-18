@@ -119,8 +119,8 @@
                 <tr>
                     <td>{{ $line['name'] }}</td>
                     <td>{{ $line['qty'] }} {{ $line['unit'] }}</td>
-                    <td>{{ number_format((float)$line['net_unit_price'], 2) }}</td>
-                    <td>{{ number_format((float)$line['total'], 2) }}</td>
+                    <td>{{ number_format((float)$line['net_unit_price'], 0) }}</td>
+                    <td>{{ number_format((float)$line['total'], 0) }}</td>
                 </tr>
             @endforeach
             </tbody>
@@ -129,29 +129,29 @@
             <table class="totals-table">
                 <tr>
                     <td>Subtotal</td>
-                    <td>{{ number_format($subtotal, 2) }}</td>
+                    <td>{{ number_format($subtotal, 0) }}</td>
                 </tr>
                 @if($showDiscount)
                     <tr class="discount">
                         <td>Discount</td>
-                        <td>-{{ number_format($orderDiscount, 2) }}</td>
+                        <td>-{{ number_format($orderDiscount, 0) }}</td>
                     </tr>
                 @endif
                 @if($orderTax > 0)
                     <tr>
                         <td>Tax</td>
-                        <td>{{ number_format($orderTax, 2) }}</td>
+                        <td>{{ number_format($orderTax, 0) }}</td>
                     </tr>
                 @endif
                 @if($shipping > 0)
                     <tr>
                         <td>Shipping</td>
-                        <td>{{ number_format($shipping, 2) }}</td>
+                        <td>{{ number_format($shipping, 0) }}</td>
                     </tr>
                 @endif
                 <tr class="grand">
                     <td>Total due</td>
-                    <td>{{ number_format($grandTotal, 2) }}</td>
+                    <td>{{ number_format($grandTotal, 0) }}</td>
                 </tr>
             </table>
         </div>
@@ -196,9 +196,9 @@
             </div>
 
             <div id="quote-overall-block">
-                <label style="display:block;font-size:14px;margin-bottom:6px;">Proposed total (current: {{ number_format($grandTotal, 2) }})</label>
+                <label style="display:block;font-size:14px;margin-bottom:6px;">Proposed total (current: {{ number_format($grandTotal, 0) }})</label>
                 <input class="quote-input" type="number" step="0.01" min="0.01" name="proposed_grand_total" id="proposed_grand_total"
-                       value="{{ old('proposed_grand_total', number_format($grandTotal, 2, '.', '')) }}" style="max-width:220px;">
+                       value="{{ old('proposed_grand_total', number_format($grandTotal, 0, '.', '')) }}" style="max-width:220px;">
             </div>
 
             <div id="quote-lines-block" style="display:none;">
@@ -220,16 +220,16 @@
                                 <input type="hidden" name="lines[{{ $idx }}][product_quotation_id]" value="{{ $line['id'] }}">
                                 <input class="quote-input line-unit" type="number" step="0.01" min="0"
                                        name="lines[{{ $idx }}][proposed_net_unit_price]"
-                                       value="{{ old('lines.'.$idx.'.proposed_net_unit_price', number_format((float)$line['net_unit_price'], 2, '.', '')) }}">
+                                       value="{{ old('lines.'.$idx.'.proposed_net_unit_price', number_format((float)$line['net_unit_price'], 0, '.', '')) }}">
                             </td>
-                            <td class="line-total">{{ number_format((float)$line['total'], 2) }}</td>
+                            <td class="line-total">{{ number_format((float)$line['total'], 0) }}</td>
                         </tr>
                     @endforeach
                     </tbody>
                 </table>
                 <p style="text-align:right;margin:10px 0 0;font-weight:800;">
                     Estimated total:
-                    <span id="quote-lines-grand">{{ number_format($grandTotal, 2) }}</span>
+                    <span id="quote-lines-grand">{{ number_format($grandTotal, 0) }}</span>
                 </p>
                 <p class="quote-hint">Estimated total uses your line prices plus existing tax/shipping minus discount.</p>
             </div>
@@ -394,11 +394,11 @@
             var total = Math.round(unit * qty * 100) / 100;
             sum += total;
             var cell = tr.querySelector('.line-total');
-            if (cell) cell.textContent = total.toFixed(2);
+            if (cell) cell.textContent = total.toFixed(0);
         });
         var grand = Math.round((sum + orderTax + shipping - orderDiscount) * 100) / 100;
         var el = document.getElementById('quote-lines-grand');
-        if (el) el.textContent = grand.toFixed(2);
+        if (el) el.textContent = grand.toFixed(0);
     }
     modeOverall.addEventListener('change', syncQuoteMode);
     modeLines.addEventListener('change', syncQuoteMode);

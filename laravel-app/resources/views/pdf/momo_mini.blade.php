@@ -43,12 +43,12 @@
     <table>
         <tr><td colspan="2">{{ $reason }}</td></tr>
         <tr><td>1 × {{ $amount }}</td><td class="right">{{ $amount }}</td></tr>
-        <tr><td>Tax</td><td class="right">0.00</td></tr>
+        <tr><td>Tax</td><td class="right">0</td></tr>
     </table>
     <div class="rule"></div>
     <table>
-        <tr><td>Discount</td><td class="right">0.00</td></tr>
-        <tr><td>Tax</td><td class="right">0.00</td></tr>
+        <tr><td>Discount</td><td class="right">0</td></tr>
+        <tr><td>Tax</td><td class="right">0</td></tr>
         <tr><td class="total">Total</td><td class="right total">{{ $amount }}</td></tr>
         <tr><td>Paying Amount</td><td class="right">{{ $amount }}</td></tr>
         @if($fee !== '')

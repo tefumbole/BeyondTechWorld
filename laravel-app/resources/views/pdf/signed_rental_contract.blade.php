@@ -86,16 +86,16 @@
                         <td>{{ $item['name'] }}</td>
                         <td>{{ $item['code'] }}</td>
                         <td>{{ $item['qty'] }}</td>
-                        <td>{{ number_format($item['unit_price'], 2) }}</td>
-                        <td>{{ number_format($item['total'], 2) }}</td>
+                        <td>{{ number_format($item['unit_price'], 0) }}</td>
+                        <td>{{ number_format($item['total'], 0) }}</td>
                         <td>{{ $item['end'] ? date('d M Y, H:i', strtotime($item['end'])) : 'As scheduled' }}</td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
-        <p><strong>Grand Total: {{ number_format($booking->grand_total, 2) }}</strong></p>
-        <p><strong>Paid Amount: {{ number_format($booking->paid_amount, 2) }}</strong></p>
-        <p><strong>Balance Due: {{ number_format($booking->grand_total - $booking->paid_amount, 2) }}</strong></p>
+        <p><strong>Grand Total: {{ number_format($booking->grand_total, 0) }}</strong></p>
+        <p><strong>Paid Amount: {{ number_format($booking->paid_amount, 0) }}</strong></p>
+        <p><strong>Balance Due: {{ number_format($booking->grand_total - $booking->paid_amount, 0) }}</strong></p>
     </div>
 
     @if(!empty($booking->booking_note))

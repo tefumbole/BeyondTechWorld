@@ -655,8 +655,8 @@ echo $response;
             }
             $sent_amount = $sent_amount + $return_amount + $expense_amount + $payroll_amount;
 
-            $payment_recieved[] = number_format((float)($recieved_amount + $purchase_return_amount), 2, '.', '');
-            $payment_sent[] = number_format((float)$sent_amount, 2, '.', '');
+            $payment_recieved[] = number_format((float)($recieved_amount + $purchase_return_amount), 0, '.', '');
+            $payment_sent[] = number_format((float)$sent_amount, 0, '.', '');
             $month[] = date("F", strtotime($start_date));
             $start = strtotime("+1 month", $start);
         }
@@ -675,8 +675,8 @@ echo $response;
                 $sale_amount = Sale::whereDate('created_at', '>=' , $start_date)->whereDate('created_at', '<=' , $end_date)->sum('grand_total');
                 $purchase_amount = Purchase::whereDate('created_at', '>=' , $start_date)->whereDate('created_at', '<=' , $end_date)->sum('grand_total');
             }
-            $yearly_sale_amount[] = number_format((float)$sale_amount, 2, '.', '');
-            $yearly_purchase_amount[] = number_format((float)$purchase_amount, 2, '.', '');
+            $yearly_sale_amount[] = number_format((float)$sale_amount, 0, '.', '');
+            $yearly_purchase_amount[] = number_format((float)$purchase_amount, 0, '.', '');
             $start = strtotime("+1 month", $start);
         }
         $workOps = $this->workOpsSnapshot();
@@ -786,7 +786,7 @@ echo $response;
                             'id' => $q->id,
                             'reference' => $q->reference_no,
                             'customer' => optional($q->customer)->name ?: 'Client',
-                            'total' => number_format((float) $q->grand_total, 2),
+                            'total' => number_format((float) $q->grand_total, 0),
                             'date' => $q->created_at ? $q->created_at->format('d-m-Y') : '',
                         ];
                     })

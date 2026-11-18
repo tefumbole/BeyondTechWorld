@@ -98,7 +98,7 @@
                             <td>{{ $item->manager }}</td>
                             <td>{{ $item->purchase_date }}</td>
                             <td>{{ $item->service_date }}</td>
-                            <td>{{ number_format($item->price, 2) }}</td>
+                            <td>{{ number_format($item->price, 0) }}</td>
                             @php
                                 $asset_calcultion = \App\Asset::depricationCaluculate($item);
                                     $depreciation = $asset_calcultion['depreciation'];
@@ -111,8 +111,8 @@
                                     $depreciation_value_sum += $depreciation;
                                     $price_sum += $item->price;
                             @endphp
-                            <td>{{ number_format($book_value, 2) }}</td>
-                            <td>{{ number_format($depreciation, 2) }}</td>
+                            <td>{{ number_format($book_value, 0) }}</td>
+                            <td>{{ number_format($depreciation, 0) }}</td>
                             <td>{{ $item->serial_no }}</td>
                             <td>{{ $item->serial_no }}</td>
                             <td>{{ $item->serial_no }}</td>

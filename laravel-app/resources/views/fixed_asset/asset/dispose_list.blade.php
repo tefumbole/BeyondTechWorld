@@ -51,7 +51,7 @@
                     @endif
                     <td>{{ $item->assets->name }}</td>
                     <td>{{ $item->assets->price}}</td>
-                    <td>{{ number_format($item->price, 2) }}</td>
+                    <td>{{ number_format($item->price, 0) }}</td>
                     <td>{{ $item->method == 'Others' ? $item->other : $item->method}}</td>
                     <td>{{ $item->date}}</td>
                     <td>{{ $item->assets->life_span ?? 'unknown'}} Y</td>

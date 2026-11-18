@@ -21,9 +21,9 @@
                 <div class="text-muted small">{{ $health['trend'] }} vs {{ $filter->previousPeriod()->periodLabel() }} · prev {{ $health['previous_score'] }} ({{ $health['score_change'] >= 0 ? '+' : '' }}{{ $health['score_change'] }})</div>
             </div>
             <div class="small">
-                <div>You can spend {{ number_format(max(0, (float) $ops['remaining']), 2) }}</div>
-                <div>Investment due {{ number_format(max(0, (float) $inv['remaining']), 2) }}</div>
-                <div>Giving due {{ number_format(max(0, (float) $cha['remaining']), 2) }}</div>
+                <div>You can spend {{ number_format(max(0, (float) $ops['remaining']), 0) }}</div>
+                <div>Investment due {{ number_format(max(0, (float) $inv['remaining']), 0) }}</div>
+                <div>Giving due {{ number_format(max(0, (float) $cha['remaining']), 0) }}</div>
             </div>
             <div>
                 <a class="wm-btn wm-btn-out" href="{{ route('wealth.health', request()->query()) }}">View Full Financial Health</a>
@@ -33,28 +33,28 @@
         <div class="wm-kpis mb-3">
             <div class="wm-kpi">
                 <div class="lbl">Income this month</div>
-                <div class="val">{{ number_format($incomeTotal, 2) }}</div>
+                <div class="val">{{ number_format($incomeTotal, 0) }}</div>
                 <div class="small text-muted">All posted income in {{ $filter->periodLabel() }}</div>
             </div>
             <div class="wm-kpi">
                 <div class="lbl">You can spend</div>
-                <div class="val">{{ number_format(max(0, (float) $ops['remaining']), 2) }}</div>
-                <div class="small text-muted">70% operations · used {{ number_format($ops['used'], 2) }} of {{ number_format($ops['expected'], 2) }}@if((float)$ops['remaining'] < 0) · over by {{ number_format(abs($ops['remaining']), 2) }}@endif</div>
+                <div class="val">{{ number_format(max(0, (float) $ops['remaining']), 0) }}</div>
+                <div class="small text-muted">70% operations · used {{ number_format($ops['used'], 0) }} of {{ number_format($ops['expected'], 0) }}@if((float)$ops['remaining'] < 0) · over by {{ number_format(abs($ops['remaining']), 0) }}@endif</div>
             </div>
             <div class="wm-kpi">
                 <div class="lbl">Due for investment</div>
-                <div class="val">{{ number_format(max(0, (float) $inv['remaining']), 2) }}</div>
-                <div class="small text-muted">20% of income · invested {{ number_format($inv['used'], 2) }} of {{ number_format($inv['expected'], 2) }}@if((float)$inv['remaining'] < 0) · over by {{ number_format(abs($inv['remaining']), 2) }}@endif</div>
+                <div class="val">{{ number_format(max(0, (float) $inv['remaining']), 0) }}</div>
+                <div class="small text-muted">20% of income · invested {{ number_format($inv['used'], 0) }} of {{ number_format($inv['expected'], 0) }}@if((float)$inv['remaining'] < 0) · over by {{ number_format(abs($inv['remaining']), 0) }}@endif</div>
             </div>
             <div class="wm-kpi">
                 <div class="lbl">Due for giving</div>
-                <div class="val">{{ number_format(max(0, (float) $cha['remaining']), 2) }}</div>
-                <div class="small text-muted">10% of income · given {{ number_format($cha['used'], 2) }} of {{ number_format($cha['expected'], 2) }}@if((float)$cha['remaining'] < 0) · over by {{ number_format(abs($cha['remaining']), 2) }}@endif</div>
+                <div class="val">{{ number_format(max(0, (float) $cha['remaining']), 0) }}</div>
+                <div class="small text-muted">10% of income · given {{ number_format($cha['used'], 0) }} of {{ number_format($cha['expected'], 0) }}@if((float)$cha['remaining'] < 0) · over by {{ number_format(abs($cha['remaining']), 0) }}@endif</div>
             </div>
             <div class="wm-kpi">
                 <div class="lbl">Expenses this month</div>
-                <div class="val">{{ number_format($expenseTotal, 2) }}</div>
-                <div class="small text-muted">Net {{ number_format($balance, 2) }}</div>
+                <div class="val">{{ number_format($expenseTotal, 0) }}</div>
+                <div class="small text-muted">Net {{ number_format($balance, 0) }}</div>
             </div>
         </div>
 
@@ -79,8 +79,8 @@
                                 <div class="small text-muted">Spent {{ $card['finance']['spent_pct'] }}%</div>
                             </div>
                             <div class="text-right small">
-                                In {{ number_format($card['finance']['income'], 2) }}<br>
-                                Out {{ number_format($card['finance']['expenses'], 2) }}
+                                In {{ number_format($card['finance']['income'], 0) }}<br>
+                                Out {{ number_format($card['finance']['expenses'], 0) }}
                             </div>
                         </div>
                     @empty
@@ -94,7 +94,7 @@
                     @forelse($topCategories as $cat)
                         <div class="d-flex justify-content-between py-1">
                             <span>{{ optional(\App\ExpenseCategory::find($cat->expense_category_id))->name ?: '—' }}</span>
-                            <strong>{{ number_format($cat->total, 2) }}</strong>
+                            <strong>{{ number_format($cat->total, 0) }}</strong>
                         </div>
                     @empty
                         <p class="text-muted mb-0">No expenses in this period.</p>
@@ -113,7 +113,7 @@
                         <td>{{ $row->occurred_at }}</td>
                         <td>Income · {{ strtoupper($row->source_type) }}</td>
                         <td>{{ $row->title }} {{ optional($row->customer)->name }}</td>
-                        <td class="text-right">{{ number_format($row->amount, 2) }}</td>
+                        <td class="text-right">{{ number_format($row->amount, 0) }}</td>
                     </tr>
                 @endforeach
                 @foreach($recentExpenses as $row)
@@ -121,7 +121,7 @@
                         <td>{{ $row->created_at }}</td>
                         <td>Expense</td>
                         <td>{{ $row->title ?: $row->reference_no }}</td>
-                        <td class="text-right">-{{ number_format($row->amount, 2) }}</td>
+                        <td class="text-right">-{{ number_format($row->amount, 0) }}</td>
                     </tr>
                 @endforeach
                 </tbody>

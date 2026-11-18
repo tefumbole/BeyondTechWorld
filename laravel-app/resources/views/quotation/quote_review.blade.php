@@ -35,17 +35,17 @@
                 <div class="row">
                     <div class="col-md-4">
                         <div class="text-muted small">Original total</div>
-                        <div class="h4 mb-0">{{ number_format((float)$quote->original_grand_total, 2) }}</div>
+                        <div class="h4 mb-0">{{ number_format((float)$quote->original_grand_total, 0) }}</div>
                     </div>
                     <div class="col-md-4">
                         <div class="text-muted small">Client proposed total</div>
-                        <div class="h4 mb-0 text-info">{{ number_format((float)$quote->proposed_grand_total, 2) }}</div>
+                        <div class="h4 mb-0 text-info">{{ number_format((float)$quote->proposed_grand_total, 0) }}</div>
                     </div>
                     <div class="col-md-4">
                         <div class="text-muted small">Difference</div>
                         @php $diff = (float)$quote->proposed_grand_total - (float)$quote->original_grand_total; @endphp
                         <div class="h4 mb-0 {{ $diff < 0 ? 'text-success' : ($diff > 0 ? 'text-danger' : '') }}">
-                            {{ ($diff > 0 ? '+' : '').number_format($diff, 2) }}
+                            {{ ($diff > 0 ? '+' : '').number_format($diff, 0) }}
                         </div>
                     </div>
                 </div>
@@ -81,16 +81,16 @@
                                     <tr data-qty="{{ $lv['qty'] }}">
                                         <td>{{ $lv['name'] }}</td>
                                         <td>{{ $lv['qty'] }}</td>
-                                        <td>{{ number_format((float)$ql->original_net_unit_price, 2) }}</td>
-                                        <td>{{ number_format((float)$ql->original_total, 2) }}</td>
+                                        <td>{{ number_format((float)$ql->original_net_unit_price, 0) }}</td>
+                                        <td>{{ number_format((float)$ql->original_total, 0) }}</td>
                                         <td>
                                             <input type="hidden" name="lines[{{ $i }}][quote_line_id]" value="{{ $ql->id }}">
                                             <input type="number" step="0.01" min="0" class="form-control form-control-sm admin-unit"
                                                    name="lines[{{ $i }}][proposed_net_unit_price]"
-                                                   value="{{ number_format((float)$ql->proposed_net_unit_price, 2, '.', '') }}"
+                                                   value="{{ number_format((float)$ql->proposed_net_unit_price, 0, '.', '') }}"
                                                    style="max-width:140px;">
                                         </td>
-                                        <td class="admin-line-total">{{ number_format((float)$ql->proposed_total, 2) }}</td>
+                                        <td class="admin-line-total">{{ number_format((float)$ql->proposed_total, 0) }}</td>
                                     </tr>
                                 @endforeach
                                 </tbody>
@@ -101,7 +101,7 @@
                                 <label>Final grand total (optional override)</label>
                                 <input type="number" step="0.01" min="0" name="proposed_grand_total" id="admin_grand"
                                        class="form-control"
-                                       value="{{ number_format((float)$quote->proposed_grand_total, 2, '.', '') }}">
+                                       value="{{ number_format((float)$quote->proposed_grand_total, 0, '.', '') }}">
                                 <small class="text-muted">Leave as calculated from lines, or override.</small>
                             </div>
                             <div class="form-group col-md-8 mb-2">
@@ -155,14 +155,14 @@
             var total = Math.round(unit * qty * 100) / 100;
             sum += total;
             var cell = tr.querySelector('.admin-line-total');
-            if (cell) cell.textContent = total.toFixed(2);
+            if (cell) cell.textContent = total.toFixed(0);
         });
         var tax = {{ json_encode((float)($quotation->order_tax ?? 0)) }};
         var ship = {{ json_encode((float)($quotation->shipping_cost ?? 0)) }};
         var disc = {{ json_encode((float)($quotation->order_discount ?? 0)) }};
         var grand = Math.round((sum + tax + ship - disc) * 100) / 100;
         var el = document.getElementById('admin_grand');
-        if (el) el.value = grand.toFixed(2);
+        if (el) el.value = grand.toFixed(0);
     }
     document.querySelectorAll('.admin-unit').forEach(function (el) {
         el.addEventListener('input', recalc);

@@ -168,14 +168,14 @@
                             <tr>
                                 <td colspan="2">
                                     {{$product_name}}
-                                    <br>{{$product_sale_data->qty}} x {{number_format((float)($product_sale_data->total / $product_sale_data->qty), 2)}}
+                                    <br>{{$product_sale_data->qty}} x {{number_format((float)($product_sale_data->total / $product_sale_data->qty), 0)}}
 
                                     @if($product_sale_data->tax_rate)
                                             <?php $total_product_tax += $product_sale_data->tax ?>
                                         [{{trans('file.Tax')}} ({{$product_sale_data->tax_rate}}%): {{$product_sale_data->tax}}]
                                     @endif
                                 </td>
-                                <td style="text-align:right;vertical-align:bottom">{{number_format((float)$product_sale_data->total, 2)}}</td>
+                                <td style="text-align:right;vertical-align:bottom">{{number_format((float)$product_sale_data->total, 0)}}</td>
                             </tr>
                         @endforeach
 
@@ -183,51 +183,51 @@
                         @if($general_setting->invoice_format != 'mini')
                         <tr>
                             <th colspan="2" style="text-align:left">{{trans('file.Total')}}</th>
-                            <th style="text-align:right">{{number_format((float)$lims_sale_data->total_price, 2)}}</th>
+                            <th style="text-align:right">{{number_format((float)$lims_sale_data->total_price, 0)}}</th>
                         </tr>
                         @if($general_setting->invoice_format == 'gst' && $general_setting->state == 1)
                             <tr>
                                 <td colspan="2">IGST</td>
-                                <td style="text-align:right">{{number_format((float)$total_product_tax, 2)}}</td>
+                                <td style="text-align:right">{{number_format((float)$total_product_tax, 0)}}</td>
                             </tr>
                         @elseif($general_setting->invoice_format == 'gst' && $general_setting->state == 2)
                             <tr>
                                 <td colspan="2">SGST</td>
-                                <td style="text-align:right">{{number_format((float)($total_product_tax / 2), 2)}}</td>
+                                <td style="text-align:right">{{number_format((float)($total_product_tax / 2), 0)}}</td>
                             </tr>
                             <tr>
                                 <td colspan="2">CGST</td>
-                                <td style="text-align:right">{{number_format((float)($total_product_tax / 2), 2)}}</td>
+                                <td style="text-align:right">{{number_format((float)($total_product_tax / 2), 0)}}</td>
                             </tr>
                         @endif
                         @if($lims_sale_data->order_tax)
                             <tr>
                                 <th colspan="2" style="text-align:left">{{trans('file.Order Tax')}}</th>
-                                <th style="text-align:right">{{number_format((float)$lims_sale_data->order_tax, 2)}}</th>
+                                <th style="text-align:right">{{number_format((float)$lims_sale_data->order_tax, 0)}}</th>
                             </tr>
                         @endif
                         @if($lims_sale_data->order_discount)
                             <tr>
                                 <th colspan="2" style="text-align:left">{{trans('file.Order Discount')}}</th>
-                                <th style="text-align:right">{{number_format((float)$lims_sale_data->order_discount, 2)}}</th>
+                                <th style="text-align:right">{{number_format((float)$lims_sale_data->order_discount, 0)}}</th>
                             </tr>
                         @endif
                         @if($lims_sale_data->coupon_discount)
                             <tr>
                                 <th colspan="2" style="text-align:left">{{trans('file.Coupon Discount')}}</th>
-                                <th style="text-align:right">{{number_format((float)$lims_sale_data->coupon_discount, 2)}}</th>
+                                <th style="text-align:right">{{number_format((float)$lims_sale_data->coupon_discount, 0)}}</th>
                             </tr>
                         @endif
                         @if($lims_sale_data->shipping_cost)
                             <tr>
                                 <th colspan="2" style="text-align:left">{{trans('file.Shipping Cost')}}</th>
-                                <th style="text-align:right">{{number_format((float)$lims_sale_data->shipping_cost, 2)}}</th>
+                                <th style="text-align:right">{{number_format((float)$lims_sale_data->shipping_cost, 0)}}</th>
                             </tr>
                         @endif
                         @endif
                         <tr>
                             <th colspan="2" style="text-align:left">{{trans('file.grand total')}}</th>
-                            <th style="text-align:right">{{number_format((float)$lims_sale_data->grand_total, 2)}}</th>
+                            <th style="text-align:right">{{number_format((float)$lims_sale_data->grand_total, 0)}}</th>
                         </tr>
                         <tr>
                             <th colspan="2" style="text-align:left">Quotation Status</th>

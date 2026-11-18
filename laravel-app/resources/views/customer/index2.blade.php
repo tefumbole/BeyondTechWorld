@@ -69,10 +69,10 @@
                     <td>{{ $customer->tax_no}}</td>
                     <td>{{ $customer->address}}, {{ $customer->city}}@if($customer->country) {{','. $customer->country}}@endif</td>
                     <td>{{$customer->points}}</td>
-                    <td>@if($customer->deposit > 0) {{ number_format($customer->deposit, 2) }} @else 0 @endif </td>
-                    <td>{{ number_format($customer->remaining, 2)}}</td>
-                    <td>@if($customer->deposit < 0) {{ number_format(abs($customer->deposit), 2) }} @else 0 @endif </td>
-                    <td>@if($customer->deposit - $customer->remaining < 0 ) {{ number_format(abs($customer->deposit - $customer->remaining), 2) }} @else 0 @endif</td>
+                    <td>@if($customer->deposit > 0) {{ number_format($customer->deposit, 0) }} @else 0 @endif </td>
+                    <td>{{ number_format($customer->remaining, 0)}}</td>
+                    <td>@if($customer->deposit < 0) {{ number_format(abs($customer->deposit), 0) }} @else 0 @endif </td>
+                    <td>@if($customer->deposit - $customer->remaining < 0 ) {{ number_format(abs($customer->deposit - $customer->remaining), 0) }} @else 0 @endif</td>
                     <td>
                         <div class="btn-group">
                             <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{trans('file.action')}}

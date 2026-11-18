@@ -212,7 +212,7 @@
                         </div>
                         <div class="col-md-6 mt-1">
                             <label>{{trans('file.Change')}} : </label>
-                            <p class="change ml-2">0.00</p>
+                            <p class="change ml-2">0</p>
                         </div>
                         <div class="col-md-6 mt-1">
                             <label>{{trans('file.Paid By')}}</label>
@@ -603,7 +603,7 @@
         });
 
         $('input[name="paying_amount"]').on("input", function() {
-            $(".change").text(parseFloat( $(this).val() - $('input[name="amount"]').val() ).toFixed(2));
+            $(".change").text(parseFloat( $(this).val() - $('input[name="amount"]').val() ).toFixed(0));
         });
 
         $('input[name="amount"]').on("input", function() {
@@ -615,7 +615,7 @@
                 alert('Paying amount cannot be bigger than due amount');
                 $(this).val('');
             }
-            $(".change").text(parseFloat($('input[name="paying_amount"]').val() - $(this).val()).toFixed(2));
+            $(".change").text(parseFloat($('input[name="paying_amount"]').val() - $(this).val()).toFixed(0));
             var id = $('#add-payment select[name="paid_by_id"]').val();
             var amount = $(this).val();
             if(id == 2){
@@ -678,7 +678,7 @@
         });
 
         $('input[name="edit_paying_amount"]').on("input", function() {
-            $(".change").text(parseFloat( $(this).val() - $('input[name="edit_amount"]').val() ).toFixed(2));
+            $(".change").text(parseFloat( $(this).val() - $('input[name="edit_amount"]').val() ).toFixed(0));
         });
 
         $('input[name="edit_amount"]').on("input", function() {
@@ -686,7 +686,7 @@
                 alert('Paying amount cannot be bigger than recieved amount');
                 $(this).val('');
             }
-            $(".change").text(parseFloat($('input[name="edit_paying_amount"]').val() - $(this).val()).toFixed(2));
+            $(".change").text(parseFloat($('input[name="edit_paying_amount"]').val() - $(this).val()).toFixed(0));
             var amount = $(this).val();
             var id = $('#edit-payment select[name="gift_card_id"]').val();
             if(amount > balance[id]){
@@ -899,7 +899,7 @@
                 ? dt_selector.rows('.selected').indexes()
                 : dt_selector.rows({ page: 'current' }).indexes();
             [3, 4, 5].forEach(function (col) {
-                $(dt_selector.column(col).footer()).html(dt_selector.cells(rows, col, { page: 'current' }).data().sum().toFixed(2));
+                $(dt_selector.column(col).footer()).html(dt_selector.cells(rows, col, { page: 'current' }).data().sum().toFixed(0));
             });
         }
 
@@ -1045,13 +1045,13 @@
             if( $('input[name="paying_amount"]').val() < parseFloat($('#amount').val()) ) {
                 alert('Paying amount cannot be bigger than recieved amount');
                 $('input[name="amount"]').val('');
-                $(".change").text(parseFloat( $('input[name="paying_amount"]').val() - $('#amount').val() ).toFixed(2));
+                $(".change").text(parseFloat( $('input[name="paying_amount"]').val() - $('#amount').val() ).toFixed(0));
                 e.preventDefault();
             }
             else if( $('input[name="edit_paying_amount"]').val() < parseFloat($('input[name="edit_amount"]').val()) ) {
                 alert('Paying amount cannot be bigger than recieved amount');
                 $('input[name="edit_amount"]').val('');
-                $(".change").text(parseFloat( $('input[name="edit_paying_amount"]').val() - $('input[name="edit_amount"]').val() ).toFixed(2));
+                $(".change").text(parseFloat( $('input[name="edit_paying_amount"]').val() - $('input[name="edit_amount"]').val() ).toFixed(0));
                 e.preventDefault();
             }
 

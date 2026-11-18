@@ -91,18 +91,18 @@
                             @if($product->type == 'donation')
                                 <h3 class="color-brand-3 price-main d-inline-block mr-10"><input type="number" class="form-control donate-price-{{$product->id}}" value="{{$product->price}}"></h3>
                             @else
-                                <h3 class="color-brand-3 price-main d-inline-block mr-10">Price: {{ number_format($product->price, 2) }} {{ $currency->code }}</h3><br>
+                                <h3 class="color-brand-3 price-main d-inline-block mr-10">Price: {{ number_format($product->price, 0) }} {{ $currency->code }}</h3><br>
                                 @if($product->rent_price_per_hour > 0 || $product->rent_price_per_day > 0 || $product->rent_price_per_month > 0)
                                     <hr>
                                     <h3 class="color-brand-3 price-main d-inline-block mr-10">Rent Prices</h3><br>
                                     @if($product->rent_price_per_hour > 0)
-                                        <h6 class="color-brand-3 price-main d-inline-block mr-10">Hourly Rate: {{ number_format($product->rent_price_per_hour, 2) }} {{ $currency->code }}</h6><br>
+                                        <h6 class="color-brand-3 price-main d-inline-block mr-10">Hourly Rate: {{ number_format($product->rent_price_per_hour, 0) }} {{ $currency->code }}</h6><br>
                                     @endif
                                     @if($product->rent_price_per_day > 0)
-                                    <h6 class="color-brand-3 price-main d-inline-block mr-10">Daily Rate: {{ number_format($product->rent_price_per_day, 2) }} {{ $currency->code }}</h6><br>
+                                    <h6 class="color-brand-3 price-main d-inline-block mr-10">Daily Rate: {{ number_format($product->rent_price_per_day, 0) }} {{ $currency->code }}</h6><br>
                                     @endif
                                     @if($product->rent_price_per_month > 0)
-                                        <h6 class="color-brand-3 price-main d-inline-block mr-10">Monthly Rate: {{ number_format($product->rent_price_per_month, 2) }} {{ $currency->code }}</h6><hr>
+                                        <h6 class="color-brand-3 price-main d-inline-block mr-10">Monthly Rate: {{ number_format($product->rent_price_per_month, 0) }} {{ $currency->code }}</h6><hr>
                                     @endif
                                 @endif
                             @endif

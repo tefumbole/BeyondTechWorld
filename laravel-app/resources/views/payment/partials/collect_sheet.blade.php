@@ -60,7 +60,7 @@
                         @endforeach
                     </select>
                     <textarea name="payment_note"></textarea>
-                    <p class="change">0.00</p>
+                    <p class="change">0</p>
                 </div>
                 {{ Form::close() }}
             </div>
@@ -183,7 +183,7 @@
             alert('The split is more than the amount still due.');
             return;
         }
-        $('#amount').prop('required', false).val(splitSum().toFixed(2));
+        $('#amount').prop('required', false).val(splitSum().toFixed(0));
     });
 })();
 </script>

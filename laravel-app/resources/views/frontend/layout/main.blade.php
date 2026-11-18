@@ -127,7 +127,7 @@
                                     <div class="item-cart mb-20">
                                         <div class="cart-image"><img src="{{ url('public/images/product', $cart['image']) }}" alt="Ecom"></div>
                                         <div class="cart-info"><a class="font-sm-bold color-brand-3" href="{{ route('product', ['id' => $cart['products_id']]) }}">{{ $cart['name'] }}</a>
-                                            <p><span class="color-brand-2 font-sm-bold">{{ $cart['quantity'] }} * {{ number_format($cart['price'], 2) }} {{ $currency->code }}</span></p>
+                                            <p><span class="color-brand-2 font-sm-bold">{{ $cart['quantity'] }} * {{ number_format($cart['price'], 0) }} {{ $currency->code }}</span></p>
                                         </div>
                                     </div>
                                     @php $total +=  $cart['quantity'] * $cart['price']; @endphp
@@ -137,7 +137,7 @@
                             <div class="cart-total">
                                 <div class="row">
                                     <div class="col-6 text-start"><span class="font-md-bold color-brand-3">Total</span></div>
-                                    <div class="col-6"><span class="font-md-bold color-brand-1">{{ number_format($total, 2) }} {{ $currency->code }}</span></div>
+                                    <div class="col-6"><span class="font-md-bold color-brand-1">{{ number_format($total, 0) }} {{ $currency->code }}</span></div>
                                 </div>
                                 <div class="row mt-15">
                                     <div class="col-6 text-start"><a class="btn btn-cart w-auto" href="{{ route('cart') }}">View cart</a></div>
@@ -154,7 +154,7 @@
                                     <div class="item-cart mb-20">
                                         <div class="cart-image"><img src="{{ url('public/images/product', $cart['image']) }}" alt="Ecom"></div>
                                         <div class="cart-info"><a class="font-sm-bold color-brand-3" href="{{ route('product', ['id' => $cart['products_id']]) }}">{{ $cart['name'] }}</a>
-                                            <p><span class="color-brand-2 font-sm-bold">{{ $cart['quantity'] }} * {{ number_format($cart['price'], 2) }} {{ $currency->code }}</span></p>
+                                            <p><span class="color-brand-2 font-sm-bold">{{ $cart['quantity'] }} * {{ number_format($cart['price'], 0) }} {{ $currency->code }}</span></p>
                                         </div>
                                     </div>
                                     @php $total +=  $cart['quantity'] * $cart['price']; @endphp
@@ -164,7 +164,7 @@
                             <div class="cart-total">
                                 <div class="row">
                                     <div class="col-6 text-start"><span class="font-md-bold color-brand-3">Total</span></div>
-                                    <div class="col-6"><span class="font-md-bold color-brand-1">{{ number_format($total, 2) }} {{ $currency->code }}</span></div>
+                                    <div class="col-6"><span class="font-md-bold color-brand-1">{{ number_format($total, 0) }} {{ $currency->code }}</span></div>
                                 </div>
                                 <div class="row mt-15">
                                     <div class="col-12 text-start"><a class="btn btn-cart w-auto" href="{{ route('rent.cart') }}">View Rent cart</a></div>

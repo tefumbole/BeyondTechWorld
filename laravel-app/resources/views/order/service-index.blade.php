@@ -36,7 +36,7 @@
                     <td>{{ $item->name }}</td>
                     <td>{{ $item->phone }}</td>
                     <td>{{ $item->email }}</td>
-                    <td>{{ number_format($item->grand_total, 2)  }}</td>
+                    <td>{{ number_format($item->grand_total, 0)  }}</td>
                     @if($item->payment_status == 0)
                         <td><span class="badge badge-warning">Pendng</span></td>
                     @elseif($item->payment_status == 1)

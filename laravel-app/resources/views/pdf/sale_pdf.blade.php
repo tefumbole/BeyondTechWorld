@@ -149,17 +149,17 @@
             <td class="inv-num">{{ $key + 1 }}</td>
             <td>{{ $product_name }}</td>
             <td class="inv-qty">{{ $product_sale_data->qty + 0 }}</td>
-            <td class="inv-money">{{ number_format($unitPrice, 2) }}</td>
-            <td class="inv-money">{{ number_format($lineTax, 2) }}({{ $product_sale_data->tax_rate + 0 }}%)</td>
-            <td class="inv-money">{{ number_format($lineDiscount, 2) }}</td>
-            <td class="inv-money">{{ number_format($lineTotal, 2) }}</td>
+            <td class="inv-money">{{ number_format($unitPrice, 0) }}</td>
+            <td class="inv-money">{{ number_format($lineTax, 0) }}({{ $product_sale_data->tax_rate + 0 }}%)</td>
+            <td class="inv-money">{{ number_format($lineDiscount, 0) }}</td>
+            <td class="inv-money">{{ number_format($lineTotal, 0) }}</td>
         </tr>
     @endforeach
     <tr class="inv-total">
         <td colspan="4" style="text-align:right;"><strong>{{ trans('file.Total') }}:</strong></td>
-        <td class="inv-money">{{ number_format($totalProductTax, 2) }}</td>
-        <td class="inv-money">{{ number_format($totalProductDiscount, 2) }}</td>
-        <td class="inv-money">{{ number_format($totalProductSubtotal, 2) }}</td>
+        <td class="inv-money">{{ number_format($totalProductTax, 0) }}</td>
+        <td class="inv-money">{{ number_format($totalProductDiscount, 0) }}</td>
+        <td class="inv-money">{{ number_format($totalProductSubtotal, 0) }}</td>
     </tr>
     </tbody>
 </table>
@@ -182,9 +182,9 @@
                     <span class="inv-label">{{ trans('file.Payment') }}</span>
                     @foreach($lims_payment_data as $payment_data)
                         {{ $payment_data->paying_method }}:
-                        {{ number_format((float) $payment_data->amount, 2) }}
+                        {{ number_format((float) $payment_data->amount, 0) }}
                         @if($payment_data->change > 0)
-                            ({{ trans('file.Change') }}: {{ number_format((float) $payment_data->change, 2) }})
+                            ({{ trans('file.Change') }}: {{ number_format((float) $payment_data->change, 0) }})
                         @endif
                         <br>
                     @endforeach
@@ -209,38 +209,38 @@
                 @if($orderTax > 0)
                     <tr>
                         <th>{{ trans('file.Order Tax') }}</th>
-                        <td>{{ number_format($orderTax, 2) }}</td>
+                        <td>{{ number_format($orderTax, 0) }}</td>
                     </tr>
                 @endif
                 @if($orderDiscount > 0)
                     <tr>
                         <th>{{ trans('file.Order Discount') }}</th>
-                        <td>{{ number_format($orderDiscount, 2) }}</td>
+                        <td>{{ number_format($orderDiscount, 0) }}</td>
                     </tr>
                 @endif
                 @if($couponDiscount > 0)
                     <tr>
                         <th>{{ trans('file.Coupon Discount') }}</th>
-                        <td>{{ number_format($couponDiscount, 2) }}</td>
+                        <td>{{ number_format($couponDiscount, 0) }}</td>
                     </tr>
                 @endif
                 @if($shippingCost > 0)
                     <tr>
                         <th>{{ trans('file.Shipping Cost') }}</th>
-                        <td>{{ number_format($shippingCost, 2) }}</td>
+                        <td>{{ number_format($shippingCost, 0) }}</td>
                     </tr>
                 @endif
                 <tr class="inv-grand">
                     <th>{{ trans('file.grand total') }}</th>
-                    <td>{{ number_format((float) $lims_sale_data->grand_total, 2) }}</td>
+                    <td>{{ number_format((float) $lims_sale_data->grand_total, 0) }}</td>
                 </tr>
                 <tr>
                     <th>Amount Paid</th>
-                    <td>{{ number_format($paidAmount, 2) }}</td>
+                    <td>{{ number_format($paidAmount, 0) }}</td>
                 </tr>
                 <tr>
                     <th>Amount Pending</th>
-                    <td>{{ number_format($dueAmount, 2) }}</td>
+                    <td>{{ number_format($dueAmount, 0) }}</td>
                 </tr>
                 <tr>
                     <th>{{ trans('file.Payment Status') }}</th>

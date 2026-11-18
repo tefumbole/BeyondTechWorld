@@ -39,11 +39,11 @@
                         <td>{{ $customer_group->name }}</td>
                         <td>{{ $customer_group->credit_limit ?? 'N/A' }}</td>
                         <td>{{ $customer_group->percentage}}</td>
-                        {{--                    <td>{{ number_format($customer_group->Remaining, 2) }}</td>--}}
-                        {{--                    <td>{{ number_format($customer_group->balance, 2) }}</td>--}}
-                        <td> @if($customer_group->deposit > 0) {{ number_format($customer_group->deposit, 2) }} @else {{ number_format(0, 2) }} @endif</td>
-                        <td> @if($customer_group->deposit < 0) {{ number_format(abs($customer_group->deposit), 2) }} @else {{ number_format(0, 2) }} @endif</td>
-                        {{--                    <td>@if($customer_group->deposit - $customer_group->remaining < 0 ) {{ number_format(abs($customer_group->deposit - $customer_group->remaining), 2) }} @else 0 @endif</td>--}}
+                        {{--                    <td>{{ number_format($customer_group->Remaining, 0) }}</td>--}}
+                        {{--                    <td>{{ number_format($customer_group->balance, 0) }}</td>--}}
+                        <td> @if($customer_group->deposit > 0) {{ number_format($customer_group->deposit, 0) }} @else {{ number_format(0, 0) }} @endif</td>
+                        <td> @if($customer_group->deposit < 0) {{ number_format(abs($customer_group->deposit), 0) }} @else {{ number_format(0, 0) }} @endif</td>
+                        {{--                    <td>@if($customer_group->deposit - $customer_group->remaining < 0 ) {{ number_format(abs($customer_group->deposit - $customer_group->remaining), 0) }} @else 0 @endif</td>--}}
 
                         <td>
                             <div class="btn-group">

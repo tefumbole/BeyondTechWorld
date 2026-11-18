@@ -144,7 +144,7 @@
                         <!-- <tfoot> -->
                         <tr>
                             <th colspan="2" style="text-align:left">{{trans('file.Total')}}</th>
-                            <th style="text-align:right">{{number_format((float)$deposit->amount, 2)}}</th>
+                            <th style="text-align:right">{{number_format((float)$deposit->amount, 0)}}</th>
                         </tr>
                         <tr>
                             <th colspan="2" style="text-align:left">Payment Status</th>
@@ -172,7 +172,7 @@
                         <tbody>
                             <tr style="background-color:#ddd;">
                                 <td style="padding: 5px;width:30%">{{trans('file.Paid By')}}: {{$deposit->payment_method == 1 ? 'Cash' : 'Momo/Mtn'}}</td>
-                                <td style="padding: 5px;width:40%">{{trans('file.Amount')}}: {{number_format((float)$deposit->amount, 2)}}</td>
+                                <td style="padding: 5px;width:40%">{{trans('file.Amount')}}: {{number_format((float)$deposit->amount, 0)}}</td>
                             </tr>
                         <tr><td class="centered" colspan="3">{{trans('file.Thank you for shopping with us. Please come again')}}</td></tr>
 

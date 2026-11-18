@@ -280,7 +280,7 @@
                     cols += '<td>' + parseFloat(expected[index]).toFixed(2) + '</td>';
                     cols += '<td>' + parseFloat(counted[index]).toFixed(2) + '</td>';
                     cols += '<td>' + parseFloat(dif[index]).toFixed(2) + '</td>';
-                    cols += '<td>' + parseFloat(cost[index]).toFixed(2) + '</td>';
+                    cols += '<td>' + parseFloat(cost[index]).toFixed(0) + '</td>';
                     newRow.append(cols);
                     newBody.append(newRow);
                 });

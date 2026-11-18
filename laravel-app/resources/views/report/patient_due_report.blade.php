@@ -40,9 +40,9 @@
                     <td>{{$key}}</td>
                     <td>{{ $customer->name }}</td>
                     <td>{{ $customer->phone_number}}</td>
-                    <td>{{ number_format($customer->deposit, 2) }}</td>
-                    <td>{{ number_format($customer->renaming, 2)}}</td>
-                    <td>@if($customer->renaming - $customer->deposit > 0) {{ number_format($customer->renaming - $customer->deposit, 2) }} @else 0 @endif</td>
+                    <td>{{ number_format($customer->deposit, 0) }}</td>
+                    <td>{{ number_format($customer->renaming, 0)}}</td>
+                    <td>@if($customer->renaming - $customer->deposit > 0) {{ number_format($customer->renaming - $customer->deposit, 0) }} @else 0 @endif</td>
                     <td>
                         <div class="btn-group">
                             <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{trans('file.action')}}
@@ -98,9 +98,9 @@
             <th></th>
             <th>{{trans('file.Total')}}:</th>
             <th></th>
-            <th>0.00</th>
-            <th>0.00</th>
-            <th>0.00</th>
+            <th>0</th>
+            <th>0</th>
+            <th>0</th>
             <th></th>
             </tfoot>
         </table>
@@ -439,14 +439,14 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 3 ).footer() ).html(dt_selector.cells( rows, 3, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 4 ).footer() ).html(dt_selector.cells( rows, 4, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 3 ).footer() ).html(dt_selector.cells( rows, 3, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 4 ).footer() ).html(dt_selector.cells( rows, 4, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 3 ).footer() ).html(dt_selector.column( 3, {page:'current'} ).data().sum().toFixed(2));
-            $( dt_selector.column( 4 ).footer() ).html(dt_selector.column( 4, {page:'current'} ).data().sum().toFixed(2));
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.column( 5, {page:'current'} ).data().sum().toFixed(2));
+            $( dt_selector.column( 3 ).footer() ).html(dt_selector.column( 3, {page:'current'} ).data().sum().toFixed(0));
+            $( dt_selector.column( 4 ).footer() ).html(dt_selector.column( 4, {page:'current'} ).data().sum().toFixed(0));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.column( 5, {page:'current'} ).data().sum().toFixed(0));
         }
     }
 

@@ -45,7 +45,7 @@
                                         @endif
                                     </td>
                                     <td>{{ optional(optional($booking)->user)->name ?? '-' }}</td>
-                                    <td>{{ $booking ? number_format($booking->grand_total, 2) : '-' }}</td>
+                                    <td>{{ $booking ? number_format($booking->grand_total, 0) : '-' }}</td>
                                     <td>{{ $contract->created_at->format('d M Y, H:i') }}</td>
                                     <td>
                                         <div class="btn-group">

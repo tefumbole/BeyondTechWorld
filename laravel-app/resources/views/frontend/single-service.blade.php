@@ -89,7 +89,7 @@
                         <div class="border-bottom pt-20 mb-40"></div>
                         <div class="box-product-price">
 
-                                <h3 class="color-brand-3 price-main d-inline-block mr-10">{{ number_format($product->price, 2) }} {{ $currency->code }}</h3>
+                                <h3 class="color-brand-3 price-main d-inline-block mr-10">{{ number_format($product->price, 0) }} {{ $currency->code }}</h3>
 
 
                         </div>

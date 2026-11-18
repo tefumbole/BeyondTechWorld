@@ -30,7 +30,7 @@
                 <div class="flex justify-between border-b py-2.5"><span class="text-gray-500">Sale Ref</span><span>{{ $data['sale_reference'] }}</span></div>
                 <div class="flex justify-between border-b py-2.5"><span class="text-gray-500">Created</span><span>{{ $data['created_at'] }}</span></div>
                 <div class="flex justify-between border-b py-2.5"><span class="text-gray-500">Client</span><span class="font-semibold">{{ $data['client'] }}</span></div>
-                <div class="flex justify-between border-b py-2.5"><span class="text-gray-500">Amount</span><span class="font-bold text-brand-blue">{{ number_format((float) $data['amount'], 2) }} {{ $data['currency'] }}</span></div>
+                <div class="flex justify-between border-b py-2.5"><span class="text-gray-500">Amount</span><span class="font-bold text-brand-blue">{{ number_format((float) $data['amount'], 0) }} {{ $data['currency'] }}</span></div>
                 <div class="flex justify-between py-2.5"><span class="text-gray-500">Delivery status</span><span class="font-semibold">{{ $data['status'] }}</span></div>
                 @if(!empty($data['signed_at']))
                     <div class="flex justify-between border-t py-2.5"><span class="text-gray-500">Signed at</span><span>{{ $data['signed_at'] }}</span></div>

@@ -566,9 +566,9 @@ class ContractInstanceService
                 $total = (float) ($booking->grand_total ?? $booking->total_price ?? 0);
                 $data['booking'] = [
                     'reference' => $booking->reference_no,
-                    'grand_total' => number_format($total, 2),
-                    'paid_amount' => number_format($paid, 2),
-                    'balance' => number_format(max(0, $total - $paid), 2),
+                    'grand_total' => number_format($total, 0),
+                    'paid_amount' => number_format($paid, 0),
+                    'balance' => number_format(max(0, $total - $paid), 0),
                     'notes' => $booking->booking_note
                         ? strip_tags(\App\Support\BookingNoteFormatter::forDisplay($booking->booking_note))
                         : '—',
@@ -576,7 +576,7 @@ class ContractInstanceService
                 ];
                 $data['rental']['kind_label'] = $kindLabel;
                 if (! $contract->value) {
-                    $data['contract']['value'] = number_format($total, 2);
+                    $data['contract']['value'] = number_format($total, 0);
                 }
             }
         }
@@ -589,7 +589,7 @@ class ContractInstanceService
                 $cfg = $settings->getSettings();
                 $data['share'] = [
                     'price_label' => $settings->formatPrice($cfg['price_per_share'], $cfg['currency']),
-                    'price_per_share' => number_format((float) $cfg['price_per_share'], 2),
+                    'price_per_share' => number_format((float) $cfg['price_per_share'], 0),
                     'currency' => $cfg['currency'],
                 ];
                 $data['shareholder'] = [
@@ -612,7 +612,7 @@ class ContractInstanceService
                 $settings = app(\App\Services\ShareSettingsService::class);
                 $cfg = $settings->getSettings();
                 $data['share']['price_label'] = $settings->formatPrice($cfg['price_per_share'], $cfg['currency']);
-                $data['share']['price_per_share'] = number_format((float) $cfg['price_per_share'], 2);
+                $data['share']['price_per_share'] = number_format((float) $cfg['price_per_share'], 0);
                 $data['share']['currency'] = $cfg['currency'];
             } catch (\Throwable $e) {
                 // ignore if share settings table missing
@@ -707,8 +707,8 @@ class ContractInstanceService
             }
 
             $html .= '<td style="padding:6px;border:1px solid #d7e0ef;text-align:center;">'.e((string) $line->qty).'</td>'
-                .'<td style="padding:6px;border:1px solid #d7e0ef;text-align:right;">'.number_format((float) $line->net_unit_price, 2).'</td>'
-                .'<td style="padding:6px;border:1px solid #d7e0ef;text-align:right;">'.number_format((float) $line->total, 2).'</td>';
+                .'<td style="padding:6px;border:1px solid #d7e0ef;text-align:right;">'.number_format((float) $line->net_unit_price, 0).'</td>'
+                .'<td style="padding:6px;border:1px solid #d7e0ef;text-align:right;">'.number_format((float) $line->total, 0).'</td>';
 
             if ($mode === 'software') {
                 $html .= '<td style="padding:6px;border:1px solid #d7e0ef;">'.e($start).'</td>'

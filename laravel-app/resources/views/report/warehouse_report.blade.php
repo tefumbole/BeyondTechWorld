@@ -106,7 +106,7 @@
                             </td>
                             <td>{{$sale->grand_total}}</td>
                             <td>{{$sale->paid_amount}}</td>
-                            <td>{{number_format((float)($sale->grand_total - $sale->paid_amount), 2, '.', '')}}</td>
+                            <td>{{number_format((float)($sale->grand_total - $sale->paid_amount), 0, '.', '')}}</td>
                             @if($sale->sale_status == 1)
                             <td><div class="badge badge-success">{{trans('file.Completed')}}</div></td>
                             @else
@@ -122,9 +122,9 @@
                             <th></th>
                             <th></th>
                             <th></th>
-                            <th>0.00</th>
-                            <th>0.00</th>
-                            <th>0.00</th>
+                            <th>0</th>
+                            <th>0</th>
+                            <th>0</th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -182,7 +182,7 @@
                             </td>
                             <td>{{$purchase->grand_total}}</td>
                             <td>{{$purchase->paid_amount}}</td>
-                            <td>{{number_format((float)($purchase->grand_total - $purchase->paid_amount), 2, '.', '')}}</td>
+                            <td>{{number_format((float)($purchase->grand_total - $purchase->paid_amount), 0, '.', '')}}</td>
                             @if($purchase->status == 1)
                             <td><div class="badge badge-success">{{trans('file.Completed')}}</div></td>
                             @elseif($purchase->status == 2)
@@ -202,9 +202,9 @@
                             <th></th>
                             <th></th>
                             <th></th>
-                            <th>0.00</th>
-                            <th>0.00</th>
-                            <th>0.00</th>
+                            <th>0</th>
+                            <th>0</th>
+                            <th>0</th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -277,7 +277,7 @@
                             <th></th>
                             <th></th>
                             <th></th>
-                            <th>0.00</th>
+                            <th>0</th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -325,7 +325,7 @@
                                 <br>
                                 @endforeach
                             </td>
-                            <td>{{number_format((float)($return->grand_total), 2, '.', '')}}</td>
+                            <td>{{number_format((float)($return->grand_total), 0, '.', '')}}</td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -337,7 +337,7 @@
                             <th></th>
                             <th></th>
                             <th></th>
-                            <th>0.00</th>
+                            <th>0</th>
                         </tr>
                     </tfoot>
                 </table>
@@ -375,7 +375,7 @@
                             <th>Total:</th>
                             <th></th>
                             <th></th>
-                            <th>0.00</th>
+                            <th>0</th>
                             <th></th>
                         </tr>
                     </tfoot>
@@ -473,14 +473,14 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.column( 5, {page:'current'} ).data().sum().toFixed(2));
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(2));
-            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.column( 5, {page:'current'} ).data().sum().toFixed(0));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(0));
+            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(0));
         }
     }
 
@@ -564,14 +564,14 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.column( 5, {page:'current'} ).data().sum().toFixed(2));
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(2));
-            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.column( 5, {page:'current'} ).data().sum().toFixed(0));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(0));
+            $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(0));
         }
     }
 
@@ -655,10 +655,10 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(0));
         }
     }
 
@@ -742,10 +742,10 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.cells( rows, 6, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(2));
+            $( dt_selector.column( 6 ).footer() ).html(dt_selector.column( 6, {page:'current'} ).data().sum().toFixed(0));
         }
     }
 
@@ -829,10 +829,10 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 4 ).footer() ).html(dt_selector.cells( rows, 4, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 4 ).footer() ).html(dt_selector.cells( rows, 4, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 4 ).footer() ).html(dt_selector.column( 4, {page:'current'} ).data().sum().toFixed(2));
+            $( dt_selector.column( 4 ).footer() ).html(dt_selector.column( 4, {page:'current'} ).data().sum().toFixed(0));
         }
     }
 $(".daterangepicker-field").daterangepicker({

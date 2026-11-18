@@ -239,7 +239,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-archive" style="color: #6495ED"></i></div>
                                     <div class="name"><strong style="color: #6495ED">Total Asset</strong></div>
-                                    <div class="count-number" id="total_asset">{{ number_format((float)$total_asset_sum, 2) }}</div>
+                                    <div class="count-number" id="total_asset">{{ number_format((float)$total_asset_sum, 0) }}</div>
                                 </div>
                             </div>
 
@@ -248,7 +248,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-shopping-cart" style="color: #800080"></i></div>
                                     <div class="name"><strong style="color: #800080">Asset Purchase</strong></div>
-                                    <div class="count-number" id="asset_purchase">{{ number_format((float)$total_asset_purchase_sum, 2) }}</div>
+                                    <div class="count-number" id="asset_purchase">{{ number_format((float)$total_asset_purchase_sum, 0) }}</div>
                                 </div>
                             </div>
 
@@ -257,7 +257,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-cart-arrow-down" style="color: #C88141"></i></div>
                                     <div class="name"><strong style="color: #C88141">Asset Sale</strong></div>
-                                    <div class="count-number" id="asset_sale">{{ number_format((float)$total_sale_sum, 2) }}</div>
+                                    <div class="count-number" id="asset_sale">{{ number_format((float)$total_sale_sum, 0) }}</div>
                                 </div>
                             </div>
 
@@ -266,7 +266,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-chevron-up" style="color: green"></i></div>
                                     <div class="name"><strong style="color: green">Asset Book Value</strong></div>
-                                    <div class="count-number" id="book_value">{{ number_format((float)$book_value, 2) }}</div>
+                                    <div class="count-number" id="book_value">{{ number_format((float)$book_value, 0) }}</div>
                                 </div>
                             </div>
 
@@ -275,7 +275,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-chevron-down" style="color: crimson"></i></div>
                                     <div class="name"><strong style="color: crimson">Asset Deprication</strong></div>
-                                    <div class="count-number" id="depreciation">{{ number_format((float)$deprication, 2) }}</div>
+                                    <div class="count-number" id="depreciation">{{ number_format((float)$deprication, 0) }}</div>
                                 </div>
                             </div>
 
@@ -284,7 +284,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-money" style="color: #FF00FF"></i></div>
                                     <div class="name"><strong style="color: #FF00FF">Asset Expense</strong></div>
-                                    <div class="count-number" id="asset_expense">{{ number_format((float)$expense_sum, 2) }}</div>
+                                    <div class="count-number" id="asset_expense">{{ number_format((float)$expense_sum, 0) }}</div>
                                 </div>
                             </div>
 
@@ -293,7 +293,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-book" style="color: #733686"></i></div>
                                     <div class="name"><strong style="color: #733686">PhotoCopy Activity</strong></div>
-                                    <div class="count-number" id="photocopy_activity">{{ number_format((float)$copy_sum, 2) }}</div>
+                                    <div class="count-number" id="photocopy_activity">{{ number_format((float)$copy_sum, 0) }}</div>
                                 </div>
                             </div>
 
@@ -302,7 +302,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-car" style="color: red"></i></div>
                                     <div class="name"><strong style="color: red">Milage Activity</strong></div>
-                                    <div class="count-number" id="milage_activity">{{ number_format((float)$automobile_sum, 2) }}</div>
+                                    <div class="count-number" id="milage_activity">{{ number_format((float)$automobile_sum, 0) }}</div>
                                 </div>
                             </div>
 
@@ -311,7 +311,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-wrench" style="color: green"></i></div>
                                     <div class="name"><strong style="color: green">Repair Activity</strong></div>
-                                    <div class="count-number" id="repair_activity">{{ number_format((float)$repair_sum, 2) }}</div>
+                                    <div class="count-number" id="repair_activity">{{ number_format((float)$repair_sum, 0) }}</div>
                                 </div>
                             </div>
 
@@ -320,7 +320,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-adjust" style="color: blue"></i></div>
                                     <div class="name"><strong style="color: blue">General Activity</strong></div>
-                                    <div class="count-number" id="general_activity">{{ number_format((float)$general_sum, 2) }}</div>
+                                    <div class="count-number" id="general_activity">{{ number_format((float)$general_sum, 0) }}</div>
                                 </div>
                             </div>
 
@@ -329,7 +329,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-fire" style="color: #00FFFF"></i></div>
                                     <div class="name"><strong style="color: #00FFFF">Asset Dispose</strong></div>
-                                    <div class="count-number" id="asset_dispose">{{ number_format((float)$dispose_sum, 2) }}</div>
+                                    <div class="count-number" id="asset_dispose">{{ number_format((float)$dispose_sum, 0) }}</div>
                                 </div>
                             </div>
 
@@ -338,7 +338,7 @@
                                 <div class="wrapper count-title text-center">
                                     <div class="icon"><i class="fa fa-exchange" style="color: cornflowerblue"></i></div>
                                     <div class="name"><strong style="color: cornflowerblue">Asset Transfer</strong></div>
-                                    <div class="count-number" id="asset_transfer">{{ number_format((float)$transfer_sum, 2) }}</div>
+                                    <div class="count-number" id="asset_transfer">{{ number_format((float)$transfer_sum, 0) }}</div>
                                 </div>
                             </div>
                         </div>
@@ -375,7 +375,7 @@
                                         <a href="{{ route('asset.dashboard.category', ['id' => $item->id]) }}">
                                             <div class="icon"><i class="dripicons-bookmark" style="color: #733686"></i></div>
                                             <div class="name"><strong style="color: #733686"> {{ $item->name }}</strong></div>
-                                            <div class="count-number">{{ number_format((float)$book_value, 2) }}</div>
+                                            <div class="count-number">{{ number_format((float)$book_value, 0) }}</div>
                                         </a>
                                     </div>
                                 </div>

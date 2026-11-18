@@ -755,10 +755,10 @@ class Controller extends BaseController
 
         $msg .= '*Product Detail:*\n';
         foreach ($order->orderProducts as $key => $product) {
-            $msg .= $key+1 .') ['. $product->product->name . '] [' . $product->quantity . '] x [ '. number_format($product->price, 2) .'] = ['. number_format($product->sub_total, 2) .']\n';
+            $msg .= $key+1 .') ['. $product->product->name . '] [' . $product->quantity . '] x [ '. number_format($product->price, 0) .'] = ['. number_format($product->sub_total, 0) .']\n';
         }
 
-        $msg .= 'Total Amount: ' . number_format($order->grand_total, 2) . '\n\n';
+        $msg .= 'Total Amount: ' . number_format($order->grand_total, 0) . '\n\n';
 
         $msg .= '*Payment Information:*\n';
         $msg .= 'Payment Method: ' . $order->payment_method . '\n';
@@ -824,7 +824,7 @@ class Controller extends BaseController
 
         }
         $msg .= '\n*Grand Total:* ';
-        $msg .= number_format($order->grand_total, 2) . '\n\n';
+        $msg .= number_format($order->grand_total, 0) . '\n\n';
 
         $msg .= '*Payment Information:*\n';
         $msg .= 'Payment Method: ' . $order->payment_method . '\n';
@@ -889,7 +889,7 @@ class Controller extends BaseController
 
         }
         $msg .= '\n*Grand Total:* ';
-        $msg .= number_format($order->grand_total, 2) . '\n\n';
+        $msg .= number_format($order->grand_total, 0) . '\n\n';
 
         $msg .= '*Payment Information:*\n';
         $msg .= 'Payment Method: ' . $order->payment_method . '\n';
@@ -949,11 +949,11 @@ class Controller extends BaseController
         $msg .= '*Product Detail:*\n';
         $bookingProducts = BookingProduct::with('product')->where('booking_id', $order->id)->get();
         foreach ($bookingProducts as $key => $product) {
-            $msg .= $key+1 .') ['. $product->product->name . '] [' . $product->qty . '] x [' . $product->number_duration . '] x [ '. number_format($product->net_unit_price, 2) .'] = ['. number_format($product->qty * $product->number_duration * $product->net_unit_price, 2) .']\n';
+            $msg .= $key+1 .') ['. $product->product->name . '] [' . $product->qty . '] x [' . $product->number_duration . '] x [ '. number_format($product->net_unit_price, 0) .'] = ['. number_format($product->qty * $product->number_duration * $product->net_unit_price, 0) .']\n';
             $msg .= "*Start* : " . $product->start . " *Return* : " . $product->end . '\n';
         }
 
-        $msg .= 'Total Amount: ' . number_format($order->grand_total, 2) . '\n\n';
+        $msg .= 'Total Amount: ' . number_format($order->grand_total, 0) . '\n\n';
 
         $msg .= '*Payment Information:*\n';
         $msg .= 'Payment Method: ' . $order->payment_method . '\n';
@@ -1003,11 +1003,11 @@ class Controller extends BaseController
         $msg .= '*Product Detail:*\n';
         $bookingProducts = BookingProduct::with('product')->where('booking_id', $order->id)->get();
         foreach ($bookingProducts as $key => $product) {
-            $msg .= $key+1 .') ['. $product->product->name . '] [' . $product->qty . '] x [' . $product->number_duration . '] x [ '. number_format($product->net_unit_price, 2) .'] = ['. number_format($product->qty * $product->number_duration * $product->net_unit_price, 2) .']\n';
+            $msg .= $key+1 .') ['. $product->product->name . '] [' . $product->qty . '] x [' . $product->number_duration . '] x [ '. number_format($product->net_unit_price, 0) .'] = ['. number_format($product->qty * $product->number_duration * $product->net_unit_price, 0) .']\n';
             $msg .= "*Start* : " . $product->start . " *Return* : " . $product->end . '\n';
         }
 
-        $msg .= 'Total Amount: ' . number_format($order->grand_total, 2) . '\n\n';
+        $msg .= 'Total Amount: ' . number_format($order->grand_total, 0) . '\n\n';
 
         $msg .= '*Payment Information:*\n';
         $msg .= 'Payment Method: ' . $order->payment_method . '\n';
@@ -1047,10 +1047,10 @@ class Controller extends BaseController
 
         $msg .= '*Product Detail:*\n';
         foreach ($order->orderProducts as $key => $product) {
-            $msg .= $key+1 .') ['. $product->product->name . '] [' . $product->quantity . '] x [ '. number_format($product->price, 2) .'] = ['. number_format($product->sub_total, 2) .']\n';
+            $msg .= $key+1 .') ['. $product->product->name . '] [' . $product->quantity . '] x [ '. number_format($product->price, 0) .'] = ['. number_format($product->sub_total, 0) .']\n';
         }
 
-        $msg .= 'Total Amount: ' . number_format($order->grand_total, 2) . '\n\n';
+        $msg .= 'Total Amount: ' . number_format($order->grand_total, 0) . '\n\n';
 
         $msg .= '*Payment Information:*\n';
         $msg .= 'Payment Method: ' . $order->payment_method . '\n';

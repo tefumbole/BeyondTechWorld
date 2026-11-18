@@ -48,11 +48,11 @@
                     ?>
                     <td>{{$customer->name .' (' .$customer->phone_number . ')'}}</td>
                     @if($sale_data->paid_amount)
-                    <td>{{number_format((float)$sale_data->paid_amount, 2, '.', '')}}</td>
+                    <td>{{number_format((float)$sale_data->paid_amount, 0, '.', '')}}</td>
                     @else
-                    <td>0.00</td>
+                    <td>0</td>
                     @endif
-                    <td>{{number_format((float)($sale_data->grand_total - $sale_data->paid_amount), 2, '.', '')}}</td>
+                    <td>{{number_format((float)($sale_data->grand_total - $sale_data->paid_amount), 0, '.', '')}}</td>
                 </tr>
                 @endforeach
             </tbody>
@@ -61,8 +61,8 @@
                 <th>{{trans('file.Total')}}:</th>
                 <th></th>
                 <th></th>
-                <th>0.00</th>
-                <th>0.00</th>
+                <th>0</th>
+                <th>0</th>
             </tfoot>
         </table>
     </div>
@@ -168,12 +168,12 @@
         if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
             var rows = dt_selector.rows( '.selected' ).indexes();
 
-            $( dt_selector.column( 4 ).footer() ).html(dt_selector.cells( rows, 4, { page: 'current' } ).data().sum().toFixed(2));
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(2));
+            $( dt_selector.column( 4 ).footer() ).html(dt_selector.cells( rows, 4, { page: 'current' } ).data().sum().toFixed(0));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.cells( rows, 5, { page: 'current' } ).data().sum().toFixed(0));
         }
         else {
-            $( dt_selector.column( 4 ).footer() ).html(dt_selector.column( 4, {page:'current'} ).data().sum().toFixed(2));
-            $( dt_selector.column( 5 ).footer() ).html(dt_selector.column( 5, {page:'current'} ).data().sum().toFixed(2));
+            $( dt_selector.column( 4 ).footer() ).html(dt_selector.column( 4, {page:'current'} ).data().sum().toFixed(0));
+            $( dt_selector.column( 5 ).footer() ).html(dt_selector.column( 5, {page:'current'} ).data().sum().toFixed(0));
         }
     }
 

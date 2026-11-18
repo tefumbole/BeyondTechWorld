@@ -876,9 +876,9 @@
                                                     $temp_unit_operation_value = $unit_operation_value =  implode(",",$unit_operation_value) . ',';
                                                 ?>
                                                     <td class="col-sm-4 product-title"><strong>{{$product_data->name}}</strong> [{{$product_data->code}}] <button type="button" class="edit-product btn btn-link" data-toggle="modal" data-target="#editModal"> <i class="dripicons-document-edit"></i></button> </td>
-                                                    <td class="col-sm-2 product-price">{{ number_format((float)($product_sale->total / $product_sale->qty), 2, '.', '') }}</td>
+                                                    <td class="col-sm-2 product-price">{{ number_format((float)($product_sale->total / $product_sale->qty), 0, '.', '') }}</td>
                                                     <td class="col-sm-3"><div class="input-group"><span class="input-group-btn"><button type="button" class="btn btn-default minus"><span class="dripicons-minus"></span></button></span><input type="text" name="qty[]" class="form-control qty numkey input-number" value="{{$product_sale->qty}}" step="any" required><span class="input-group-btn"><button type="button" class="btn btn-default plus"><span class="dripicons-plus"></span></button></span></div></td>
-                                                    <td class="col-sm-2 sub-total">{{ number_format((float)$product_sale->total, 2, '.', '') }}</td>
+                                                    <td class="col-sm-2 sub-total">{{ number_format((float)$product_sale->total, 0, '.', '') }}</td>
                                                     <td class="col-sm-1"><button type="button" class="ibtnDel btn btn-danger btn-sm">X</button></td>
                                                     <input type="hidden" class="product-code" name="product_code[]" value="{{$product_data->code}}"/>
                                                     <input type="hidden" name="product_id[]" value="{{$product_data->id}}"/>
@@ -959,38 +959,38 @@
                                             <span class="totals-title">{{trans('file.Items')}}</span><span id="item">{{$lims_sale_data->item}} ({{$lims_sale_data->total_qty}})</span>
                                         </div>
                                         <div class="col-sm-4">
-                                            <span class="totals-title">{{trans('file.Total')}}</span><span id="subtotal">{{number_format((float)$lims_sale_data->total_price, 2, '.', '')}}</span>
+                                            <span class="totals-title">{{trans('file.Total')}}</span><span id="subtotal">{{number_format((float)$lims_sale_data->total_price, 0, '.', '')}}</span>
                                         </div>
                                         <div class="col-sm-4">
                                             <span class="totals-title">{{trans('file.Discount')}} <button type="button" class="btn btn-link btn-sm" data-toggle="modal" data-target="#order-discount"> <i class="dripicons-document-edit"></i></button></span>
                                             @if($lims_sale_data->order_discount)
-                                            <span id="discount">{{number_format((float)$lims_sale_data->order_discount, 2, '.', '')}}</span>
+                                            <span id="discount">{{number_format((float)$lims_sale_data->order_discount, 0, '.', '')}}</span>
                                             @else
-                                            <span id="discount">0.00</span>
+                                            <span id="discount">0</span>
                                             @endif
                                         </div>
                                         <div class="col-sm-4">
                                             <span class="totals-title">{{trans('file.Coupon')}} <button type="button" class="btn btn-link btn-sm" data-toggle="modal" data-target="#coupon-modal"><i class="dripicons-document-edit"></i></button></span>
                                             @if($lims_sale_data->coupon_discount)
-                                              <span id="coupon-text">{{number_format((float)$lims_sale_data->coupon_discount, 2, '.', '')}}</span>
+                                              <span id="coupon-text">{{number_format((float)$lims_sale_data->coupon_discount, 0, '.', '')}}</span>
                                             @else
-                                              <span id="coupon-text">0.00</span>
+                                              <span id="coupon-text">0</span>
                                             @endif
                                         </div>
                                         <div class="col-sm-4">
                                             <span class="totals-title">{{trans('file.Tax')}} <button type="button" class="btn btn-link btn-sm" data-toggle="modal" data-target="#order-tax"><i class="dripicons-document-edit"></i></button></span>
                                             @if($lims_sale_data->order_tax)
-                                              <span id="tax">{{number_format((float)$lims_sale_data->order_tax, 2, '.', '')}}</span>
+                                              <span id="tax">{{number_format((float)$lims_sale_data->order_tax, 0, '.', '')}}</span>
                                             @else
-                                              <span id="tax">0.00</span>
+                                              <span id="tax">0</span>
                                             @endif
                                         </div>
                                         <div class="col-sm-4">
                                             <span class="totals-title">{{trans('file.Shipping')}} <button type="button" class="btn btn-link btn-sm" data-toggle="modal" data-target="#shipping-cost-modal"><i class="dripicons-document-edit"></i></button></span>
                                             @if($lims_sale_data->shipping_cost)
-                                              <span id="shipping-cost">{{number_format((float)$lims_sale_data->shipping_cost, 2, '.', '')}}</span>
+                                              <span id="shipping-cost">{{number_format((float)$lims_sale_data->shipping_cost, 0, '.', '')}}</span>
                                             @else
-                                              <span id="shipping-cost">0.00</span>
+                                              <span id="shipping-cost">0</span>
                                             @endif
                                         </div>
                                     </div>
@@ -1002,11 +1002,11 @@
                                             <span id="item">{{$lims_sale_data->item}}( {{$lims_sale_data->total_qty}})</span>
                                             </td>
                                             <td style="width:15%; padding: 0 0 0 10px; color: #000;"><strong>{{trans('file.Total')}}</strong><br>
-                                            <span id="subtotal">{{number_format((float)($lims_sale_data->total_price), 2, '.', '')}}</span>
+                                            <span id="subtotal">{{number_format((float)($lims_sale_data->total_price), 0, '.', '')}}</span>
                                             </td>
                                             <td style="width:15%; padding: 0 0 0 10px; color: #000;"><strong>{{trans('file.Discount')}}</strong>
                                                 <button type="button" class="btn btn-link btn-sm" data-toggle="modal" data-target="#order-discount"> <i class="dripicons-document-edit"></i></button><br>
-                                                <span id="discount">{{number_format((float)$lims_sale_data->order_discount, 2, '.', '') }}</span>
+                                                <span id="discount">{{number_format((float)$lims_sale_data->order_discount, 0, '.', '') }}</span>
                                             </td>
                                             <td style="width:15%; padding: 0 0 0 10px; color: #000;"><strong>{{trans('file.Coupon')}}</strong>
                                                 @if($lims_sale_data->coupon_id)
@@ -1014,18 +1014,18 @@
                                                 @else
                                                 <button type="button" class="btn btn-link btn-sm" data-toggle="modal" data-target="#coupon-modal"><i class="dripicons-document-edit"></i></button><br>
                                                 @endif
-                                                <span id="coupon-text">{{number_format((float)$lims_sale_data->coupon_discount, 2, '.', '') }}</span>
+                                                <span id="coupon-text">{{number_format((float)$lims_sale_data->coupon_discount, 0, '.', '') }}</span>
                                             </td>
                                             <td style="width:15%; padding: 0 0 0 10px; color: #000;"><strong>{{trans('file.Tax')}}</strong>
                                             <button type="button" class="btn btn-link btn-sm" data-toggle="modal" data-target="#order-tax"><i class="dripicons-document-edit"></i></button><br>
-                                            <span id="tax">{{number_format((float)$lims_sale_data->order_tax, 2, '.', '')}}</span>
+                                            <span id="tax">{{number_format((float)$lims_sale_data->order_tax, 0, '.', '')}}</span>
                                             </td>
                                             <td style="width:15%; padding: 0 0 0 10px; color: #000;"><strong>{{trans('file.Shipping')}}</strong>
                                                 <button type="button" class="btn btn-link btn-sm" data-toggle="modal" data-target="#shipping-cost-modal"><i class="dripicons-document-edit"></i></button><br>
-                                                <span id="shipping-cost">{{number_format((float)($lims_sale_data->shipping_cost), 2, '.', '')}}</span>
+                                                <span id="shipping-cost">{{number_format((float)($lims_sale_data->shipping_cost), 0, '.', '')}}</span>
                                             </td>
                                             <td style="width:15%; padding: 0 0 0 10px; color: #000;"><strong>{{trans('file.grand total')}}</strong><br>
-                                            <span id="grand-total">{{number_format((float)($lims_sale_data->grand_total), 2, '.', '')}}</span>
+                                            <span id="grand-total">{{number_format((float)($lims_sale_data->grand_total), 0, '.', '')}}</span>
                                             </td>
                                         </tr>
                                     </table>
@@ -1058,7 +1058,7 @@
                         </div>
                     </div>
                     <div class="payment-amount">
-                        <h2>{{trans('file.grand total')}} <span id="grand-total">{{number_format((float)$lims_sale_data->grand_total, 2, '.', '')}}</span></h2>
+                        <h2>{{trans('file.grand total')}} <span id="grand-total">{{number_format((float)$lims_sale_data->grand_total, 0, '.', '')}}</span></h2>
                     </div>
                     <div class="payment-options">
                         <div class="column-5">
@@ -1099,7 +1099,7 @@
                         </div>
                         <div class="modal-body">
                             <div class="form-group">
-                                <input type="text" name="order_discount" class="form-control numkey" step="any" value="{{number_format((float)$lims_sale_data->order_discount, 2, '.', '')}}">
+                                <input type="text" name="order_discount" class="form-control numkey" step="any" value="{{number_format((float)$lims_sale_data->order_discount, 0, '.', '')}}">
                             </div>
                             <button type="button" name="order_discount_btn" class="btn btn-primary" data-dismiss="modal">{{trans('file.submit')}}</button>
                         </div>
@@ -1160,7 +1160,7 @@
                         </div>
                         <div class="modal-body">
                             <div class="form-group">
-                                <input type="text" name="shipping_cost" class="form-control numkey" value="{{number_format((float)($lims_sale_data->shipping_cost), 2, '.', '')}}" step="any">
+                                <input type="text" name="shipping_cost" class="form-control numkey" value="{{number_format((float)($lims_sale_data->shipping_cost), 0, '.', '')}}" step="any">
                             </div>
                             <button type="button" name="shipping_cost_btn" class="btn btn-primary" data-dismiss="modal">{{trans('file.submit')}}</button>
                         </div>
@@ -1189,7 +1189,7 @@
                                         </div>
                                         <div class="col-md-6 mt-1">
                                             <label>{{trans('file.Change')}} : </label>
-                                            <p id="change" class="ml-2">0.00</p>
+                                            <p id="change" class="ml-2">0</p>
                                         </div>
                                         <div class="col-md-6 mt-1">
                                             <label>{{trans('file.Paid By')}}</label>
@@ -1603,7 +1603,7 @@ for(rowindex  =0; rowindex <= rownumber; rowindex++){
     product_price.push(parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.product_price').val()));
     var total_discount = parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.total-discount').val());
     var quantity = parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.qty').val());
-    product_discount.push((total_discount / quantity).toFixed(2));
+    product_discount.push((total_discount / quantity).toFixed(0));
     tax_rate.push(parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.tax-rate').val()));
     tax_name.push($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.tax-name').val());
     tax_method.push($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.tax-method').val());
@@ -2253,11 +2253,11 @@ $('.transaction-btn-close').on("click", function() {
 $(document).on('click', '.qc-btn', function(e) {
     if($(this).data('amount')) {
         if($('.qc').data('initial')) {
-            $('input[name="paying_amount"]').val( $(this).data('amount').toFixed(2) );
+            $('input[name="paying_amount"]').val( $(this).data('amount').toFixed(0) );
             $('.qc').data('initial', 0);
         }
         else {
-            $('input[name="paying_amount"]').val( (parseFloat($('input[name="paying_amount"]').val()) + $(this).data('amount')).toFixed(2) );
+            $('input[name="paying_amount"]').val( (parseFloat($('input[name="paying_amount"]').val()) + $(this).data('amount')).toFixed(0) );
         }
     }
     else
@@ -2266,7 +2266,7 @@ $(document).on('click', '.qc-btn', function(e) {
 });
 
 function change(paying_amount, paid_amount) {
-    $("#change").text( parseFloat(paying_amount - paid_amount).toFixed(2) );
+    $("#change").text( parseFloat(paying_amount - paid_amount).toFixed(0) );
 }
 
 function confirmDelete() {
@@ -2354,7 +2354,7 @@ function edit(){
 
     var qty = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.qty').val();
     $('input[name="edit_qty"]').val(qty);
-    $('input[name="edit_discount"]').val(parseFloat(product_discount[rowindex]).toFixed(2));
+    $('input[name="edit_discount"]').val(parseFloat(product_discount[rowindex]).toFixed(0));
 
     var tax_name_all = <?php echo json_encode($tax_name_all) ?>;
     pos = tax_name_all.indexOf(tax_name[rowindex]);
@@ -2381,7 +2381,7 @@ function edit(){
         $("#edit_unit").hide();
     }
 
-    $('input[name="edit_unit_price"]').val(row_product_price.toFixed(2));
+    $('input[name="edit_unit_price"]').val(row_product_price.toFixed(0));
     $('.selectpicker').selectpicker('refresh');
 }
 
@@ -2403,7 +2403,7 @@ function couponDiscount() {
                 else if(value['type'] == 'fixed'){
                     if(parseFloat($('input[name="grand_total"]').val()) >= value['minimum_amount']) {
                         $('input[name="grand_total"]').val($('input[name="grand_total"]').val() - value['amount']);
-                        $('#grand-total').text(parseFloat($('input[name="grand_total"]').val()).toFixed(2));
+                        $('#grand-total').text(parseFloat($('input[name="grand_total"]').val()).toFixed(0));
                         if(!$('input[name="coupon_active"]').val())
                             alert('Congratulation! You got '+value['amount']+' '+currency['code']+' discount');
                         $(".coupon-check").prop("disabled",true);
@@ -2411,7 +2411,7 @@ function couponDiscount() {
                         $('input[name="coupon_active"]').val(1);
                         $('input[name="coupon_id"]').val(value['id']);
                         $('input[name="coupon_discount"]').val(value['amount']);
-                        $('#coupon-text').text(parseFloat(value['amount']).toFixed(2));
+                        $('#coupon-text').text(parseFloat(value['amount']).toFixed(0));
                         $('#coupon-modal').modal('hide');
                     }
                     else
@@ -2422,7 +2422,7 @@ function couponDiscount() {
                     var coupon_discount = grand_total * (value['amount'] / 100);
                     grand_total = grand_total - coupon_discount;
                     $('input[name="grand_total"]').val(grand_total);
-                    $('#grand-total').text(parseFloat(grand_total).toFixed(2));
+                    $('#grand-total').text(parseFloat(grand_total).toFixed(0));
                     if(!$('input[name="coupon_active"]').val())
                             alert('Congratulation! You got '+value['amount']+'% discount');
                     $(".coupon-check").prop("disabled",true);
@@ -2430,7 +2430,7 @@ function couponDiscount() {
                     $('input[name="coupon_active"]').val(1);
                     $('input[name="coupon_id"]').val(value['id']);
                     $('input[name="coupon_discount"]').val(coupon_discount);
-                    $('#coupon-text').text(parseFloat(coupon_discount).toFixed(2));
+                    $('#coupon-text').text(parseFloat(coupon_discount).toFixed(0));
                     $('#coupon-modal').modal('hide');
                 }
             }
@@ -2504,7 +2504,7 @@ function calculateRowProductData(quantity) {
     else
         row_product_price = product_price[rowindex];
 
-    $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.discount-value').val((product_discount[rowindex] * quantity).toFixed(2));
+    $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.discount-value').val((product_discount[rowindex] * quantity).toFixed(0));
     $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.tax-rate').val(tax_rate[rowindex].toFixed(2));
 
     if (tax_method[rowindex] == 1) {
@@ -2516,22 +2516,22 @@ function calculateRowProductData(quantity) {
         else
             var sub_total_unit = sub_total;
 
-        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.net_unit_price').val(net_unit_price.toFixed(2));
-        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.tax-value').val(tax.toFixed(2));
-        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(2)').text(sub_total_unit.toFixed(2));
-        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(4)').text(sub_total.toFixed(2));
-        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.subtotal-value').val(sub_total.toFixed(2));
+        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.net_unit_price').val(net_unit_price.toFixed(0));
+        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.tax-value').val(tax.toFixed(0));
+        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(2)').text(sub_total_unit.toFixed(0));
+        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(4)').text(sub_total.toFixed(0));
+        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.subtotal-value').val(sub_total.toFixed(0));
     } else {
         var sub_total_unit = row_product_price - product_discount[rowindex];
         var net_unit_price = (100 / (100 + tax_rate[rowindex])) * sub_total_unit;
         var tax = (sub_total_unit - net_unit_price) * quantity;
         var sub_total = sub_total_unit * quantity;
 
-        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.net_unit_price').val(net_unit_price.toFixed(2));
-        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.tax-value').val(tax.toFixed(2));
-        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(2)').text(sub_total_unit.toFixed(2));
-        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(4)').text(sub_total.toFixed(2));
-        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.subtotal-value').val(sub_total.toFixed(2));
+        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.net_unit_price').val(net_unit_price.toFixed(0));
+        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.tax-value').val(tax.toFixed(0));
+        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(2)').text(sub_total_unit.toFixed(0));
+        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(4)').text(sub_total.toFixed(0));
+        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.subtotal-value').val(sub_total.toFixed(0));
     }
 
     calculateTotal();
@@ -2566,7 +2566,7 @@ function calculateTotal() {
         total_discount += parseFloat($(this).val());
     });
 
-    $('input[name="total_discount"]').val(total_discount.toFixed(2));
+    $('input[name="total_discount"]').val(total_discount.toFixed(0));
 
     //Sum of tax
     var total_tax = 0;
@@ -2574,14 +2574,14 @@ function calculateTotal() {
         total_tax += parseFloat($(this).val());
     });
 
-    $('input[name="total_tax"]').val(total_tax.toFixed(2));
+    $('input[name="total_tax"]').val(total_tax.toFixed(0));
 
     //Sum of subtotal
     var total = 0;
     $(".sub-total").each(function() {
         total += parseFloat($(this).text());
     });
-    $('input[name="total_price"]').val(total.toFixed(2));
+    $('input[name="total_price"]').val(total.toFixed(0));
 
     calculateGrandTotal();
 }
@@ -2596,7 +2596,7 @@ function calculateGrandTotal() {
    var order_discount = parseFloat($('input[name="order_discount"]').val());
    if (!order_discount)
         order_discount = 0.00;
-   $("#discount").text(order_discount.toFixed(2));
+   $("#discount").text(order_discount.toFixed(0));
 
    var shipping_cost = parseFloat($('input[name="shipping_cost"]').val());
     if (!shipping_cost)
@@ -2605,7 +2605,7 @@ function calculateGrandTotal() {
     item = ++item + '(' + total_qty + ')';
     order_tax = (subtotal - order_discount) * (order_tax / 100);
     var grand_total = (subtotal + order_tax + shipping_cost) - order_discount;
-    $('input[name="grand_total"]').val(grand_total.toFixed(2));
+    $('input[name="grand_total"]').val(grand_total.toFixed(0));
 
     couponDiscount();
     var coupon_discount = parseFloat($('input[name="coupon_discount"]').val());
@@ -2615,12 +2615,12 @@ function calculateGrandTotal() {
 
     $('#item').text(item);
     $('input[name="item"]').val($('table.order-list tbody tr:last').index() + 1);
-    $('#subtotal').text(subtotal.toFixed(2));
-    $('#tax').text(order_tax.toFixed(2));
-    $('input[name="order_tax"]').val(order_tax.toFixed(2));
-    $('#shipping-cost').text(shipping_cost.toFixed(2));
-    $('#grand-total').text(grand_total.toFixed(2));
-    $('input[name="grand_total"]').val(grand_total.toFixed(2));
+    $('#subtotal').text(subtotal.toFixed(0));
+    $('#tax').text(order_tax.toFixed(0));
+    $('input[name="order_tax"]').val(order_tax.toFixed(0));
+    $('#shipping-cost').text(shipping_cost.toFixed(0));
+    $('#grand-total').text(grand_total.toFixed(0));
+    $('input[name="grand_total"]').val(grand_total.toFixed(0));
 }
 
 function hide() {

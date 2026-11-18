@@ -8,10 +8,10 @@
         @include('wealth.partials.filters')
 
         <div class="wm-kpis mb-3">
-            <div class="wm-kpi"><div class="lbl">Income</div><div class="val">{{ number_format($finance['income'], 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Expenses</div><div class="val">{{ number_format($finance['expenses'], 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Balance</div><div class="val">{{ number_format($finance['balance'], 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Budget</div><div class="val">{{ number_format($finance['budget'], 2) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Income</div><div class="val">{{ number_format($finance['income'], 0) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Expenses</div><div class="val">{{ number_format($finance['expenses'], 0) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Balance</div><div class="val">{{ number_format($finance['balance'], 0) }}</div></div>
+            <div class="wm-kpi"><div class="lbl">Budget</div><div class="val">{{ number_format($finance['budget'], 0) }}</div></div>
             <div class="wm-kpi"><div class="lbl">Spent</div><div class="val">{{ $finance['spent_pct'] }}%</div></div>
             <div class="wm-kpi"><div class="lbl">Remaining</div><div class="val">{{ $finance['remain_pct'] }}%</div></div>
         </div>
@@ -24,9 +24,9 @@
                 @foreach($finance['lines'] as $line)
                     <tr>
                         <td>{{ $line['line']->name }}</td>
-                        <td>{{ number_format($line['line']->budget_amount, 2) }}</td>
-                        <td>{{ number_format($line['actual'], 2) }}</td>
-                        <td>{{ number_format($line['variance'], 2) }}</td>
+                        <td>{{ number_format($line['line']->budget_amount, 0) }}</td>
+                        <td>{{ number_format($line['actual'], 0) }}</td>
+                        <td>{{ number_format($line['variance'], 0) }}</td>
                         <td>{{ $line['used_pct'] }}%</td>
                         <td>{{ $line['status'] }}</td>
                         <td>

@@ -75,12 +75,12 @@
                                                     <h5>Quantity: {{ $orderProduct->quantity }}</h5>
                                                 </div>
                                                 <div class="quantity-orders">
-                                                    <h3>{{ number_format($orderProduct->price, 2) }} {{ $currency->code }}</h3>
+                                                    <h3>{{ number_format($orderProduct->price, 0) }} {{ $currency->code }}</h3>
                                                 </div>
                                             </div>
                                             @endforeach
                                         </div>
-                                        <div class="head-right" style="float: right"><a class="btn btn-border font-sm-bold w-auto">Total: {{ number_format($item->grand_total, 2) . ' ' . $currency->code}}</a></div>
+                                        <div class="head-right" style="float: right"><a class="btn btn-border font-sm-bold w-auto">Total: {{ number_format($item->grand_total, 0) . ' ' . $currency->code}}</a></div>
                                     </div>
                                 </div>
                                 @endforeach

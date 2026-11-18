@@ -140,11 +140,11 @@
                                                                 <input type="text" class="form-control batch-no" name="batch_no[]" value="" disabled />
                                                             </td>
                                                         @endif
-                                                        <td class="net_unit_price">{{ number_format((float)$product_sale->net_unit_price, 2, '.', '') }}</td>
+                                                        <td class="net_unit_price">{{ number_format((float)$product_sale->net_unit_price, 0, '.', '') }}</td>
                                                         <td class="duration">{{ $product_sale->start }} | {{ $product_sale->end }}</td>
-                                                        <td class="discount">{{ number_format((float)$product_sale->discount, 2, '.', '') }}</td>
-                                                        <td class="tax">{{ number_format((float)$product_sale->tax, 2, '.', '') }}</td>
-                                                        <td class="sub-total">{{ number_format((float)$product_sale->total, 2, '.', '') }}</td>
+                                                        <td class="discount">{{ number_format((float)$product_sale->discount, 0, '.', '') }}</td>
+                                                        <td class="tax">{{ number_format((float)$product_sale->tax, 0, '.', '') }}</td>
+                                                        <td class="sub-total">{{ number_format((float)$product_sale->total, 0, '.', '') }}</td>
                                                         <td>@if($product_sale->is_return == 0)<button type="button" class="ibtnDel btn btn-md btn-warning">{{trans("file.Return")}}@endif</button></td>
                                                         <input type="hidden" class="product-code" name="product_code[]" value="{{$product_data->code}}"/>
                                                         @if($product_sale->is_return == 0)
@@ -181,9 +181,9 @@
                                                 <th></th>
                                                 <th></th>
                                                 <th></th>
-                                                <th id="total-discount">{{ number_format((float)$lims_sale_data->total_discount, 2, '.', '') }}</th>
-                                                <th id="total-tax">{{ number_format((float)$lims_sale_data->total_tax, 2, '.', '')}}</th>
-                                                <th id="total">{{ number_format((float)$lims_sale_data->total_price, 2, '.', '') }}</th>
+                                                <th id="total-discount">{{ number_format((float)$lims_sale_data->total_discount, 0, '.', '') }}</th>
+                                                <th id="total-tax">{{ number_format((float)$lims_sale_data->total_tax, 0, '.', '')}}</th>
+                                                <th id="total">{{ number_format((float)$lims_sale_data->total_price, 0, '.', '') }}</th>
                                                 <th><i class="dripicons-return"></i></th>
                                                 </tfoot>
                                             </table>
@@ -243,7 +243,7 @@
                                             <label>
                                                 <strong>{{trans('file.Coupon Discount')}}</strong>
                                             </label>
-                                            <p><strong>{{number_format((float)$lims_sale_data->coupon_discount, 2, '.', '')}}</strong></p>
+                                            <p><strong>{{number_format((float)$lims_sale_data->coupon_discount, 0, '.', '')}}</strong></p>
                                         </div>
                                     </div>
                                     @endif

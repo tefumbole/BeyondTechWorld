@@ -269,7 +269,7 @@
                     total_sale += parseFloat($(this).val());
                 }
             });
-            $("#total-amount").val(total_sale.toFixed(2));
+            $("#total-amount").val(total_sale.toFixed(0));
         }
 
         // menu open

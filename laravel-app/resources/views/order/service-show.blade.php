@@ -156,7 +156,7 @@
                                     @endif
                                     <tr>
                                         <th>Price</th>
-                                        <td>{{ number_format($data->grand_total, 2) }} {{ $currency->code }}</td>
+                                        <td>{{ number_format($data->grand_total, 0) }} {{ $currency->code }}</td>
                                     </tr>
                                     @if($data->academic_year)
                                         <tr>
@@ -229,7 +229,7 @@
                                     {{--                            </tr>--}}
                                     <tr>
                                         <th>Total</th>
-                                        <td>{{ number_format($data->grand_total, 2) }} {{ $currency->code }}</td>
+                                        <td>{{ number_format($data->grand_total, 0) }} {{ $currency->code }}</td>
                                     </tr>
                                 @endforeach
                             </table>

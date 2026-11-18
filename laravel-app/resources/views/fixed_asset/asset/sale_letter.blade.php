@@ -191,7 +191,7 @@
             Holder of Nationality Card No, ___<span class="underline" style="color: red">{{ $data->buyer_id }}</span>___
             issued at ___<span class="underline">{{ $data->buyer_id_date }}</span>__ On __<span class="underline">{{ $data->buyer_to }}</span>__
             Address ___<span class="underline">{{ $data->buyer_address }}</span>__ Email __<span class="underline">{{ $data->buyer_email }}</span>__ Phone __<span class="underline">{{ $data->buyer_number }}</span>__
-            The Said (__________) is sold at (figures): ___<span class="underline">{{ number_format($data->buyer_total_amount, 2) }}</span>___ <br>
+            The Said (__________) is sold at (figures): ___<span class="underline">{{ number_format($data->buyer_total_amount, 0) }}</span>___ <br>
             (Words): <span class="underline">{{ $words }}
         </p>
         <br><br><br>

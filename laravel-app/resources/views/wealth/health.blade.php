@@ -20,22 +20,22 @@
         <div class="wm-kpis mb-3">
             <div class="wm-kpi">
                 <div class="lbl">Income this month</div>
-                <div class="val">{{ number_format($health['income']['total'], 2) }}</div>
+                <div class="val">{{ number_format($health['income']['total'], 0) }}</div>
             </div>
             <div class="wm-kpi">
                 <div class="lbl">You can spend</div>
-                <div class="val">{{ number_format(max(0, (float) $health['operations']['remaining']), 2) }}</div>
-                <div class="small text-muted">70% operations left of {{ number_format($health['operations']['expected'], 2) }}</div>
+                <div class="val">{{ number_format(max(0, (float) $health['operations']['remaining']), 0) }}</div>
+                <div class="small text-muted">70% operations left of {{ number_format($health['operations']['expected'], 0) }}</div>
             </div>
             <div class="wm-kpi">
                 <div class="lbl">Due for investment</div>
-                <div class="val">{{ number_format(max(0, (float) $health['investment']['remaining']), 2) }}</div>
-                <div class="small text-muted">20% · invested {{ number_format($health['investment']['used'], 2) }} of {{ number_format($health['investment']['expected'], 2) }}</div>
+                <div class="val">{{ number_format(max(0, (float) $health['investment']['remaining']), 0) }}</div>
+                <div class="small text-muted">20% · invested {{ number_format($health['investment']['used'], 0) }} of {{ number_format($health['investment']['expected'], 0) }}</div>
             </div>
             <div class="wm-kpi">
                 <div class="lbl">Due for giving</div>
-                <div class="val">{{ number_format(max(0, (float) $health['charity']['remaining']), 2) }}</div>
-                <div class="small text-muted">10% · given {{ number_format($health['charity']['used'], 2) }} of {{ number_format($health['charity']['expected'], 2) }}</div>
+                <div class="val">{{ number_format(max(0, (float) $health['charity']['remaining']), 0) }}</div>
+                <div class="small text-muted">10% · given {{ number_format($health['charity']['used'], 0) }} of {{ number_format($health['charity']['expected'], 0) }}</div>
             </div>
         </div>
 

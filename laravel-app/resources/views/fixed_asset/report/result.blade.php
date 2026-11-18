@@ -80,12 +80,12 @@
                         if($item->price != 0) {$current_value += $book_value;}
                         $count++;
                     @endphp
-                    <td>{{ number_format($item->price, 2) }}</td>
+                    <td>{{ number_format($item->price, 0) }}</td>
                     <td>{{ $item->life_span}} Y</td>
                     <td>{{ $item->scrap}}</td>
-                    <td>{{ number_format($depreciation, 2) }}</td>
+                    <td>{{ number_format($depreciation, 0) }}</td>
                     <td>{{ round($consume, 2) }} d</td>
-                    <td>{{ number_format($book_value, 2) }}</td>
+                    <td>{{ number_format($book_value, 0) }}</td>
                     <td>{{ $item->purchase_date}}</td>
                     <td>{{ $item->service_date}}</td>
                 </tr>
@@ -101,12 +101,12 @@
                 <td></td>
                 <td></td>
                 <td>Initial:</td>
-                <td>{{ number_format($initial_value, 2) }} {{$curency}}</td>
+                <td>{{ number_format($initial_value, 0) }} {{$curency}}</td>
                 <td></td>
                 <td>Deprication:</td>
-                <td>{{ number_format($depreciation_value, 2) }} {{$curency}}</td>
+                <td>{{ number_format($depreciation_value, 0) }} {{$curency}}</td>
                 <td>Book Value:</td>
-                <td>{{ number_format($current_value, 2) }} {{$curency}}</td>
+                <td>{{ number_format($current_value, 0) }} {{$curency}}</td>
                 <td>Checked By:</td>
                 <td>____________</td>
             </tr>

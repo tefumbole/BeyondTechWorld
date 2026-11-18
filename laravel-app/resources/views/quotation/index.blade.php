@@ -82,13 +82,13 @@
                                 @php $pq = $quotation->pendingQuote; @endphp
                                 @if($pq)
                                     <div class="mt-1 small text-info">
-                                        Proposed: {{ number_format((float)$pq->proposed_grand_total, 2) }}
-                                        (was {{ number_format((float)$pq->original_grand_total, 2) }})
+                                        Proposed: {{ number_format((float)$pq->proposed_grand_total, 0) }}
+                                        (was {{ number_format((float)$pq->original_grand_total, 0) }})
                                     </div>
                                 @endif
                             @endif
                         </td>
-                        <td>{{ number_format($quotation->grand_total, 2, '.', ',') }}</td>
+                        <td>{{ number_format($quotation->grand_total, 0, '.', ',') }}</td>
                         <td>
                             <div class="btn-group">
                                 <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{trans('file.action')}}
@@ -410,10 +410,10 @@
             if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
                 var rows = dt_selector.rows( '.selected' ).indexes();
 
-                $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
+                $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(0));
             }
             else {
-                $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
+                $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(0));
             }
         }
 

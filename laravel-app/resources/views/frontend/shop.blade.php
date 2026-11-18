@@ -69,7 +69,7 @@
                                                     <span class="font-xs color-gray-500">({{ count($product->reviews) }})</span>
                                                 </div>
                                                 @if($product->price > 0)
-                                                    <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($product->price, 2) }} {{ $currency->code }}</strong></div>
+                                                    <div class="price-info"><strong class="font-lg-bold color-brand-3 price-main">{{ number_format($product->price, 0) }} {{ $currency->code }}</strong></div>
                                                 @endif
 {{--                                                @if($product->qty > 0 || $product->type != 'standard')--}}
 {{--                                                    <div class="mt-20 box-btn-cart"><a class="btn btn-cart" onclick="addtocart({{ $product->id }},'/addToCart')">Add To Cart</a></div>--}}

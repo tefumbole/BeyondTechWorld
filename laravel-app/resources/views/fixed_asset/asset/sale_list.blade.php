@@ -55,7 +55,7 @@
                     @endif
                     <td>{{ $item->name }}</td>
                     <td>{{ @$item->AssetSaleDetails->buyer_name}}</td>
-                    <td>{{ number_format(@$item->AssetSaleDetails->price, 2)}}</td>
+                    <td>{{ number_format(@$item->AssetSaleDetails->price, 0)}}</td>
                     <td>{{ @$item->AssetSaleDetails->remark}}</td>
                     <td>{{ @$sale->date}}</td>
                     @if(isset($item->AssetSaleDetails->asset_sale_id))
