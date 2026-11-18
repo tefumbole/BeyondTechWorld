@@ -55,7 +55,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('events:process-reminders')->everyMinute()->withoutOverlapping(10);
         $schedule->command('tasks:process')->everyMinute()->withoutOverlapping(10);
         $schedule->command('announcements:process')->everyMinute()->withoutOverlapping(60);
-        $schedule->command('contracts:process-reminders')->everyMinute();
+        // Signer and antivirus reminders are sent only when someone presses the button.
         $schedule->command('contracts:expiry-alerts')->dailyAt('08:00');
         // Stagger internship WhatsApp so the three hourly jobs do not start together.
         $schedule->command('internship:reconcile-releases')->hourlyAt(5);

@@ -168,7 +168,7 @@
             <div class="col-lg-4">
                 <div class="ct-card">
                     <h5 class="mb-3">Reminders</h5>
-                    <p class="text-muted small">Schedule specific date/times for this contract (Task Manager style). Not system-wide.</p>
+                    <p class="text-muted small">A reminder stays on this page until you press Send now. Nothing goes out on its own.</p>
                     <form method="POST" action="{{ route('contracts.reminders.store', $contract->id) }}" class="mb-3">
                         @csrf
                         <div class="mb-2">
@@ -191,13 +191,19 @@
                                 <div>
                                     <strong>{{ \Carbon\Carbon::parse($rem->reminder_time)->format('M j, Y H:i') }}</strong>
                                     @if($rem->label)<div class="small">{{ $rem->label }}</div>@endif
-                                    <div class="small text-muted">{{ $rem->is_sent ? 'Sent '.optional($rem->sent_at)->format('M j H:i') : 'Scheduled' }}</div>
+                                    <div class="small text-muted">{{ $rem->is_sent ? 'Sent '.optional($rem->sent_at)->format('M j H:i') : 'Waiting for you to send it' }}</div>
                                 </div>
                                 @if(! $rem->is_sent)
-                                    <form method="POST" action="{{ route('contracts.reminders.destroy', [$contract->id, $rem->id]) }}" onsubmit="return confirm('Remove this reminder?');">
-                                        @csrf
-                                        <button type="submit" class="btn btn-xs btn-outline-danger">×</button>
-                                    </form>
+                                    <div class="d-flex" style="gap:6px;">
+                                        <form method="POST" action="{{ route('contracts.reminders.send', [$contract->id, $rem->id]) }}">
+                                            @csrf
+                                            <button type="submit" class="btn btn-xs btn-primary">Send now</button>
+                                        </form>
+                                        <form method="POST" action="{{ route('contracts.reminders.destroy', [$contract->id, $rem->id]) }}" onsubmit="return confirm('Remove this reminder?');">
+                                            @csrf
+                                            <button type="submit" class="btn btn-xs btn-outline-danger">×</button>
+                                        </form>
+                                    </div>
                                 @endif
                             </li>
                         @empty

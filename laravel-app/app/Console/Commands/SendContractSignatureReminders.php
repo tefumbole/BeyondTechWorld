@@ -12,12 +12,18 @@ use Illuminate\Support\Facades\Mail;
 
 class SendContractSignatureReminders extends Command
 {
-    protected $signature = 'contracts:send-signature-reminders';
+    protected $signature = 'contracts:send-signature-reminders {--send}';
 
-    protected $description = 'Remind pending contract signatories (48h then every 72h by default)';
+    protected $description = 'Remind pending contract signatories only when --send is passed';
 
     public function handle(NotificationRouter $notify)
     {
+        if (! $this->option('send')) {
+            $this->info('Signer reminders stay off until someone sends one by hand.');
+
+            return 0;
+        }
+
         $first = (int) ContractSetting::getValue('reminder_first_hours', 48);
         $every = (int) ContractSetting::getValue('reminder_every_hours', 72);
         $max = (int) ContractSetting::getValue('reminder_max', 5);

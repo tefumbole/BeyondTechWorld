@@ -695,6 +695,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/contracts/{id}/supersede', 'ContractController@supersede')->name('contracts.supersede');
     Route::post('/admin/contracts/{id}/attach', 'ContractController@attach')->name('contracts.attach');
     Route::post('/admin/contracts/{id}/reminders', 'ContractController@storeReminder')->name('contracts.reminders.store');
+    Route::post('/admin/contracts/{id}/reminders/{reminderId}/send', 'ContractController@sendReminder')->name('contracts.reminders.send');
     Route::post('/admin/contracts/{id}/reminders/{reminderId}/delete', 'ContractController@destroyReminder')->name('contracts.reminders.destroy');
     Route::get('/admin/contracts/{id}/documents/{docId}', 'ContractController@download')->name('contracts.download');
 

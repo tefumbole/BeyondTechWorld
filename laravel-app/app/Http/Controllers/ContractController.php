@@ -686,7 +686,19 @@ class ContractController extends Controller
         ]);
         $this->audit->log($contract->id, 'reminder_added', null, ['at' => $when->toDateTimeString()]);
 
-        return back()->with('message', 'Reminder scheduled for '.$when->format('M j, Y H:i').'.');
+        return back()->with('message', 'Reminder saved. It stays here until you press Send now.');
+    }
+
+    public function sendReminder($id, $reminderId)
+    {
+        $this->authorizePerm(['contracts.edit', 'contracts.create']);
+        $reminder = ContractReminder::where('contract_id', $id)->where('is_sent', false)->findOrFail($reminderId);
+        \Artisan::call('contracts:process-reminders', [
+            '--send' => true,
+            '--id' => $reminder->id,
+        ]);
+
+        return back()->with('message', 'Reminder sent.');
     }
 
     public function destroyReminder($id, $reminderId)

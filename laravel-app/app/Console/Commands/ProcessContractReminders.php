@@ -9,15 +9,25 @@ use Illuminate\Support\Facades\Mail;
 
 class ProcessContractReminders extends Command
 {
-    protected $signature = 'contracts:process-reminders';
+    protected $signature = 'contracts:process-reminders {--send} {--id=}';
 
-    protected $description = 'Send due per-contract reminders (Task Manager style datetime reminders)';
+    protected $description = 'Send a contract signer reminder only when --send is passed';
 
     public function handle(NotificationRouter $notify)
     {
+        if (! $this->option('send')) {
+            $this->info('Signer reminders stay off until someone sends one by hand.');
+
+            return 0;
+        }
+
         $due = ContractReminder::with(['contract.signatories', 'contract.partyA', 'contract.partyB'])
             ->where('is_sent', false)
-            ->where('reminder_time', '<=', now())
+            ->when($this->option('id'), function ($query) {
+                $query->where('id', $this->option('id'));
+            }, function ($query) {
+                $query->where('reminder_time', '<=', now());
+            })
             ->orderBy('reminder_time')
             ->limit(100)
             ->get();

@@ -750,9 +750,6 @@ class AntivirusRequestService
 
     public function resendApprover(AntivirusApprover $approver)
     {
-        if ($this->approvalNoticeSilenced('approver_link')) {
-            return;
-        }
         $request = $approver->requestRow;
         if (! $request || $approver->status !== 'pending') {
             throw new AntivirusRuleException('request', 'This approver has already answered.');
@@ -765,15 +762,13 @@ class AntivirusRequestService
             $request,
             'approver_link',
             $approver->phone,
-            AntivirusCatalog::approverInviteMessage($request, route('antivirus.approve', ['token' => $token]), $approver->name)
+            AntivirusCatalog::approverInviteMessage($request, route('antivirus.approve', ['token' => $token]), $approver->name),
+            true
         );
     }
 
     public function resendChief(AntivirusRequest $request)
     {
-        if ($this->approvalNoticeSilenced('station_chief')) {
-            return;
-        }
         if ($request->status !== 'awaiting_chief') {
             throw new AntivirusRuleException('request', 'This request is not waiting for the Chief.');
         }
@@ -785,7 +780,8 @@ class AntivirusRequestService
             $request,
             'station_chief',
             $settings->chief_phone,
-            AntivirusCatalog::chiefForwardMessage($request, route('admin.antivirus.show', ['id' => $request->id]))
+            AntivirusCatalog::chiefForwardMessage($request, route('admin.antivirus.show', ['id' => $request->id])),
+            true
         );
     }
 
@@ -1016,9 +1012,9 @@ class AntivirusRequestService
         $this->queue[] = (int) $notice->id;
     }
 
-    protected function replaceNotice(AntivirusRequest $request, $kind, $phone, $body)
+    protected function replaceNotice(AntivirusRequest $request, $kind, $phone, $body, $manual = false)
     {
-        if ($this->approvalNoticeSilenced($kind)) {
+        if (! $manual && $this->approvalNoticeSilenced($kind)) {
             return;
         }
         $phone = WhatsAppPhone::forWasender($phone);
