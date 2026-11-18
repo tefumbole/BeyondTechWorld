@@ -354,7 +354,7 @@
                     @csrf
                     <div class="modal-body">
                         <p id="request-payment-who" class="mb-2"></p>
-                        <p class="text-muted">The client receives this amount and approves it. Enter a part of the bill, or leave the full amount still due. The client can still pay a smaller part.</p>
+                        <p class="text-muted">The client receives a link on WhatsApp. They open it and pay with MTN, Orange, or VISA. Enter a part of the bill, or leave the full amount still due.</p>
                         <div class="form-group">
                             <label>Amount to request (XAF)</label>
                             <input type="number" name="amount" id="request-payment-amount" class="form-control" min="100" step="1" required>

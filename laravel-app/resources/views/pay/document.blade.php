@@ -58,11 +58,12 @@
             @if($link->status === 'paid')
                 <div class="alert ok" id="paidNote">Payment received. The invoice has been sent.</div>
             @elseif($link->status === 'pending')
-                <div class="alert wait" id="waitNote">A request is on the phone. Enter the PIN there to approve it. Stay on this page.</div>
+                <div class="alert wait" id="waitNote">A request may still be on the phone. You can also pay from this page.</div>
                 @foreach($pendingLines as $line)
                     <div class="holder">{{ $line['phone'] }} · {{ number_format($line['amount'], 0, '.', ' ') }} XAF</div>
                 @endforeach
-            @else
+            @endif
+            @if($link->status !== 'paid')
                 @if($link->status === 'failed')
                     <div class="alert no">{{ $link->error ?: 'The payment was not approved.' }}</div>
                 @endif
@@ -111,7 +112,8 @@
     }, 1600);
 })();
 </script>
-@elseif($link->status === 'pending')
+@endif
+@if($link->status === 'pending')
 <script>
 (function () {
     var url = @json(route('document.pay.status', ['token' => $link->token]));
@@ -130,7 +132,8 @@
     }, 3000);
 })();
 </script>
-@elseif($link->status !== 'paid')
+@endif
+@if($link->status !== 'paid')
 <script>
 (function () {
     var due = {{ (int) $link->amount }};

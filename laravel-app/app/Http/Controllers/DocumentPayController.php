@@ -96,7 +96,12 @@ class DocumentPayController extends Controller
             return redirect()->route('document.pay', ['token' => $link->token]);
         }
         if ($link->status === 'pending') {
-            return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', 'A payment is already waiting for approval.');
+            $link->status = 'waiting';
+            $link->campay_reference = null;
+            $link->payment_link = null;
+            $link->error = null;
+            $link->save();
+            Cache::forget('docpay:'.$link->id);
         }
         $method = (string) ($request->input('pay_with') ?: $request->input('method'));
         if (! in_array($method, ['momo', 'visa'], true)) {
@@ -184,7 +189,7 @@ class DocumentPayController extends Controller
             return back()->with('not_permitted', $error);
         }
 
-        return back()->with('message', 'Payment link sent to '.$document->customer->name.'.');
+        return back()->with('message', 'Payment link sent to '.$document->customer->name.'. They can open it and pay.');
     }
 
     protected function queueRequest($kind, $document, $amount, $label)
@@ -206,9 +211,17 @@ class DocumentPayController extends Controller
         $link->phone = (string) $customer->phone_number;
         $link->requested_by = Auth::user() ? (string) Auth::user()->name : '';
         $link->amount = $amount;
-        $link->status = $link->status === 'pending' ? 'pending' : 'waiting';
+        $link->status = 'waiting';
+        $link->campay_reference = null;
+        $link->payment_link = null;
+        $link->error = null;
         $link->save();
-        $this->tell($link, route('document.pay', ['token' => $link->token]));
+        Cache::forget('docpay:'.$link->id);
+        $url = url('/pay/'.$link->token);
+        $sent = $this->tell($link, $url);
+        if ($sent === 'none') {
+            return 'The payment link could not be sent to this phone.';
+        }
 
         return null;
     }
@@ -216,15 +229,17 @@ class DocumentPayController extends Controller
     protected function tell(DocumentPaymentLink $link, $url)
     {
         $label = $this->label($link);
+        $amount = number_format((int) $link->amount, 0, '.', ' ');
         $msg = WhatsAppMessage::statusBlock('💳', 'Payment Request');
         $msg .= 'Dear *'.$link->person_name.'*,'."\n\n";
-        $msg .= 'You have been requested to pay *'.number_format($link->amount, 0, '.', ' ')."* XAF for ".$label.' '.$link->reference_no.".\n";
+        $msg .= 'Please pay *'.$amount.'* XAF for '.$label.' '.$link->reference_no.".\n\n";
+        $msg .= "Tap this link to pay:\n".$url."\n";
         if (trim((string) $link->requested_by) !== '') {
             $msg .= "\n".WhatsAppMessage::bullet('Requested by', $link->requested_by);
         }
-        $msg .= WhatsAppMessage::actionLink('Pay', $url);
         $msg .= WhatsAppMessage::footer();
-        app(ClientNoticeService::class)->send($link->phone, $msg);
+
+        return app(ClientNoticeService::class)->send($link->phone, $msg);
     }
 
     protected function startSplit(Request $request, DocumentPaymentLink $link, $method, $due)
