@@ -39,6 +39,7 @@
                 <input type="hidden" name="balance">
                 <input type="hidden" name="paying_amount">
                 <input type="hidden" name="sale_id">
+                <input type="hidden" name="after_payment" value="{{ isset($afterPayment) ? $afterPayment : '' }}">
                 <div class="pay-legacy">
                     <select name="paid_by_id">
                         <option value="1">Cash</option>

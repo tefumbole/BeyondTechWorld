@@ -123,6 +123,7 @@
     .pay-sheet-modal .pay-sheet-ref { color: rgba(255,255,255,.75); font-size: 13px; }
     .pay-sheet-modal .close { position: absolute; top: 12px; right: 14px; color: #fff; opacity: 1; text-shadow: none; }
     .pay-sheet-modal .modal-body { background: #f3f6fb; overflow-y: auto; }
+    .pay-sheet-modal .form-control { min-height: 52px; border: 1px solid #d5deee; border-radius: 14px; font-size: 22px; font-weight: 700; color: #0b3f90; }
     .pay-sheet-modal .modal-footer { display: block; border: 0; background: #fff; padding: 12px 16px 16px; }
     .pay-sheet-due { background: #fff; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
     .pay-sheet-due span { display: block; color: #c6ab47; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }

@@ -110,34 +110,8 @@
         </div>
     </div>
 
-    @include('payment.partials.collect_sheet')
-
-    <div id="request-payment" tabindex="-1" role="dialog" aria-hidden="true" class="modal fade text-left">
-        <div role="document" class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Request payment</h5>
-                    <button type="button" data-dismiss="modal" aria-label="Close" class="close"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
-                </div>
-                <form method="POST" id="request-payment-form" action="">
-                    @csrf
-                    <div class="modal-body">
-                        <p id="request-payment-who" class="mb-2"></p>
-                        <p class="text-muted">The client receives a link on WhatsApp. They open it and pay with MTN, Orange, or VISA. Enter a part of the bill, or leave the full amount still due.</p>
-                        <div class="form-group">
-                            <label>Amount to request (XAF)</label>
-                            <input type="number" name="amount" id="request-payment-amount" class="form-control" min="100" step="1" required>
-                        </div>
-                        <p class="text-muted mb-0">Still due: <strong id="request-payment-due"></strong> XAF</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary" style="background:#0b3f90;border-color:#0b3f90;color:#fff;">Send request</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    @include('payment.partials.collect_sheet', ['afterPayment' => 'payment'])
+    @include('payment.partials.request_sheet')
 
 
     <script type="text/javascript">
@@ -385,11 +359,9 @@
             var ref = button.getAttribute('data-ref') || '';
             var id = button.getAttribute('data-id');
             document.getElementById('request-payment-form').action = @json(url('sales')) + '/' + id + '/request-payment';
-            document.getElementById('request-payment-who').textContent = name + (ref ? ' · ' + ref : '');
-            document.getElementById('request-payment-due').textContent = due.toLocaleString();
-            var amount = document.getElementById('request-payment-amount');
-            amount.max = due;
-            amount.value = due;
+            document.getElementById('request-payment-who').textContent = name || 'Client';
+            document.getElementById('request-payment-ref').textContent = ref;
+            fillRequestPayment(due);
             $('#request-payment').modal('show');
         }
         $(document).on('click', '.request-payment', function () {

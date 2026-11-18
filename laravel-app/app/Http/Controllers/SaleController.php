@@ -1346,10 +1346,10 @@ class SaleController extends Controller
     public function posMomoWait($id)
     {
         $sale = Sale::with('customer')->findOrFail($id);
-        if ((int) $sale->payment_status === 4) {
-            return redirect('sales/gen_invoice/'.$sale->id);
-        }
         $pending = Cache::get('pos_momo:'.$sale->id);
+        if ((int) $sale->payment_status === 4) {
+            return redirect($this->momoDoneUrl($sale, $pending));
+        }
         if (! is_array($pending)) {
             $pending = [
                 'phone' => optional($sale->customer)->phone_number,
@@ -1368,12 +1368,24 @@ class SaleController extends Controller
             'statusUrl' => route('pos.momo.status', ['id' => $sale->id]),
             'cancelUrl' => route('pos.momo.cancel', ['id' => $sale->id]),
             'failedMessage' => ! empty($pending['failed']) ? (isset($pending['message']) ? $pending['message'] : 'The payment was not approved.') : '',
+            'backUrl' => $this->momoReturnToPayment($pending) ? route('payment.index') : url('pos'),
+            'backLabel' => $this->momoReturnToPayment($pending) ? 'Back to payments' : 'Back to POS',
+            'cancelConfirm' => $this->momoReturnToPayment($pending) ? 'Cancel this request? The sale stays due.' : 'Cancel this transaction? The sale will be removed.',
+            'waitTimeout' => $this->momoReturnToPayment($pending)
+                ? 'Still waiting. The sale stays in Awaiting Payment. Go back to payments, or cancel this request.'
+                : 'Still waiting. The sale is in Awaiting Payment. Go back to POS, or cancel this transaction.',
         ]);
     }
 
     public function posMomoCancel($id)
     {
         $sale = Sale::findOrFail($id);
+        $pending = Cache::get('pos_momo:'.$sale->id);
+        if ($this->momoReturnToPayment(is_array($pending) ? $pending : [])) {
+            Cache::forget('pos_momo:'.$sale->id);
+
+            return redirect()->route('payment.index')->with('message', 'The Mobile Money request was cancelled. The sale is still due.');
+        }
         if ((int) $sale->payment_status === 4 || Payment::where('sale_id', $sale->id)->exists()) {
             return redirect('pos')->with('not_permitted', 'This payment was already received and cannot be cancelled.');
         }
@@ -1402,13 +1414,13 @@ class SaleController extends Controller
     public function posMomoStatus($id)
     {
         $sale = Sale::findOrFail($id);
+        $pending = Cache::get('pos_momo:'.$sale->id);
         if ((int) $sale->payment_status === 4) {
             return response()->json([
                 'status' => 'paid',
-                'url' => url('sales/gen_invoice/'.$sale->id),
+                'url' => $this->momoDoneUrl($sale, $pending),
             ]);
         }
-        $pending = Cache::get('pos_momo:'.$sale->id);
         if (! is_array($pending)) {
             $this->holdSaleForPayment($sale);
 
@@ -1442,7 +1454,7 @@ class SaleController extends Controller
 
             return response()->json([
                 'status' => 'paid',
-                'url' => url('sales/gen_invoice/'.$sale->id),
+                'url' => $this->momoDoneUrl($sale, $pending),
             ]);
         }
         if ($outcome['state'] === 'failed') {
@@ -1555,6 +1567,7 @@ class SaleController extends Controller
             'reference' => $first['reference'],
             'external' => $first['external'],
             'checkout_key' => ! empty($checkoutClaim['key']) ? $checkoutClaim['key'] : null,
+            'return_to' => request()->input('after_payment') === 'payment' ? 'payment' : null,
         ], now()->addMinutes(30));
 
         return redirect()->route('pos.momo.wait', ['id' => $sale->id]);
@@ -1624,7 +1637,7 @@ class SaleController extends Controller
 
         return response()->json([
             'status' => 'paid',
-            'url' => url('sales/gen_invoice/'.$sale->id),
+            'url' => $this->momoDoneUrl($sale, $pending),
         ]);
     }
 
@@ -3449,6 +3462,7 @@ class SaleController extends Controller
             'reference' => (string) $body['reference'],
             'external' => $external,
             'checkout_key' => null,
+            'return_to' => $request->input('after_payment') === 'payment' ? 'payment' : null,
         ], now()->addMinutes(30));
 
         return redirect()->route('pos.momo.wait', ['id' => $sale->id]);
@@ -3666,7 +3680,32 @@ class SaleController extends Controller
             }
 
         }
+        return $this->afterSalePayment($message);
+    }
+
+    protected function afterSalePayment($message)
+    {
+        if (request()->input('after_payment') === 'payment') {
+            return redirect()->route('payment.index')->with('message', $message);
+        }
+
         return redirect('sales')->with('message', $message);
+    }
+
+    protected function momoReturnToPayment($pending)
+    {
+        return is_array($pending) && isset($pending['return_to']) && $pending['return_to'] === 'payment';
+    }
+
+    protected function momoDoneUrl(Sale $sale, $pending)
+    {
+        if ($this->momoReturnToPayment($pending)) {
+            session()->flash('message', 'Payment received.');
+
+            return route('payment.index');
+        }
+
+        return url('sales/gen_invoice/'.$sale->id);
     }
 
     public function getPayment($id)

@@ -70,8 +70,8 @@
             <h3 id="momo-title" class="momo-title" style="display:none">Insufficient fund</h3>
             <p id="momo-hint" class="momo-hint">Waiting for approval. This screen stays here until the phone answers.</p>
             <div id="momo-actions" class="momo-actions" style="display:none">
-                <a class="pay-open" href="{{ url('pos') }}">Back to POS</a>
-                <form method="POST" action="{{ $cancelUrl }}" onsubmit="return confirm('Cancel this transaction? The sale will be removed.')">
+                <a class="pay-open" href="{{ isset($backUrl) ? $backUrl : url('pos') }}">{{ isset($backLabel) ? $backLabel : 'Back to POS' }}</a>
+                <form method="POST" action="{{ $cancelUrl }}" onsubmit="return confirm(@json(isset($cancelConfirm) ? $cancelConfirm : 'Cancel this transaction? The sale will be removed.'))">
                     @csrf
                     <button type="submit" class="pay-danger">Cancel</button>
                 </form>
@@ -130,7 +130,7 @@
                     return;
                 }
                 if (Date.now() - started > 180000) {
-                    showResult('Still waiting. The sale is in Awaiting Payment. Go back to POS, or cancel this transaction.');
+                    showResult(@json(isset($waitTimeout) ? $waitTimeout : 'Still waiting. The sale is in Awaiting Payment. Go back to POS, or cancel this transaction.'));
                     return;
                 }
                 window.setTimeout(tick, 4000);
