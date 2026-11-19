@@ -803,6 +803,58 @@ class AntivirusRequestService
         return ['approvers' => $approvers, 'chiefs' => $chiefs, 'skipped' => $skipped];
     }
 
+    /**
+     * Tell each requester once that an open request was sent for approval.
+     *
+     * @return array<string, int>
+     */
+    public function notifyRequestersSentForApproval()
+    {
+        $sent = 0;
+        $skipped = 0;
+        app(CloudTenantContext::class)->withoutIsolation(function () use (&$sent, &$skipped) {
+            $rows = AntivirusRequest::with('approvers')
+                ->whereIn('status', ['awaiting_station', 'awaiting_chief'])
+                ->orderBy('id')
+                ->get();
+            foreach ($rows as $request) {
+                if (! $request->requester_phone) {
+                    $skipped++;
+                    continue;
+                }
+                if ($this->signatureAlreadySent($request, 'submitted_requester', $request->requester_phone, $request->submitted_at ?: $request->created_at)) {
+                    $skipped++;
+                    continue;
+                }
+                $people = [];
+                foreach ($request->approvers as $approver) {
+                    $people[] = [
+                        'name' => $approver->name,
+                        'role' => $approver->role,
+                        'role_other' => $approver->role_other,
+                    ];
+                }
+                if (count($people) === 0) {
+                    $people = $this->savedApprovers($request);
+                }
+                try {
+                    $this->replaceNotice(
+                        $request,
+                        'submitted_requester',
+                        $request->requester_phone,
+                        AntivirusCatalog::submittedMessage($request, AntivirusCatalog::approverList($people)),
+                        true
+                    );
+                    $sent++;
+                } catch (\Throwable $e) {
+                    $skipped++;
+                }
+            }
+        });
+
+        return ['sent' => $sent, 'skipped' => $skipped];
+    }
+
     public function resendApprover(AntivirusApprover $approver)
     {
         $request = $approver->requestRow;
@@ -1002,7 +1054,6 @@ class AntivirusRequestService
     protected function approvalNoticeSilenced($kind)
     {
         return in_array($kind, [
-            'submitted_requester',
             'station_requester',
             'approved_requester',
             'approved_approver',

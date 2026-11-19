@@ -134,7 +134,7 @@ class AntivirusCatalog
         return self::cbcMessage(
             'Anti Virus Approval Request',
             $row->requester_name,
-            'Your request for Anti Virus licences has been submitted.',
+            'Your request for Anti Virus licences has been sent for approval.',
             [
                 'Station' => $row->station,
                 'Approver' => $approverLine,
