@@ -769,6 +769,10 @@ class AntivirusRequestService
                     $skipped++;
                     continue;
                 }
+                if ($this->signatureAlreadySent($request, 'approver_link', $approver->phone, $approver->updated_at)) {
+                    $skipped++;
+                    continue;
+                }
                 try {
                     $this->resendApprover($approver);
                     $approvers++;
@@ -778,6 +782,15 @@ class AntivirusRequestService
             }
             $waiting = AntivirusRequest::where('status', 'awaiting_chief')->orderBy('id')->get();
             foreach ($waiting as $request) {
+                $settings = $this->settings();
+                if (! $settings->chief_phone) {
+                    $skipped++;
+                    continue;
+                }
+                if ($this->signatureAlreadySent($request, 'station_chief', $settings->chief_phone, $request->forwarded_at)) {
+                    $skipped++;
+                    continue;
+                }
                 try {
                     $this->resendChief($request);
                     $chiefs++;
@@ -1017,6 +1030,7 @@ class AntivirusRequestService
             $notice->antivirus_request_id = $request->id;
             $notice->kind = $kind;
             $notice->phone = $phone;
+            $this->stampNoticeTenant($notice, $request);
         }
         $notice->body = $body;
         $notice->document_path = $documentPath;
@@ -1041,6 +1055,7 @@ class AntivirusRequestService
             $notice->antivirus_request_id = $request->id;
             $notice->kind = $kind;
             $notice->phone = $phone;
+            $this->stampNoticeTenant($notice, $request);
         }
         $notice->body = $body;
         $notice->document_path = $documentPath;
@@ -1067,12 +1082,39 @@ class AntivirusRequestService
             $notice->antivirus_request_id = $request->id;
             $notice->kind = $kind;
             $notice->phone = $phone;
+            $this->stampNoticeTenant($notice, $request);
         }
         $notice->body = $body;
         $notice->status = 'queued';
         $notice->text_sent_at = null;
         $notice->save();
         $this->notifier->queue($notice->id);
+    }
+
+    protected function stampNoticeTenant(AntivirusNotice $notice, AntivirusRequest $request)
+    {
+        if ($request->cloud_tenant_id) {
+            $notice->cloud_tenant_id = $request->cloud_tenant_id;
+        }
+    }
+
+    protected function signatureAlreadySent(AntivirusRequest $request, $kind, $phone, $since)
+    {
+        try {
+            $phone = WhatsAppPhone::forWasender($phone);
+        } catch (\Throwable $e) {
+            return false;
+        }
+        $notice = AntivirusNotice::where('antivirus_request_id', $request->id)
+            ->where('kind', $kind)
+            ->where('phone', $phone)
+            ->first();
+        if (! $notice || ! $since || ! $notice->updated_at) {
+            return false;
+        }
+
+        return $notice->updated_at->gte($since->copy()->subSeconds(15))
+            && in_array($notice->status, ['queued', 'sending', 'sent'], true);
     }
 
     protected function flush()
