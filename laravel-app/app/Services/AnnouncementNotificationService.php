@@ -536,6 +536,9 @@ class AnnouncementNotificationService extends Controller
                 return $parent;
             }
         }
+        if (! empty($announcement->broadcast) && empty($announcement->personalized)) {
+            return '';
+        }
         if (! empty($announcement->personalized)) {
             return $this->personalName($person);
         }

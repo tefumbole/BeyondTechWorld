@@ -17,6 +17,7 @@ class WaAnnouncement extends Model
         'send_whatsapp' => 'boolean',
         'send_sms' => 'boolean',
         'personalized' => 'boolean',
+        'broadcast' => 'boolean',
         'scheduled_for' => 'datetime',
         'sent_count' => 'integer',
         'cc_sent_count' => 'integer',

@@ -215,6 +215,7 @@ class AnnouncementManagerController extends Controller
             'send_whatsapp' => $request->has('send_whatsapp'),
             'send_sms' => $request->has('send_sms'),
             'personalized' => $request->has('personalized'),
+            'broadcast' => $request->has('broadcast'),
             'send_mode' => $request->input('send_mode', 'now'),
             'schedule_at' => $request->input('schedule_at'),
             'reminders' => $request->input('reminders', []),

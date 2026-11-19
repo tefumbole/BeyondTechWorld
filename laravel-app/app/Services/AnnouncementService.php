@@ -186,15 +186,24 @@ class AnnouncementService
         );
         if ($school && $audience === 'group') {
             $data['personalized'] = true;
+            $data['broadcast'] = false;
+        }
+        $broadcast = ! empty($data['broadcast']) && empty($data['personalized']);
+        if ($audience === 'group' && empty($data['personalized'])) {
+            $broadcast = true;
         }
         if ($audience === 'group') {
             $jids = isset($data['group_jids']) ? (array) $data['group_jids'] : [];
             if (! empty($data['group_jid'])) {
                 $jids[] = $data['group_jid'];
             }
-            $recipients = ! empty($data['personalized'])
-                ? $this->personalizedGroupMembers($jids, isset($data['name_overrides']) ? (array) $data['name_overrides'] : [])
-                : $this->groupRecipients($jids);
+            if (! empty($data['personalized'])) {
+                $recipients = $this->personalizedGroupMembers($jids, isset($data['name_overrides']) ? (array) $data['name_overrides'] : []);
+            } elseif ($broadcast) {
+                $recipients = $this->plainGroupMembers($jids);
+            } else {
+                $recipients = $this->groupRecipients($jids);
+            }
             $ccs = [];
         } elseif ($audience === 'contacts') {
             $recipients = $this->whatsappContacts();
@@ -234,6 +243,7 @@ class AnnouncementService
             'send_whatsapp' => ! empty($data['send_whatsapp']),
             'send_sms' => ! empty($data['send_sms']),
             'personalized' => ! empty($data['personalized']),
+            'broadcast' => $broadcast,
             'is_scheduled' => (bool) $isScheduled,
             'scheduled_for' => $isScheduled ? $scheduleAt : null,
             'schedules_json' => $isScheduled ? json_encode([
@@ -405,10 +415,22 @@ class AnnouncementService
             }
         }
         if (! $byPhone) {
-            throw new \InvalidArgumentException('No phone numbers were returned for the selected groups, so a personalized message cannot be sent to each member.');
+            throw new \InvalidArgumentException('No phone numbers were returned for the selected groups, so a message cannot be sent to each member.');
         }
 
         return array_values($byPhone);
+    }
+
+    protected function plainGroupMembers(array $jids)
+    {
+        $people = $this->personalizedGroupMembers($jids, []);
+        foreach ($people as $index => $person) {
+            $people[$index]['name'] = '';
+            $people[$index]['wa_name'] = '';
+            $people[$index]['name_edited'] = false;
+        }
+
+        return $people;
     }
 
     protected function applyNameOverrides(array $people, array $overrides)

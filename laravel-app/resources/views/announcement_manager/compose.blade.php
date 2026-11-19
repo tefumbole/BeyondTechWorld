@@ -171,7 +171,7 @@
                                     <div class="p-3 text-muted small">No WhatsApp groups were returned for this account.</div>
                                 @endforelse
                             </div>
-                            <div class="an-info" id="an-group-info">Search a group and tick it. Added groups stay listed above so you can add more. With Personalize on, each member gets their own message.</div>
+                            <div class="an-info" id="an-group-info">Search a group and tick it. Broadcast sends the same message to each member separately, without a name. Personalize greets each member by name.</div>
                         </div>
                         <div id="an-contacts-box" class="mb-3" style="display:none;">
                             <div class="an-info">A personal WhatsApp message is sent to every contact saved on the connected WhatsApp account.</div>
@@ -270,9 +270,12 @@
                         <label class="d-flex align-items-center" style="gap:8px;font-weight:600;">
                             <input type="checkbox" checked disabled> Send via WhatsApp
                         </label>
-                        <button type="button" class="an-pill mt-3" id="an-personalize-btn">Personalize each message</button>
+                        <button type="button" class="an-pill mt-3" id="an-broadcast-btn">Broadcast</button>
+                        <input type="checkbox" name="broadcast" id="an-broadcast" value="1" class="d-none">
+                        <div class="an-info" id="an-broadcast-help">The same message goes to each person separately, without a name. A selected group sends to its members, not into the group chat.</div>
+                        <button type="button" class="an-pill mt-2" id="an-personalize-btn">Personalize each message</button>
                         <input type="checkbox" name="personalized" id="an-personalized" value="1" class="d-none">
-                        <div class="an-info" id="an-personalize-help">Each person is greeted as Dear and their name. Turn this on to add a title in the preview, for example Pastor John or Dr. Bolla. A selected group then sends a separate message to each member.</div>
+                        <div class="an-info" id="an-personalize-help">Each person is greeted as Dear and their name. Turn this on to add a title in the preview, for example Pastor John or Dr. Bolla.</div>
                         <div class="an-info">Messages go out one person every 5 seconds so WhatsApp does not block the account.</div>
                         <button type="button" class="an-btn-outline mt-2" id="an-preview-btn" style="display:none;">Preview messages</button>
                         <div class="mt-3">
@@ -784,6 +787,14 @@ window.AN_PRESELECT = @json([
             document.getElementById('an-people-box').style.display = audience === 'people' ? '' : 'none';
             document.getElementById('an-group-box').style.display = audience === 'group' ? '' : 'none';
             document.getElementById('an-contacts-box').style.display = audience === 'contacts' ? '' : 'none';
+            if (audience === 'group') {
+                var personalOn = document.getElementById('an-personalized');
+                var broadcastOn = document.getElementById('an-broadcast');
+                if (broadcastOn && (!personalOn || !personalOn.checked)) {
+                    broadcastOn.checked = true;
+                }
+                if (typeof syncPersonalize === 'function') syncPersonalize();
+            }
             var count = document.getElementById('an-count');
             if (audience === 'contacts') {
                 count.textContent = 'All';
@@ -828,23 +839,39 @@ window.AN_PRESELECT = @json([
     }
     var personalizeBtn = document.getElementById('an-personalize-btn');
     var personalizeBox = document.getElementById('an-personalized');
+    var broadcastBtn = document.getElementById('an-broadcast-btn');
+    var broadcastBox = document.getElementById('an-broadcast');
     var previewBtn = document.getElementById('an-preview-btn');
     var previewPeople = [];
     var previewFocus = '';
     function syncPersonalize() {
         var on = !!(personalizeBox && personalizeBox.checked);
+        var broadcast = !!(broadcastBox && broadcastBox.checked);
         if (personalizeBtn) personalizeBtn.classList.toggle('active', on);
+        if (broadcastBtn) broadcastBtn.classList.toggle('active', broadcast && !on);
         if (previewBtn) previewBtn.style.display = on ? '' : 'none';
         var info = document.getElementById('an-group-info');
         if (info) {
             info.textContent = on
-                ? 'Added groups stay listed above. You can add more. Personalize sends a separate message to each member. Use Preview to edit the message and add titles to names.'
-                : 'Search a group and tick it. Added groups stay listed above so you can add more. The same message is posted in each group.';
+                ? 'Added groups stay listed above. Personalize greets each member by name. Use Preview to edit the message and add titles to names.'
+                : 'Broadcast sends the same message to each member separately, without a name. It does not post inside the group chat.';
         }
+    }
+    if (broadcastBtn && broadcastBox) {
+        broadcastBtn.addEventListener('click', function () {
+            var audience = document.getElementById('an-audience').value;
+            if (broadcastBox.checked && audience === 'group' && !(personalizeBox && personalizeBox.checked)) {
+                return;
+            }
+            broadcastBox.checked = !broadcastBox.checked;
+            if (broadcastBox.checked && personalizeBox) personalizeBox.checked = false;
+            syncPersonalize();
+        });
     }
     if (personalizeBtn && personalizeBox) {
         personalizeBtn.addEventListener('click', function () {
             personalizeBox.checked = !personalizeBox.checked;
+            if (personalizeBox.checked && broadcastBox) broadcastBox.checked = false;
             syncPersonalize();
         });
         syncPersonalize();
