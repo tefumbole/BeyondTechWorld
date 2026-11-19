@@ -855,6 +855,84 @@ class AntivirusRequestService
         return ['sent' => $sent, 'skipped' => $skipped];
     }
 
+    /**
+     * Send each signed copy from the last 72 hours that has not gone out yet.
+     *
+     * @return array<string, int>
+     */
+    public function sendRecentApprovedCopies($hours = 72)
+    {
+        $copies = 0;
+        $skipped = 0;
+        $since = now()->subHours((int) $hours);
+        app(CloudTenantContext::class)->withoutIsolation(function () use (&$copies, &$skipped, $since) {
+            $signed = AntivirusApprover::with('requestRow')
+                ->where('status', 'signed')
+                ->where('signed_at', '>=', $since)
+                ->orderBy('id')
+                ->get();
+            foreach ($signed as $approver) {
+                $request = $approver->requestRow;
+                if (! $request || ! $approver->phone) {
+                    $skipped++;
+                    continue;
+                }
+                if ($this->signatureAlreadySent($request, 'approver_copy', $approver->phone, $approver->signed_at)) {
+                    $skipped++;
+                    continue;
+                }
+                try {
+                    $this->sendApproverCopy($request, $approver);
+                    $copies++;
+                } catch (\Throwable $e) {
+                    $skipped++;
+                }
+            }
+            $approved = AntivirusRequest::with('approvers')
+                ->where('status', 'approved')
+                ->where('approved_at', '>=', $since)
+                ->orderBy('id')
+                ->get();
+            foreach ($approved as $request) {
+                if ($this->signatureAlreadySent($request, 'approved_requester', $request->requester_phone, $request->approved_at)) {
+                    $skipped++;
+                    continue;
+                }
+                try {
+                    $this->sendFinalApprovedCopies($request);
+                    $copies++;
+                } catch (\Throwable $e) {
+                    $skipped++;
+                }
+            }
+        });
+
+        return ['copies' => $copies, 'skipped' => $skipped];
+    }
+
+    protected function sendFinalApprovedCopies(AntivirusRequest $request)
+    {
+        if (! $request->pdf_path || ! Storage::disk('local')->exists($request->pdf_path)) {
+            $this->writePdf($request);
+            $request = $request->fresh()->load('approvers');
+        }
+        $token = $this->newToken();
+        $request->pdf_token_hash = hash('sha256', $token);
+        $request->pdf_expires_at = now()->addDays(90);
+        $request->save();
+        $letter = route('antivirus.letter', ['token' => $token]);
+        $fileName = 'Antivirus-'.str_replace(['/', ' '], '-', (string) $request->reference).'.pdf';
+        $this->queue = [];
+        $this->enqueue($request, 'approved_requester', $request->requester_phone, AntivirusCatalog::finalApprovalMessage($request, $letter, $request->requester_name), $request->pdf_path, $fileName);
+        foreach ($request->approvers as $approver) {
+            if ($approver->status !== 'signed' || ! $approver->phone) {
+                continue;
+            }
+            $this->enqueue($request, 'approved_approver', $approver->phone, AntivirusCatalog::finalApprovalMessage($request, $letter, $approver->name), $request->pdf_path, $fileName);
+        }
+        $this->flush();
+    }
+
     public function resendApprover(AntivirusApprover $approver)
     {
         $request = $approver->requestRow;
@@ -1055,10 +1133,6 @@ class AntivirusRequestService
     {
         return in_array($kind, [
             'station_requester',
-            'approved_requester',
-            'approved_approver',
-            'approver_copy',
-            'requester_copy',
             'approved_resend',
         ], true);
     }

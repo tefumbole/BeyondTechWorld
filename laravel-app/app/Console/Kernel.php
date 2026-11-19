@@ -36,6 +36,7 @@ class Kernel extends ConsoleKernel
         Commands\TravelCompany::class,
         Commands\PayScheduledEventCrew::class,
         Commands\SendUnsignedAntivirusRequests::class,
+        Commands\SendRecentApprovedAntivirusCopies::class,
     ];
 
     /**
