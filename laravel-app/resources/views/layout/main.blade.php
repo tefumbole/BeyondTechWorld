@@ -1203,8 +1203,8 @@
                             ['role_id', $role->id]
                         ])->first();
                         ?>
-                        @if($index_permission_active)
-                            <li data-nav-key="assets"><a href="#assets" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-home"></i><span>{{trans('file.Fixed Assets')}}</span><span></a>
+                        @if($index_permission_active || in_array((int) Auth::user()->role_id, [1, 2, 7, 19], true))
+                            <li data-nav-key="assets"><a href="{{ route('asset.dashboard') }}" data-nav-key="assets"> <i class="dripicons-home"></i><span>{{trans('file.Fixed Assets')}}</span></a>
                                 <ul id="assets" class="collapse list-unstyled ">
                                     @if($asset_index_active)<li id="assets-dashboard-menu"><a href="{{route('asset.dashboard')}}">{{trans('file.Assets Dashboard')}}</a></li>@endif
                                     @if($region_index_active)<li id="region-menu"><a href="{{route('region.index')}}">{{trans('file.Assets Region')}}</a></li>@endif
