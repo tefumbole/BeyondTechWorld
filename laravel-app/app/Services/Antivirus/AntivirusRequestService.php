@@ -739,13 +739,55 @@ class AntivirusRequestService
     }
 
     /**
-     * Approval WhatsApps are turned off. This does not message anyone.
+     * Approval copies stay off. This does not message anyone.
      *
      * @return array<int, array<string, string>>
      */
     public function remindUnsignedSigners()
     {
         return [];
+    }
+
+    /**
+     * Send each unsigned station approver and each waiting Chief one signature request.
+     *
+     * @return array<string, int>
+     */
+    public function sendUnsignedForSignature()
+    {
+        $approvers = 0;
+        $chiefs = 0;
+        $skipped = 0;
+        app(CloudTenantContext::class)->withoutIsolation(function () use (&$approvers, &$chiefs, &$skipped) {
+            $pending = AntivirusApprover::with('requestRow')
+                ->where('status', 'pending')
+                ->orderBy('id')
+                ->get();
+            foreach ($pending as $approver) {
+                $request = $approver->requestRow;
+                if (! $request || $request->status !== 'awaiting_station') {
+                    $skipped++;
+                    continue;
+                }
+                try {
+                    $this->resendApprover($approver);
+                    $approvers++;
+                } catch (\Throwable $e) {
+                    $skipped++;
+                }
+            }
+            $waiting = AntivirusRequest::where('status', 'awaiting_chief')->orderBy('id')->get();
+            foreach ($waiting as $request) {
+                try {
+                    $this->resendChief($request);
+                    $chiefs++;
+                } catch (\Throwable $e) {
+                    $skipped++;
+                }
+            }
+        });
+
+        return ['approvers' => $approvers, 'chiefs' => $chiefs, 'skipped' => $skipped];
     }
 
     public function resendApprover(AntivirusApprover $approver)
@@ -948,9 +990,7 @@ class AntivirusRequestService
     {
         return in_array($kind, [
             'submitted_requester',
-            'approver_link',
             'station_requester',
-            'station_chief',
             'approved_requester',
             'approved_approver',
             'approver_copy',
