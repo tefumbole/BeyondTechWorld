@@ -114,10 +114,10 @@
                                             <a class="btn btn-link" href="{{ route('quotation.clone', $quotation->id) }}"><i class="dripicons-copy"></i> Clone</a>
                                         </li>
                                     @endif
-                                    @if(in_array($st, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_NO_SIGNATURE], true) && ! $quotation->hasClientSignature())
+                                    @if(in_array($st, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_NO_SIGNATURE, \App\Quotation::STATUS_APPROVED], true))
                                         <li>
                                             {{ Form::open(['route' => ['quotation.resend_approval', $quotation->id], 'method' => 'POST', 'style' => 'display:inline'] ) }}
-                                            <button type="submit" class="btn btn-link" onclick="return confirm('Send / resend signature link to the client via WhatsApp? PDF is sent only after they sign.');"><i class="fa fa-whatsapp"></i> Send for Signature</button>
+                                            <button type="submit" class="btn btn-link" onclick="return confirm('Send the signature link via WhatsApp? A previous signature is cleared and the old link stops working. The PDF is sent only after the client signs.');"><i class="fa fa-whatsapp"></i> Send for Signature</button>
                                             {{ Form::close() }}
                                         </li>
                                     @endif

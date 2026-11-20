@@ -355,7 +355,7 @@
                         @if(in_array((int)$lims_quotation_data->quotation_status, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_APPROVED, \App\Quotation::STATUS_NO_SIGNATURE], true))
                             <div class="mt-2 mb-3">
                                 {{ Form::open(['route' => ['quotation.resend_approval', $lims_quotation_data->id], 'method' => 'POST', 'id' => 'quotation-resend-form']) }}
-                                <button type="submit" class="btn btn-success" onclick="return confirm('Send signature link via WhatsApp? PDF is delivered only after the client signs. Save edits first if you changed amounts or notes.');">
+                                <button type="submit" class="btn btn-success" onclick="return confirm('Send the signature link via WhatsApp? A previous signature is cleared and the old link stops working. The PDF is sent only after the client signs again. Save edits first if you changed amounts or notes.');">
                                     <i class="fa fa-whatsapp"></i> Resend approval WhatsApp
                                 </button>
                                 <small class="text-muted d-block mt-1">Uses the last saved quotation. Save first if you just edited.</small>

@@ -1319,16 +1319,10 @@ class QuotationController extends Controller
             $data['document'] = $existing !== '' ? $existing.','.$documents : $documents;
         }
         $lims_product_quotation_data = ProductQuotation::where('quotation_id', $id)->get();
-        // When re-sending a rejected/draft quotation, reset client response fields.
-        // Never wipe a completed client signature from a routine edit.
+        // Choosing Send for Signature reopens the quotation, including one the client already signed.
+        // Keeping Approved, Rejected, or No Signature leaves the existing signature in place.
         $newStatus = (int) ($data['quotation_status'] ?? $lims_quotation_data->quotation_status);
-        $alreadySigned = $lims_quotation_data->hasClientSignature()
-            || (int) $lims_quotation_data->quotation_status === Quotation::STATUS_APPROVED;
-        if ($alreadySigned && $newStatus === Quotation::STATUS_AWAITING) {
-            $data['quotation_status'] = Quotation::STATUS_APPROVED;
-            unset($data['client_comment'], $data['client_signed_at'], $data['client_signature_path'], $data['client_responded_at']);
-            $newStatus = Quotation::STATUS_APPROVED;
-        } elseif ($newStatus === Quotation::STATUS_AWAITING) {
+        if ($newStatus === Quotation::STATUS_AWAITING) {
             $data['client_comment'] = null;
             $data['client_signed_at'] = null;
             $data['client_signature_path'] = null;
@@ -1486,17 +1480,9 @@ class QuotationController extends Controller
     public function resendApproval($id)
     {
         $quotation = Quotation::findOrFail($id);
-        if ($quotation->hasClientSignature() || (int) $quotation->quotation_status === Quotation::STATUS_APPROVED) {
-            return redirect()->route('quotations.index', ['tab' => 'approved'])
-                ->with('not_permitted', 'This quotation is already signed. Clone it if you need to send a new one.');
-        }
-        if (! in_array((int) $quotation->quotation_status, [
-            Quotation::STATUS_AWAITING,
-            Quotation::STATUS_REJECTED,
-            Quotation::STATUS_PENDING,
-            Quotation::STATUS_NO_SIGNATURE,
-        ], true)) {
-            return back()->with('not_permitted', 'This quotation cannot be sent for signature.');
+        if ((int) $quotation->quotation_status === Quotation::STATUS_CLIENT_QUOTE) {
+            return redirect()->route('quotations.index', ['tab' => 'quoted'])
+                ->with('not_permitted', 'Review the client quote before sending this quotation for signature again.');
         }
 
         $quotation->quotation_status = Quotation::STATUS_AWAITING;
