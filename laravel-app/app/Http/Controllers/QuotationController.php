@@ -392,26 +392,30 @@ class QuotationController extends Controller
         $product_quotation = [];
 
         foreach ($product_id as $i => $id) {
-            if($sale_unit[$i] != 'n/a'){
+            $sale_unit_id = 0;
+            $lims_sale_unit_data = null;
+            if (isset($sale_unit[$i]) && $sale_unit[$i] != 'n/a') {
                 $lims_sale_unit_data = Unit::where('unit_name', $sale_unit[$i])->first();
-                $sale_unit_id = $lims_sale_unit_data->id;
+                $sale_unit_id = $lims_sale_unit_data ? $lims_sale_unit_data->id : 0;
             }
-            else
-                $sale_unit_id = 0;
             if($sale_unit_id)
                 $mail_data['unit'][$i] = $lims_sale_unit_data->unit_code;
             else
                 $mail_data['unit'][$i] = '';
             $lims_product_data = Product::find($id);
-            if($lims_product_data->is_variant) {
-                $lims_product_variant_data = ProductVariant::select('variant_id')->FindExactProductWithCode($id, $product_code[$i])->first();
-                $product_quotation['variant_id'] = $lims_product_variant_data->variant_id;
+            if (! $lims_product_data) {
+                continue;
             }
-            else
-                $product_quotation['variant_id'] = null;
+            $product_quotation['variant_id'] = null;
+            if ($lims_product_data->is_variant && ! empty($product_code[$i])) {
+                $lims_product_variant_data = ProductVariant::select('variant_id')->FindExactProductWithCode($id, $product_code[$i])->first();
+                if ($lims_product_variant_data) {
+                    $product_quotation['variant_id'] = $lims_product_variant_data->variant_id;
+                }
+            }
             if($product_quotation['variant_id']){
                 $variant_data = Variant::find($product_quotation['variant_id']);
-                $mail_data['products'][$i] = $lims_product_data->name . ' [' . $variant_data->name .']';
+                $mail_data['products'][$i] = $lims_product_data->name . ($variant_data ? ' [' . $variant_data->name .']' : '');
             }
             else
                 $mail_data['products'][$i] = $lims_product_data->name;
@@ -1363,9 +1367,13 @@ class QuotationController extends Controller
             $lims_product_data = Product::select('id')->find($product_quotation_data->product_id);
             if($product_quotation_data->variant_id) {
                 $lims_product_variant_data = ProductVariant::select('id')->FindExactProduct($product_quotation_data->product_id, $product_quotation_data->variant_id)->first();
-                $old_product_variant_id[] = $lims_product_variant_data->id;
-                if(!in_array($lims_product_variant_data->id, $product_variant_id))
-                    $product_quotation_data->delete();
+                if ($lims_product_variant_data) {
+                    $old_product_variant_id[] = $lims_product_variant_data->id;
+                    if(!in_array($lims_product_variant_data->id, $product_variant_id))
+                        $product_quotation_data->delete();
+                } else {
+                    $old_product_variant_id[] = null;
+                }
             }
             else {
                 $old_product_variant_id[] = null;
@@ -1375,13 +1383,16 @@ class QuotationController extends Controller
         }
 
         foreach ($product_id as $i => $pro_id) {
-            if($sale_unit[$i] != 'n/a'){
+            $sale_unit_id = 0;
+            $lims_sale_unit_data = null;
+            if (isset($sale_unit[$i]) && $sale_unit[$i] != 'n/a') {
                 $lims_sale_unit_data = Unit::where('unit_name', $sale_unit[$i])->first();
-                $sale_unit_id = $lims_sale_unit_data->id;
+                $sale_unit_id = $lims_sale_unit_data ? $lims_sale_unit_data->id : 0;
             }
-            else
-                $sale_unit_id = 0;
             $lims_product_data = Product::select('id', 'name', 'is_variant')->find($pro_id);
+            if (! $lims_product_data) {
+                continue;
+            }
             if($sale_unit_id)
                 $mail_data['unit'][$i] = $lims_sale_unit_data->unit_code;
             else
@@ -1397,9 +1408,12 @@ class QuotationController extends Controller
             $input['tax'] = $tax[$i];
             $input['total'] = $mail_data['total'][$i] = $total[$i];
             $flag = 1;
-            if($lims_product_data->is_variant) {
-                $lims_product_variant_data = ProductVariant::select('variant_id')->where('id', $product_variant_id[$i])->first();
-                $input['variant_id'] = $lims_product_variant_data->variant_id;
+            $resolvedVariant = null;
+            if ($lims_product_data->is_variant && ! empty($product_variant_id[$i])) {
+                $resolvedVariant = ProductVariant::select('variant_id')->where('id', $product_variant_id[$i])->first();
+            }
+            if ($resolvedVariant) {
+                $input['variant_id'] = $resolvedVariant->variant_id;
                 if(in_array($product_variant_id[$i], $old_product_variant_id)) {
                     ProductQuotation::where([
                         ['product_id', $pro_id],
@@ -1411,7 +1425,7 @@ class QuotationController extends Controller
                     ProductQuotation::create($input);
                 }
                 $variant_data = Variant::find($input['variant_id']);
-                $mail_data['products'][$i] = $lims_product_data->name . ' [' . $variant_data->name . ']';
+                $mail_data['products'][$i] = $lims_product_data->name . ($variant_data ? ' [' . $variant_data->name . ']' : '');
             }
             else {
                 $input['variant_id'] = null;
