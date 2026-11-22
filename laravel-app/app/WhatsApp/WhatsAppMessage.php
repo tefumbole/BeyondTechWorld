@@ -55,6 +55,45 @@ class WhatsAppMessage extends Model
         return is_array($decoded) ? $decoded : [];
     }
 
+    public function translationMeta()
+    {
+        $media = $this->media();
+
+        return isset($media['translation']) && is_array($media['translation']) ? $media['translation'] : [];
+    }
+
+    /** Text the agent reads. Incoming foreign text is the English translation. */
+    public function hubText()
+    {
+        $meta = $this->translationMeta();
+        if ($this->direction === self::DIR_IN && ! empty($meta['english'])) {
+            return (string) $meta['english'];
+        }
+        if ($this->direction === self::DIR_OUT && ! empty($meta['staff'])) {
+            return (string) $meta['staff'];
+        }
+
+        return (string) $this->body;
+    }
+
+    /** Original or sent wording, shown under the English when it differs. */
+    public function hubAside()
+    {
+        $meta = $this->translationMeta();
+        if ($this->direction === self::DIR_IN && ! empty($meta['english']) && trim((string) $this->body) !== trim((string) $meta['english'])) {
+            $name = ! empty($meta['language_name']) ? $meta['language_name'] : 'original';
+
+            return $name.': '.$this->body;
+        }
+        if ($this->direction === self::DIR_OUT && ! empty($meta['staff']) && trim((string) $this->body) !== trim((string) $meta['staff'])) {
+            $name = ! empty($meta['language_name']) ? $meta['language_name'] : 'their language';
+
+            return 'Sent in '.$name.': '.$this->body;
+        }
+
+        return '';
+    }
+
     public function chatMediaUrl()
     {
         $media = $this->media();

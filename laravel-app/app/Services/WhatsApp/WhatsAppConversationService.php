@@ -136,7 +136,6 @@ class WhatsAppConversationService
             }
         }
 
-        $preview = $this->preview($parsed['body'] ?? null, $parsed['message_type'] ?? 'TEXT');
         $message = WhatsAppMessage::create([
             'conversation_id' => $conversation->id,
             'contact_id' => $contact->id,
@@ -149,6 +148,9 @@ class WhatsAppConversationService
             'sender_type' => 'CONTACT',
             'delivered_at' => now(),
         ]);
+        app(WhatsAppTranslator::class)->decorate($message);
+        $message = $message->fresh() ?: $message;
+        $preview = $this->preview($message->hubText(), $parsed['message_type'] ?? 'TEXT');
 
         $conversation->unread_count = (int) $conversation->unread_count + 1;
         if (! $conversation->first_message) {
@@ -217,6 +219,7 @@ class WhatsAppConversationService
         }
         if ($changed) {
             $message->save();
+            app(WhatsAppTranslator::class)->decorate($message->fresh() ?: $message);
         }
     }
 
@@ -326,9 +329,16 @@ class WhatsAppConversationService
         }
 
         $current = $conversation->last_activity_at;
-        if ($at && (! $current || $at->greaterThan($current))) {
-            if (! empty($parsed['body'])) {
-                $preview = $this->preview($parsed['body'], isset($parsed['message_type']) ? $parsed['message_type'] : 'TEXT');
+            if ($at && (! $current || $at->greaterThan($current))) {
+            $previewBody = isset($parsed['body']) ? $parsed['body'] : '';
+            if (! empty($parsed['message_id'])) {
+                $savedMessage = WhatsAppMessage::where('provider_message_id', $parsed['message_id'])->first();
+                if ($savedMessage) {
+                    $previewBody = $savedMessage->hubText();
+                }
+            }
+            if (trim((string) $previewBody) !== '') {
+                $preview = $this->preview($previewBody, isset($parsed['message_type']) ? $parsed['message_type'] : 'TEXT');
                 $conversation->last_message = $preview;
                 if (! $conversation->first_message) {
                     $conversation->first_message = $preview;
@@ -378,6 +388,9 @@ class WhatsAppConversationService
             }
         }
         $message->save();
+        if (! $outgoing) {
+            app(WhatsAppTranslator::class)->decorate($message);
+        }
 
         return true;
     }
@@ -461,11 +474,62 @@ class WhatsAppConversationService
         return $result;
     }
 
+    /**
+     * WhatsApp a translator confirmation to every authorised command number.
+     */
+    public function notifyAuthorized($notice)
+    {
+        $notice = trim((string) $notice);
+        if ($notice === '' || ! \Illuminate\Support\Facades\Schema::hasTable('whatsapp_owner_users')) {
+            return;
+        }
+        $auth = app(OwnerAuthorizationService::class);
+        $seen = [];
+        foreach (\App\WhatsApp\WhatsAppOwnerUser::where('enabled', true)->get() as $row) {
+            $user = \App\User::find($row->user_id);
+            if (! $user || ! $auth->hasOwnerPermission($user)) {
+                continue;
+            }
+            $phones = [
+                $row->normalized_phone,
+                $user->phone,
+                $user->additional_phone,
+            ];
+            foreach ($phones as $phone) {
+                $digits = preg_replace('/\D/', '', (string) $phone);
+                if ($digits === '' || isset($seen[$digits])) {
+                    continue;
+                }
+                if (! $auth->authorizePhone($digits)) {
+                    continue;
+                }
+                $seen[$digits] = true;
+                $contact = $this->findOrCreateContact($digits, $user->name);
+                if (! $contact) {
+                    continue;
+                }
+                $chat = $this->openConversation($contact);
+                $this->ownerNotice($chat, $notice);
+            }
+        }
+    }
+
     public function reply(WhatsAppConversation $conversation, $body, $userId = null)
     {
         $body = trim((string) $body);
         if ($body === '') {
             return ['success' => false, 'error' => 'Message is empty.'];
+        }
+        $translator = app(WhatsAppTranslator::class);
+        $translateSwitch = $translator->command($body);
+        if ($translateSwitch) {
+            $notice = $translator->setOn($translateSwitch === 'on');
+            $this->notifyAuthorized($notice);
+
+            return [
+                'success' => true,
+                'notice' => $notice,
+            ];
         }
         $command = app(OwnerCommandService::class)->commandToken($body);
         if ($command === 'AI OFF' || $command === 'AI ON') {
@@ -485,12 +549,22 @@ class WhatsAppConversationService
             return ['success' => false, 'error' => 'Contact is blocked or missing.'];
         }
 
+        $sendBody = $body;
+        $translation = $translator->forClient($conversation, $body);
+        if ($translation) {
+            $sendBody = $translation['text'];
+        }
         $message = WhatsAppMessage::create([
             'conversation_id' => $conversation->id,
             'contact_id' => $contact->id,
             'direction' => WhatsAppMessage::DIR_OUT,
             'type' => 'TEXT',
-            'body' => $body,
+            'body' => $sendBody,
+            'media_json' => $translation ? json_encode(['translation' => [
+                'staff' => $translation['staff'],
+                'language' => $translation['language'],
+                'language_name' => $translation['language_name'],
+            ]]) : null,
             'status' => WhatsAppMessage::STATUS_QUEUED,
             'sender_type' => 'STAFF',
             'sender_user_id' => $userId,
@@ -504,7 +578,7 @@ class WhatsAppConversationService
             $message->save();
             $result = ['success' => true, 'msg_id' => $message->provider_message_id, 'channel' => 'website'];
         } else {
-            $result = $this->provider->sendText($contact->normalized_phone, $body);
+            $result = $this->provider->sendText($contact->normalized_phone, $sendBody);
             if (! empty($result['success'])) {
                 $msgId = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
                 $message->provider_message_id = $msgId ?: null;
@@ -519,7 +593,7 @@ class WhatsAppConversationService
             }
         }
 
-        $preview = $this->preview($body, 'TEXT');
+        $preview = $this->preview($message->hubText(), 'TEXT');
         if (! $conversation->first_message) {
             $conversation->first_message = $preview;
         }

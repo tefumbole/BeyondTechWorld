@@ -22,6 +22,7 @@
         <span>{{ $fileLabel }}</span>
     @endif
     @if($text !== ''){{ $text }}@endif
+    @if(!empty($aside))<span class="aside">{{ $aside }}</span>@endif
     @if(!empty($choices))
         <div class="choices">
             @foreach($choices as $choice)

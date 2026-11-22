@@ -70,6 +70,10 @@ class OwnerCommandService
 
     public function isControlCommand($text)
     {
+        if (app(WhatsAppTranslator::class)->command($text)) {
+            return true;
+        }
+
         return in_array($this->commandToken($text), ['AI ON', 'AI OFF', 'AI FIRST ON', 'AI FIRST OFF', 'AI STATUS', 'GROUPS', 'YES'], true);
     }
 
@@ -80,6 +84,10 @@ class OwnerCommandService
 
     protected function exact($text, User $owner)
     {
+        $translate = app(WhatsAppTranslator::class)->command($text);
+        if ($translate) {
+            return app(WhatsAppTranslator::class)->setOn($translate === 'on');
+        }
         $t = $this->commandToken($text);
         if ($t === 'AI ON') {
             return $this->setEnabled(true, $owner->id);

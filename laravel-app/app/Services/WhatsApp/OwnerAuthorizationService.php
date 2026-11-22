@@ -50,11 +50,11 @@ class OwnerAuthorizationService
         }
         $incoming = preg_replace('/\D/', '', (string) $normalized);
         $allowed = array_filter([
-            preg_replace('/\D/', '', (string) $row->normalized_phone),
-            preg_replace('/\D/', '', (string) $user->phone),
-            preg_replace('/\D/', '', (string) $user->additional_phone),
+            (string) $row->normalized_phone,
+            (string) $user->phone,
+            (string) $user->additional_phone,
         ]);
-        if ($allowed !== [] && $incoming !== '' && ! in_array($incoming, $allowed, true)) {
+        if ($allowed !== [] && $incoming !== '' && ! $this->matchesAnyPhone($incoming, $allowed)) {
             return null;
         }
 
@@ -71,8 +71,7 @@ class OwnerAuthorizationService
             return null;
         }
         foreach (WhatsAppOwnerUser::where('enabled', true)->get() as $row) {
-            $listed = preg_replace('/\D/', '', (string) $row->normalized_phone);
-            if ($listed === '' || $listed !== $incomingDigits) {
+            if (! $this->sameCommandPhone($row->normalized_phone, $incomingDigits)) {
                 continue;
             }
             $user = User::find($row->user_id);
@@ -82,6 +81,25 @@ class OwnerAuthorizationService
         }
 
         return null;
+    }
+
+    protected function sameCommandPhone($left, $right)
+    {
+        $a = \App\Support\WhatsAppPhone::sanitizeForStorage($left);
+        $b = \App\Support\WhatsAppPhone::sanitizeForStorage($right);
+
+        return $a !== '' && $a === $b;
+    }
+
+    protected function matchesAnyPhone($incoming, array $candidates)
+    {
+        foreach ($candidates as $candidate) {
+            if ($this->sameCommandPhone($incoming, $candidate)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function hasOwnerPermission(User $user)

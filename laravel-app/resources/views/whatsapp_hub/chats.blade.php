@@ -87,6 +87,7 @@
     .chats-stream { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 12px 7% 18px; display: flex; flex-direction: column; gap: 4px; }
     .chats-head, .chats-compose, .chat-note, .chat-live { flex: none; }
     .bubble { flex: none; align-self: flex-start; max-width: min(680px, 78%); margin: 0; padding: 7px 11px 5px; border-radius: 4px 16px 16px 16px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; color: var(--wa-ink); font-size: 14px; box-shadow: 0 1px 2px rgba(15,31,61,.08), 0 2px 8px rgba(15,31,61,.05); animation: bubbleIn .18s ease-out; }
+    .bubble .aside { display: block; margin-top: 4px; font-size: 11px; line-height: 1.3; opacity: .72; }
     .bubble.in { background: #fff; }
     .bubble.out { align-self: flex-end; background: linear-gradient(135deg, #d9fdd3 0%, #c8f5e4 100%); border-radius: 16px 4px 16px 16px; margin-left: auto; }
     @keyframes bubbleIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
@@ -324,6 +325,7 @@
                     @if($callDigits !== '')
                         <a class="call-btn" href="tel:+{{ $callDigits }}"><i class="fa fa-phone"></i> Call</a>
                     @endif
+                    @if(!empty($translatorOn))<span class="chat-ai" title="Translator mode">Translate</span>@endif
                     <form method="POST" action="{{ route('whatsapp.conversation.enable_ai', $open->id) }}">
                         @csrf
                         <button type="submit" class="{{ $open->mode === 'AI' ? 'is-on' : '' }}">AI</button>
@@ -361,7 +363,8 @@
                         'id' => $message->id,
                         'day' => $message->created_at ? $message->created_at->format('Y-m-d') : '',
                         'out' => $message->direction === 'OUTGOING',
-                        'text' => $message->body,
+                        'text' => $message->hubText(),
+                        'aside' => $message->hubAside(),
                         'time' => $message->created_at ? $message->created_at->format('H:i') : '',
                         'tick' => $message->ticks(),
                         'type' => $message->type,
@@ -379,7 +382,7 @@
                     @csrf
                     <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
                     <span class="file-name" id="chatFileName"></span>
-                    <textarea name="body" id="chatBody" placeholder="Type a message"></textarea>
+                    <textarea name="body" id="chatBody" placeholder="{{ !empty($translatorOn) ? 'Reply in English. It is sent in the client’s language.' : 'Type a message' }}"></textarea>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
             @endif
@@ -607,6 +610,7 @@
             + (message.who ? '<span class="who">' + esc(message.who) + '</span>' : '')
             + media
             + (message.text ? esc(message.text) : '')
+            + (message.aside ? '<span class="aside">' + esc(message.aside) + '</span>' : '')
             + '<time>' + esc(message.time || '') + (message.out ? tickHtml(message.tick) : '') + '</time></div>';
     }
     function nearBottom(node) {

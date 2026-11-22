@@ -180,7 +180,8 @@ class WhatsAppHubController extends Controller
                     return [
                         'id' => $m->id,
                         'direction' => $m->direction,
-                        'body' => $m->body,
+                        'body' => $m->hubText(),
+                        'aside' => $m->hubAside(),
                         'type' => $m->type,
                         'status' => $m->status,
                         'created_at' => (string) $m->created_at,
@@ -195,8 +196,10 @@ class WhatsAppHubController extends Controller
             ->limit(12)
             ->get();
 
+        $translatorOn = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->isOn();
+
         return view('whatsapp_hub.conversation', compact(
-            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel', 'attendancePanel', 'documentPanel', 'recentChats'
+            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel', 'attendancePanel', 'documentPanel', 'recentChats', 'translatorOn'
         ));
     }
 
@@ -299,9 +302,11 @@ class WhatsAppHubController extends Controller
             $listFilter = 'all';
         }
 
+        $translatorOn = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->isOn();
+
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
-            'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter'
+            'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn'
         ));
     }
 
@@ -447,7 +452,8 @@ class WhatsAppHubController extends Controller
         return [
             'id' => (int) $message->id,
             'out' => $message->direction === WhatsAppMessage::DIR_OUT,
-            'text' => (string) $message->body,
+            'text' => $message->hubText(),
+            'aside' => $message->hubAside(),
             'time' => $when ? $when->format('H:i') : '',
             'day' => $when ? $when->format('Y-m-d') : '',
             'day_label' => $this->chatDayLabel($when),

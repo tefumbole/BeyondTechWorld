@@ -173,7 +173,8 @@
                             <div class="wa-bubble {{ $item->sender_type === 'ASSISTANT' ? 'wa-ai' : ($item->direction === 'OUTGOING' ? 'wa-out' : 'wa-in') }}">
                                 @if($item->sender_type === 'ASSISTANT')<div class="small text-muted">Beyond Assistant</div>@endif
                                 @if($item->sender_type === 'STAFF')<div class="small text-muted">Staff</div>@endif
-                                <div>{{ $item->body ?: '['.$item->type.']' }}</div>
+                                <div>{{ $item->hubText() !== '' ? $item->hubText() : '['.$item->type.']' }}</div>
+                                @if($item->hubAside() !== '')<div class="small text-muted">{{ $item->hubAside() }}</div>@endif
                                 <div class="wa-meta">
                                     {{ $item->created_at }}
                                     @if($item->direction === 'OUTGOING')
@@ -195,7 +196,8 @@
                 @if($canReply)
                     <form method="post" action="{{ route('whatsapp.conversation.reply', $conversation->id) }}" class="mt-3">
                         @csrf
-                        <textarea name="body" class="form-control mb-2" rows="3" required placeholder="WhatsApp reply…">{{ session('suggested_reply') }}</textarea>
+                        <textarea name="body" class="form-control mb-2" rows="3" required placeholder="{{ !empty($translatorOn) ? 'Reply in English. It is sent in the client’s language.' : 'WhatsApp reply…' }}">{{ session('suggested_reply') }}</textarea>
+                        @if(!empty($translatorOn))<p class="small text-muted">Translator mode is on. You still send the reply yourself.</p>@endif
                         <button class="btn btn-primary" type="submit">Send WhatsApp</button>
                     </form>
                     <form method="post" action="{{ route('whatsapp.conversation.suggest', $conversation->id) }}" class="mt-1">

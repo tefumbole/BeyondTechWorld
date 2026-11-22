@@ -57,7 +57,11 @@ class BeyondAssistantService
         if ($ownerUser) {
             $answer = app(\App\Services\WhatsApp\OwnerCommandService::class)->handle($conversation, (string) $message->body, $ownerUser);
             if (is_string($answer)) {
-                $this->conversations->ownerNotice($conversation, $answer);
+                if (app(\App\Services\WhatsApp\WhatsAppTranslator::class)->command((string) $message->body)) {
+                    $this->conversations->notifyAuthorized($answer);
+                } else {
+                    $this->conversations->ownerNotice($conversation, $answer);
+                }
 
                 return ['skipped' => false, 'sent' => true, 'intent' => 'OWNER', 'reply' => $answer];
             }
