@@ -14,19 +14,23 @@ class RecountWhatsAppUnread extends Command
 
     public function handle(WhatsAppConversationService $conversations)
     {
-        $fixed = 0;
-        WhatsAppConversation::where('unread_count', '>', 0)
-            ->orderBy('id')
-            ->chunkById(200, function ($rows) use ($conversations, &$fixed) {
-                foreach ($rows as $conversation) {
-                    $before = (int) $conversation->unread_count;
-                    $left = $conversations->recountUnread($conversation);
-                    if ($before !== $left) {
-                        $conversation->save();
-                        $fixed++;
+        $fixed = app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation(function () use ($conversations) {
+            $fixed = 0;
+            WhatsAppConversation::where('unread_count', '>', 0)
+                ->orderBy('id')
+                ->chunkById(200, function ($rows) use ($conversations, &$fixed) {
+                    foreach ($rows as $conversation) {
+                        $before = (int) $conversation->unread_count;
+                        $left = $conversations->recountUnread($conversation);
+                        if ($before !== $left) {
+                            $conversation->save();
+                            $fixed++;
+                        }
                     }
-                }
-            });
+                });
+
+            return $fixed;
+        });
 
         $this->info('Unread badges aligned. '.$fixed.' chats updated.');
 
