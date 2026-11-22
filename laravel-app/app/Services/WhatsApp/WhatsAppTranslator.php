@@ -70,16 +70,16 @@ class WhatsAppTranslator
         return null;
     }
 
-    public function decorate(WhatsAppMessage $message)
+    public function decorate(WhatsAppMessage $message, $force = false)
     {
         if ($message->direction !== WhatsAppMessage::DIR_IN || ! $this->activeFor($message->conversation_id)) {
             return $message;
         }
-        $original = trim((string) $message->body);
-        if ($original === '' || isset($message->translationMeta()['english'])) {
+        if (! $this->needsTranslation($message)) {
             return $message;
         }
-        if (\Illuminate\Support\Facades\Cache::has('wa.tr.fail.'.$message->id)) {
+        $original = trim((string) $message->body);
+        if (! $force && \Illuminate\Support\Facades\Cache::has('wa.tr.fail.'.$message->id)) {
             return $message;
         }
         if (mb_strlen($original) > 4000) {
@@ -87,11 +87,11 @@ class WhatsAppTranslator
         }
 
         $parsed = $this->ask(
-            'You translate a WhatsApp message for a human agent. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the language","is_english":true,"english":"the message in natural English"}. If it is already English, set is_english true and copy it into english. Do not answer the customer. Do not add notes. Keep names, phone numbers, amounts, and dates unchanged.',
+            'You translate a WhatsApp message for a human agent. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the language","is_english":true,"english":"the message in natural English"}. If it is already English, set is_english true, language en, and copy it into english. If it is not English, english must be a real English translation, never a copy of the original. Do not answer the customer. Do not add notes. Keep names, phone numbers, amounts, and dates unchanged.',
             $original
         );
         if (! $parsed || ! isset($parsed['english'])) {
-            \Illuminate\Support\Facades\Cache::put('wa.tr.fail.'.$message->id, 1, now()->addMinutes(2));
+            \Illuminate\Support\Facades\Cache::put('wa.tr.fail.'.$message->id, 1, now()->addSeconds(25));
 
             return $message;
         }
@@ -101,24 +101,56 @@ class WhatsAppTranslator
         }
         $code = $this->languageCode(isset($parsed['language']) ? $parsed['language'] : '');
         $name = $this->languageName(isset($parsed['language_name']) ? $parsed['language_name'] : '', $code);
-        $isEnglish = ! empty($parsed['is_english']) || $code === 'en' || strcasecmp($english, trim((string) $message->body)) === 0;
+        $same = strcasecmp($english, $original) === 0;
+        if ($same && $code !== 'en') {
+            \Illuminate\Support\Facades\Cache::put('wa.tr.fail.'.$message->id, 1, now()->addSeconds(25));
+
+            return $message;
+        }
+        $isEnglish = $code === 'en' || ($same && ! empty($parsed['is_english']));
         if (! $isEnglish) {
             $this->rememberLanguage($message->conversation_id, $code, $name);
         }
         $this->mergeTranslation($message, [
-            'english' => $isEnglish ? trim((string) $message->body) : $english,
+            'english' => $isEnglish ? $original : $english,
             'language' => $isEnglish ? 'en' : $code,
             'language_name' => $isEnglish ? 'English' : $name,
+            'verified' => true,
         ]);
-        $this->syncPreview($message, $isEnglish ? trim((string) $message->body) : $english);
+        $this->syncPreview($message, $isEnglish ? $original : $english);
 
         return $message;
     }
 
     /**
-     * Translate the incoming messages already on screen. Photo captions count.
+     * Incoming text still shown in the original language.
+     * A stored copy of the original is not a translation.
      */
-    public function backfillVisible($messages)
+    public function needsTranslation(WhatsAppMessage $message)
+    {
+        if ($message->direction !== WhatsAppMessage::DIR_IN) {
+            return false;
+        }
+        $body = trim((string) $message->body);
+        if ($body === '') {
+            return false;
+        }
+        $meta = $message->translationMeta();
+        if (empty($meta['english'])) {
+            return true;
+        }
+        if (! empty($meta['verified'])) {
+            return false;
+        }
+
+        return strcasecmp(trim((string) $meta['english']), $body) === 0;
+    }
+
+    /**
+     * Translate incoming messages already loaded for this chat, newest first.
+     * Photo captions count. $force retries a message that failed a moment ago.
+     */
+    public function backfillVisible($messages, $limit = 30, $force = false)
     {
         $done = [];
         if (! $messages) {
@@ -136,26 +168,45 @@ class WhatsAppTranslator
         }
         $pending = [];
         foreach ($messages as $message) {
-            if (! $message instanceof WhatsAppMessage) {
-                continue;
+            if ($message instanceof WhatsAppMessage && $this->needsTranslation($message)) {
+                $pending[] = $message;
             }
-            if ($message->direction !== WhatsAppMessage::DIR_IN) {
-                continue;
-            }
-            if (trim((string) $message->body) === '' || ! empty($message->translationMeta()['english'])) {
-                continue;
-            }
-            $pending[] = $message;
         }
-        $pending = array_slice($pending, -12);
+        $limit = (int) $limit;
+        if ($limit > 0 && count($pending) > $limit) {
+            $pending = array_slice($pending, -$limit);
+        }
         foreach ($pending as $message) {
-            $this->decorate($message);
-            if (! empty($message->translationMeta()['english'])) {
+            $this->decorate($message, $force);
+            if (! $this->needsTranslation($message)) {
                 $done[] = $message;
             }
         }
 
         return $done;
+    }
+
+    /**
+     * Older messages in one chat, newest first, for when the chat is opened
+     * or translation is switched on.
+     */
+    public function backfillChat($conversationId, $limit = 40, $force = false)
+    {
+        $conversationId = (int) $conversationId;
+        if ($conversationId < 1 || ! $this->activeFor($conversationId)) {
+            return [];
+        }
+        $rows = WhatsAppMessage::where('conversation_id', $conversationId)
+            ->where('direction', WhatsAppMessage::DIR_IN)
+            ->whereNotNull('body')
+            ->where('body', '!=', '')
+            ->orderByDesc('id')
+            ->limit(400)
+            ->get()
+            ->reverse()
+            ->values();
+
+        return $this->backfillVisible($rows, $limit, $force);
     }
 
     public function activeFor($conversationId)

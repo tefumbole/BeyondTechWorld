@@ -197,7 +197,7 @@ class WhatsAppHubController extends Controller
             ->get();
 
         $translatorOn = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->activeFor($conversation->id);
-        app(\App\Services\WhatsApp\WhatsAppTranslator::class)->backfillVisible($messages);
+        app(\App\Services\WhatsApp\WhatsAppTranslator::class)->backfillVisible($messages, 15, true);
 
         return view('whatsapp_hub.conversation', compact(
             'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel', 'attendancePanel', 'documentPanel', 'recentChats', 'translatorOn'
@@ -264,7 +264,7 @@ class WhatsAppHubController extends Controller
                 $hasEarlier = $first
                     ? WhatsAppMessage::where('conversation_id', $open->id)->where('id', '<', $first->id)->exists()
                     : false;
-                app(\App\Services\WhatsApp\WhatsAppTranslator::class)->backfillVisible($messages);
+                app(\App\Services\WhatsApp\WhatsAppTranslator::class)->backfillVisible($messages, 15, true);
             }
         }
         $canReply = $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
@@ -362,6 +362,10 @@ class WhatsAppHubController extends Controller
                 ->get()
                 ->reverse()
                 ->values();
+            $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
+            if ($translator->activeFor($chatId)) {
+                $translator->backfillVisible($older, 15, true);
+            }
             $payload['earlier'] = $older->map(function ($message) {
                 return $this->chatFeedMessage($message);
             })->values();
@@ -385,13 +389,8 @@ class WhatsAppHubController extends Controller
             }
             $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
             if ($translator->activeFor($chatId)) {
-                $translator->backfillVisible($fresh);
-                $recent = WhatsAppMessage::where('conversation_id', $chatId)
-                    ->where('direction', WhatsAppMessage::DIR_IN)
-                    ->orderByDesc('id')
-                    ->limit(12)
-                    ->get();
-                $payload['translated'] = collect($translator->backfillVisible($recent))->map(function ($message) {
+                $translator->backfillVisible($fresh, 20, true);
+                $payload['translated'] = collect($translator->backfillChat($chatId, 8))->map(function ($message) {
                     return $this->chatFeedMessage($message);
                 })->values();
             }
@@ -581,7 +580,8 @@ class WhatsAppHubController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage', 'whatsapp.conversations', 'whatsapp.view'])) {
             return $deny;
         }
-        $name = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->setDestination($id, $request->input('language'));
+        $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
+        $name = $translator->setDestination($id, $request->input('language'));
         if ($name === false) {
             $notice = 'Translation is off for this chat. Other chats are unchanged.';
         } elseif ($name === '' || $name === null) {
