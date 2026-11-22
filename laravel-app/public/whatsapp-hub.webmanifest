@@ -1,0 +1,25 @@
+{
+  "id": "/admin/whatsapp/chats",
+  "name": "WhatsApp Hub",
+  "short_name": "WhatsApp Hub",
+  "start_url": "/admin/whatsapp/chats",
+  "scope": "/admin/whatsapp/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b3d91",
+  "theme_color": "#0b3d91",
+  "icons": [
+    {
+      "src": "whatsapp-hub/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "whatsapp-hub/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ]
+}

@@ -13,7 +13,17 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <meta name="robots" content="all,follow">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        @if(Route::is('whatsapp.chats'))
+        <meta name="theme-color" content="#0b3d91">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-title" content="WhatsApp Hub">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <link rel="apple-touch-icon" href="{{ url('public/whatsapp-hub/icon-180.png') }}">
+        <link rel="manifest" href="{{ url('public/whatsapp-hub.webmanifest') }}">
+        @else
         <link rel="manifest" href="{{url('manifest.json')}}">
+        @endif
         <!-- Bootstrap CSS-->
         <link rel="stylesheet" href="<?php echo asset('public/vendor/bootstrap/css/bootstrap.min.css') ?>" type="text/css">
         <link rel="stylesheet" href="<?php echo asset('public/vendor/bootstrap-toggle/css/bootstrap-toggle.min.css') ?>" type="text/css">
@@ -99,7 +109,7 @@
         <link rel="stylesheet" href="<?php echo asset('public/css/beyond-shell.css') ?>?v={{ \App\Support\AppVersion::erp() }}" type="text/css">
       </head>
 
-      <body onload="myFunction()">
+      <body onload="myFunction()" class="{{ Route::is('whatsapp.chats') ? 'whatsapp-hub-app' : '' }}">
         <div id="loader" style="display:none"></div>
           <!-- Side Navbar -->
           <nav class="side-navbar">
@@ -2562,13 +2572,15 @@
         <script>
             if ('serviceWorker' in navigator ) {
                 window.addEventListener('load', function() {
+                    @if(Route::is('whatsapp.chats'))
+                    navigator.serviceWorker.register('{{ url('whatsapp-hub-sw.js') }}', { scope: '/admin/whatsapp/' });
+                    @else
                     navigator.serviceWorker.register('{{ url('service-worker.js') }}').then(function(registration) {
-                        // Registration was successful
                         console.log('ServiceWorker registration successful with scope: ', registration.scope);
                     }, function(err) {
-                        // registration failed :(
                         console.log('ServiceWorker registration failed: ', err);
                     });
+                    @endif
                 });
             }
         </script>

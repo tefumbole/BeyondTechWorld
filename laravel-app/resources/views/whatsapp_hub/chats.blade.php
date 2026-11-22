@@ -139,6 +139,24 @@
         .chat-row { padding: 12px; }
         .chat-rail { width: 66px; }
     }
+    body.whatsapp-hub-app .header,
+    body.whatsapp-hub-app nav.side-navbar,
+    body.whatsapp-hub-app .sidebar-backdrop,
+    body.whatsapp-hub-app .main-footer,
+    body.whatsapp-hub-app #beyond-module-tabs { display: none !important; }
+    body.whatsapp-hub-app .page { margin: 0 !important; width: 100% !important; min-height: 100vh; }
+    body.whatsapp-hub-app #content,
+    body.whatsapp-hub-app #content > .container-fluid { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+    body.whatsapp-hub-app .chats-app {
+        height: 100vh;
+        height: 100dvh;
+        min-height: 0;
+        margin: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding-top: env(safe-area-inset-top);
+        box-sizing: border-box;
+    }
 </style>
 @php
     $paneKeep = array_filter([
@@ -809,6 +827,9 @@
     function liveReady() { return true; }
     if (window.applyLocalHubTimes) window.applyLocalHubTimes();
     poll();
+    setTimeout(function () {
+        fetch(chatPage + '?poll=1&names=1', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' }).catch(function () {});
+    }, 600);
 })();
 </script>
 @endsection

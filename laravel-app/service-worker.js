@@ -18,7 +18,7 @@ const networkFirstHandler = new workbox.strategies.NetworkFirst({
 });
 
 const FALLBACK_URL = workbox.precaching.getCacheKeyForURL('public/offline.html');
-const matcher = ({ event }) => event.request.mode === 'navigate';
+const matcher = ({ event, url }) => event.request.mode === 'navigate' && url.pathname.indexOf('/admin/whatsapp') === -1;
 const handler = args =>
     networkFirstHandler
         .handle(args)
