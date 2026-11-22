@@ -155,9 +155,8 @@ class WhatsAppConversationService
         if ($this->phoneAlreadyRead($conversation, $parsed)) {
             $message->read_at = $message->read_at ?: now();
             $message->save();
-        } else {
-            $conversation->unread_count = (int) $conversation->unread_count + 1;
         }
+        $this->recountUnread($conversation);
         if (! $conversation->first_message) {
             $conversation->first_message = $preview;
         }
@@ -309,21 +308,12 @@ class WhatsAppConversationService
         }
 
         $markReadFromPhone = false;
-        if (array_key_exists('unread_count', $parsed) && $parsed['unread_count'] !== null) {
-            $phoneUnread = max(0, (int) $parsed['unread_count']);
-            // The phone reports its own unread count (chats.update). When it drops
-            // to zero the chat has been read on the phone, so mirror that here.
-            if ($phoneUnread === 0) {
-                $markReadFromPhone = true;
-            }
-            $conversation->unread_count = $phoneUnread;
+        if (array_key_exists('unread_count', $parsed) && (int) $parsed['unread_count'] === 0) {
+            $markReadFromPhone = true;
         } elseif (! empty($parsed['from_me'])) {
             // An outgoing message straight from the phone means the owner had the
             // thread open and has seen the incoming messages. Treat it as read.
             $markReadFromPhone = true;
-            $conversation->unread_count = 0;
-        } elseif ($created && empty($parsed['from_me']) && $at && $at->greaterThan(now()->subMinutes(10)) && ! $this->phoneAlreadyRead($conversation, $parsed)) {
-            $conversation->unread_count = (int) $conversation->unread_count + 1;
         }
 
         if ($markReadFromPhone) {
@@ -333,6 +323,9 @@ class WhatsAppConversationService
                 ->whereNull('read_at')
                 ->update(['read_at' => now()]);
         }
+        // Wasender sends unreadCount 1 on the message itself and does not send 0
+        // when the phone is opened. The badge is the messages still unread.
+        $this->recountUnread($conversation);
 
         $current = $conversation->last_activity_at;
             if ($at && (! $current || $at->greaterThan($current))) {
@@ -782,6 +775,20 @@ class WhatsAppConversationService
         $conversation->save();
     }
 
+    /**
+     * Badge equals incoming messages the phone has not marked read.
+     */
+    public function recountUnread(WhatsAppConversation $conversation)
+    {
+        $left = (int) WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('direction', WhatsAppMessage::DIR_IN)
+            ->whereNull('read_at')
+            ->count();
+        $conversation->unread_count = $left;
+
+        return $left;
+    }
+
     public function readOnWeb(WhatsAppConversation $conversation)
     {
         $wasUnread = (int) $conversation->unread_count > 0;
@@ -851,14 +858,9 @@ class WhatsAppConversationService
         }
         $read->update(['read_at' => now()]);
 
-        $left = $message
-            ? WhatsAppMessage::where('conversation_id', $conversation->id)
-                ->where('direction', WhatsAppMessage::DIR_IN)
-                ->where('created_at', '>', $message->created_at)
-                ->count()
-            : 0;
-        if ((int) $conversation->unread_count !== $left) {
-            $conversation->unread_count = $left;
+        $before = (int) $conversation->unread_count;
+        $left = $this->recountUnread($conversation);
+        if ($before !== $left) {
             $conversation->save();
         }
         if ($left === 0) {

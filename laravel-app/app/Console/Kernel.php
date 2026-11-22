@@ -68,6 +68,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('cloud:process-subscriptions')->everyFiveMinutes()->withoutOverlapping();
         $schedule->command('assistant:forget-expired-briefs')->hourlyAt(50)->withoutOverlapping();
         $schedule->command('whatsapp:prune-webhooks')->dailyAt('03:20')->withoutOverlapping();
+        $schedule->command('whatsapp:recount-unread')->everyFiveMinutes()->withoutOverlapping(4);
         $schedule->command('whatsapp:prune-group-messages')->dailyAt('03:40')->withoutOverlapping();
         $schedule->command('property:generate-rent')->dailyAt('00:25')->withoutOverlapping();
         if (config('services.property.reminders_enabled')) {
