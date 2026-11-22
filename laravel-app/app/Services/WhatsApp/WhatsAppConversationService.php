@@ -522,7 +522,7 @@ class WhatsAppConversationService
         $translator = app(WhatsAppTranslator::class);
         $translateSwitch = $translator->command($body);
         if ($translateSwitch) {
-            $notice = $translator->setOn($translateSwitch === 'on');
+            $notice = $translator->setChat($conversation->id, $translateSwitch === 'on');
             $this->notifyAuthorized($notice);
 
             return [

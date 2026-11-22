@@ -160,12 +160,37 @@ class WhatsAppTranslator
 
     public function activeFor($conversationId)
     {
-        if ($this->isOn()) {
-            return true;
-        }
         $known = $this->languageFor($conversationId);
 
-        return $known && ! empty($known['code']) && $known['code'] !== 'en';
+        return $known && ! empty($known['enabled']);
+    }
+
+    /**
+     * Turn translation on or off for one chat. Other chats stay as they are.
+     */
+    public function setChat($conversationId, $on)
+    {
+        $existing = $this->languageFor($conversationId);
+        $code = $existing && ! empty($existing['code']) ? $existing['code'] : '';
+        $name = $existing && ! empty($existing['name']) ? $existing['name'] : '';
+        $locked = $existing && ! empty($existing['locked']);
+        $this->writeLanguage($conversationId, json_encode([
+            'enabled' => (bool) $on,
+            'code' => $on ? $code : $code,
+            'name' => $name,
+            'locked' => $on ? $locked : $locked,
+        ]));
+        if (! $on) {
+            return 'Translation is off for this chat. Other chats are unchanged.';
+        }
+        if ($code !== '' && $code !== 'en') {
+            return 'Translation is on for this chat. Your English reply is sent in '.$name.'.';
+        }
+        if (! app(AiProviderInterface::class)->isConfigured()) {
+            return 'Translation is on for this chat, but the AI key is missing, so messages stay as they were written.';
+        }
+
+        return 'Translation is on for this chat. Messages are shown in English, and the reply language is detected from this person.';
     }
 
     protected function learnLanguage(WhatsAppConversation $conversation)
@@ -196,11 +221,11 @@ class WhatsAppTranslator
             return null;
         }
         $known = $this->languageFor($conversation->id);
-        if (! $known) {
+        if (! $known || $known['code'] === '' || $known['code'] === 'en') {
             $this->learnLanguage($conversation);
             $known = $this->languageFor($conversation->id);
         }
-        if (! $known || $known['code'] === 'en') {
+        if (! $known || $known['code'] === '' || $known['code'] === 'en') {
             return null;
         }
         $parsed = $this->ask(
@@ -251,10 +276,20 @@ class WhatsAppTranslator
     public function setDestination($conversationId, $code)
     {
         $code = strtolower(trim((string) $code));
-        if ($code === '' || $code === 'auto') {
-            $this->writeLanguage($conversationId, '');
+        if ($code === 'off') {
+            $this->setChat($conversationId, false);
 
-            return null;
+            return false;
+        }
+        if ($code === '' || $code === 'auto') {
+            $this->writeLanguage($conversationId, json_encode([
+                'enabled' => true,
+                'code' => '',
+                'name' => '',
+                'locked' => false,
+            ]));
+
+            return '';
         }
         $languages = $this->languages();
         if (! isset($languages[$code])) {
@@ -264,10 +299,8 @@ class WhatsAppTranslator
             'code' => $code,
             'name' => $languages[$code],
             'locked' => true,
+            'enabled' => true,
         ]));
-        if (! $this->isOn()) {
-            $this->setOn(true);
-        }
 
         return $languages[$code];
     }
@@ -356,7 +389,12 @@ class WhatsAppTranslator
         if ($existing && ! empty($existing['locked'])) {
             return;
         }
-        $this->writeLanguage($conversationId, json_encode(['code' => $code, 'name' => $name !== '' ? $name : $code]));
+        $this->writeLanguage($conversationId, json_encode([
+            'code' => $code,
+            'name' => $name !== '' ? $name : $code,
+            'locked' => false,
+            'enabled' => true,
+        ]));
     }
 
     protected function writeLanguage($conversationId, $payload)
@@ -393,18 +431,22 @@ class WhatsAppTranslator
             $raw = Cache::get('whatsapp.'.$key);
         }
         $decoded = is_array($raw) ? $raw : json_decode((string) $raw, true);
-        if (! is_array($decoded) || empty($decoded['code'])) {
+        if (! is_array($decoded)) {
             return null;
         }
-        $code = $this->languageCode($decoded['code']);
-        if ($code === '') {
+        $code = $this->languageCode(isset($decoded['code']) ? $decoded['code'] : '');
+        $enabled = array_key_exists('enabled', $decoded)
+            ? ! empty($decoded['enabled'])
+            : ($code !== '');
+        if (! $enabled && $code === '') {
             return null;
         }
 
         return [
             'code' => $code,
-            'name' => $this->languageName(isset($decoded['name']) ? $decoded['name'] : '', $code),
+            'name' => $code === '' ? '' : $this->languageName(isset($decoded['name']) ? $decoded['name'] : '', $code),
             'locked' => ! empty($decoded['locked']),
+            'enabled' => $enabled,
         ];
     }
 

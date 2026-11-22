@@ -30,7 +30,7 @@ class OwnerCommandService
 
             return null;
         }
-        $exact = $this->exact($text, $owner);
+        $exact = $this->exact($text, $owner, $conversation);
         if ($exact !== null) {
             $this->audit(null, $owner->id, 'owner_command', $text);
 
@@ -82,10 +82,14 @@ class OwnerCommandService
         return $this->setEnabled((bool) $on, $actorId);
     }
 
-    protected function exact($text, User $owner)
+    protected function exact($text, User $owner, WhatsAppConversation $conversation = null)
     {
         $translate = app(WhatsAppTranslator::class)->command($text);
         if ($translate) {
+            if ($conversation) {
+                return app(WhatsAppTranslator::class)->setChat($conversation->id, $translate === 'on');
+            }
+
             return app(WhatsAppTranslator::class)->setOn($translate === 'on');
         }
         $t = $this->commandToken($text);

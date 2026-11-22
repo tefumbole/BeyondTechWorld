@@ -196,7 +196,7 @@ class WhatsAppHubController extends Controller
             ->limit(12)
             ->get();
 
-        $translatorOn = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->isOn();
+        $translatorOn = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->activeFor($conversation->id);
         app(\App\Services\WhatsApp\WhatsAppTranslator::class)->backfillVisible($messages);
 
         return view('whatsapp_hub.conversation', compact(
@@ -571,11 +571,7 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
-        if (! $translator->isOn()) {
-            $notice = $translator->setOn(true);
-        } else {
-            $notice = 'Translator mode is on. Client messages are shown in English as they arrive. Your English reply is sent in the language chosen for this chat.';
-        }
+        $notice = $translator->setChat($id, ! $translator->activeFor($id));
 
         return redirect()->route('whatsapp.chats', ['chat' => $id])->with('message', $notice);
     }
@@ -586,9 +582,13 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $name = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->setDestination($id, $request->input('language'));
-        $notice = $name
-            ? 'Replies in this chat are sent in '.$name.'.'
-            : 'This chat will detect the client’s language again.';
+        if ($name === false) {
+            $notice = 'Translation is off for this chat. Other chats are unchanged.';
+        } elseif ($name === '' || $name === null) {
+            $notice = 'This chat will detect the client’s language. Other chats are unchanged.';
+        } else {
+            $notice = 'Replies in this chat are sent in '.$name.'. Other chats are unchanged.';
+        }
 
         return redirect()->route('whatsapp.chats', ['chat' => $id])->with('message', $notice);
     }

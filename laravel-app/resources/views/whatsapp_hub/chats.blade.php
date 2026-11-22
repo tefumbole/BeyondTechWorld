@@ -330,7 +330,7 @@
                     @endif
                     <form method="POST" action="{{ route('whatsapp.chats.translator', $open->id) }}">
                         @csrf
-                        <button type="submit" class="is-translate {{ (!empty($translatorOn) || !empty($destination['code'])) ? 'is-on' : '' }}" title="Client messages are translated into English as they arrive.">Translate</button>
+                        <button type="submit" class="is-translate {{ !empty($destination['enabled']) ? 'is-on' : '' }}" title="Translation for this chat only. Other chats keep their own language.">Translate</button>
                     </form>
                     <form method="POST" action="{{ route('whatsapp.conversation.enable_ai', $open->id) }}">
                         @csrf
@@ -386,19 +386,22 @@
             </div>
             @if($canReply)
                 @php
-                    $destCode = !empty($destination['code']) ? $destination['code'] : '';
-                    $destName = !empty($destination['name']) ? $destination['name'] : '';
+                    $chatOn = !empty($destination['enabled']);
+                    $destCode = ($chatOn && !empty($destination['locked']) && !empty($destination['code'])) ? $destination['code'] : '';
+                    $destName = ($chatOn && $destCode !== '' && !empty($destination['name'])) ? $destination['name'] : '';
                     if ($destCode !== '' && !isset($translatorLanguages[$destCode])) {
                         $translatorLanguages[$destCode] = $destName !== '' ? $destName : $destCode;
                     }
+                    $sendChoice = ! $chatOn ? 'off' : ($destCode === '' ? 'auto' : $destCode);
                 @endphp
                 <form class="send-lang" method="POST" action="{{ route('whatsapp.chats.language', $open->id) }}">
                     @csrf
                     <label for="sendLang">Send in</label>
-                    <select id="sendLang" name="language" onchange="this.form.submit()" title="Language your English reply is translated into">
-                        <option value="auto" {{ $destCode === '' ? 'selected' : '' }}>Detect</option>
+                    <select id="sendLang" name="language" onchange="this.form.submit()" title="Language for this chat only">
+                        <option value="off" {{ $sendChoice === 'off' ? 'selected' : '' }}>Off</option>
+                        <option value="auto" {{ $sendChoice === 'auto' ? 'selected' : '' }}>Detect</option>
                         @foreach($translatorLanguages as $code => $name)
-                            <option value="{{ $code }}" {{ $destCode === $code ? 'selected' : '' }}>{{ $name }}</option>
+                            <option value="{{ $code }}" {{ $sendChoice === $code ? 'selected' : '' }}>{{ $name }}</option>
                         @endforeach
                     </select>
                 </form>
@@ -406,7 +409,7 @@
                     @csrf
                     <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
                     <span class="file-name" id="chatFileName"></span>
-                    <textarea name="body" id="chatBody" placeholder="{{ (!empty($translatorOn) || $destName !== '') ? ('Reply in English. It is sent in '.($destName !== '' ? $destName : 'the client’s language').'.') : 'Type a message' }}"></textarea>
+                    <textarea name="body" id="chatBody" placeholder="{{ $chatOn ? ('Reply in English. It is sent in '.($destName !== '' ? $destName : 'this client’s language').'.') : 'Type a message' }}"></textarea>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
             @endif
