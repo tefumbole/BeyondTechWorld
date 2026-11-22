@@ -72,11 +72,14 @@ class WhatsAppTranslator
 
     public function decorate(WhatsAppMessage $message)
     {
-        if (! $this->isOn() || $message->direction !== WhatsAppMessage::DIR_IN) {
+        if ($message->direction !== WhatsAppMessage::DIR_IN || ! $this->activeFor($message->conversation_id)) {
             return $message;
         }
         $original = trim((string) $message->body);
         if ($original === '' || isset($message->translationMeta()['english'])) {
+            return $message;
+        }
+        if (\Illuminate\Support\Facades\Cache::has('wa.tr.fail.'.$message->id)) {
             return $message;
         }
         if (mb_strlen($original) > 4000) {
@@ -88,6 +91,8 @@ class WhatsAppTranslator
             $original
         );
         if (! $parsed || ! isset($parsed['english'])) {
+            \Illuminate\Support\Facades\Cache::put('wa.tr.fail.'.$message->id, 1, now()->addMinutes(2));
+
             return $message;
         }
         $english = trim((string) $parsed['english']);
@@ -115,8 +120,19 @@ class WhatsAppTranslator
      */
     public function backfillVisible($messages)
     {
-        if (! $this->isOn() || ! $messages) {
-            return;
+        $done = [];
+        if (! $messages) {
+            return $done;
+        }
+        $conversationId = null;
+        foreach ($messages as $message) {
+            if ($message instanceof WhatsAppMessage) {
+                $conversationId = $message->conversation_id;
+                break;
+            }
+        }
+        if (! $conversationId || ! $this->activeFor($conversationId)) {
+            return $done;
         }
         $pending = [];
         foreach ($messages as $message) {
@@ -134,7 +150,22 @@ class WhatsAppTranslator
         $pending = array_slice($pending, -12);
         foreach ($pending as $message) {
             $this->decorate($message);
+            if (! empty($message->translationMeta()['english'])) {
+                $done[] = $message;
+            }
         }
+
+        return $done;
+    }
+
+    public function activeFor($conversationId)
+    {
+        if ($this->isOn()) {
+            return true;
+        }
+        $known = $this->languageFor($conversationId);
+
+        return $known && ! empty($known['code']) && $known['code'] !== 'en';
     }
 
     protected function learnLanguage(WhatsAppConversation $conversation)
@@ -161,7 +192,7 @@ class WhatsAppTranslator
     public function forClient(WhatsAppConversation $conversation, $english)
     {
         $english = trim((string) $english);
-        if ($english === '' || ! $this->isOn()) {
+        if ($english === '' || ! $this->activeFor($conversation->id)) {
             return null;
         }
         $known = $this->languageFor($conversation->id);

@@ -21,7 +21,7 @@
     @elseif(in_array($type, ['IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT', 'LOCATION'], true) && $text === '')
         <span>{{ $fileLabel }}</span>
     @endif
-    @if($text !== ''){{ $text }}@endif
+    @if($text !== '')<span class="body">{{ $text }}</span>@endif
     @if(!empty($aside))<span class="aside">{{ $aside }}</span>@endif
     @if(!empty($choices))
         <div class="choices">

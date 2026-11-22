@@ -197,9 +197,7 @@ class WhatsAppHubController extends Controller
             ->get();
 
         $translatorOn = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->isOn();
-        if ($translatorOn) {
-            app(\App\Services\WhatsApp\WhatsAppTranslator::class)->backfillVisible($messages);
-        }
+        app(\App\Services\WhatsApp\WhatsAppTranslator::class)->backfillVisible($messages);
 
         return view('whatsapp_hub.conversation', compact(
             'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel', 'attendancePanel', 'documentPanel', 'recentChats', 'translatorOn'
@@ -385,6 +383,18 @@ class WhatsAppHubController extends Controller
                     $this->conversations->readOnWeb($current);
                 }
             }
+            $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
+            if ($translator->activeFor($chatId)) {
+                $translator->backfillVisible($fresh);
+                $recent = WhatsAppMessage::where('conversation_id', $chatId)
+                    ->where('direction', WhatsAppMessage::DIR_IN)
+                    ->orderByDesc('id')
+                    ->limit(12)
+                    ->get();
+                $payload['translated'] = collect($translator->backfillVisible($recent))->map(function ($message) {
+                    return $this->chatFeedMessage($message);
+                })->values();
+            }
             $payload['messages'] = $fresh->map(function ($message) {
                 return $this->chatFeedMessage($message);
             })->values();
@@ -561,7 +571,11 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
-        $notice = $translator->setOn(! $translator->isOn());
+        if (! $translator->isOn()) {
+            $notice = $translator->setOn(true);
+        } else {
+            $notice = 'Translator mode is on. Client messages are shown in English as they arrive. Your English reply is sent in the language chosen for this chat.';
+        }
 
         return redirect()->route('whatsapp.chats', ['chat' => $id])->with('message', $notice);
     }

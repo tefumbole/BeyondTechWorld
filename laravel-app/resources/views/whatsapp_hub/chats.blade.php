@@ -330,7 +330,7 @@
                     @endif
                     <form method="POST" action="{{ route('whatsapp.chats.translator', $open->id) }}">
                         @csrf
-                        <button type="submit" class="is-translate {{ !empty($translatorOn) ? 'is-on' : '' }}" title="{{ !empty($translatorOn) ? 'Translator is on. Click to turn it off.' : 'Show client messages in English and send your English reply in their language.' }}">Translate</button>
+                        <button type="submit" class="is-translate {{ (!empty($translatorOn) || !empty($destination['code'])) ? 'is-on' : '' }}" title="Client messages are translated into English as they arrive.">Translate</button>
                     </form>
                     <form method="POST" action="{{ route('whatsapp.conversation.enable_ai', $open->id) }}">
                         @csrf
@@ -406,7 +406,7 @@
                     @csrf
                     <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
                     <span class="file-name" id="chatFileName"></span>
-                    <textarea name="body" id="chatBody" placeholder="{{ !empty($translatorOn) ? ('Reply in English. It is sent in '.($destName !== '' ? $destName : 'the client’s language').'.') : 'Type a message' }}"></textarea>
+                    <textarea name="body" id="chatBody" placeholder="{{ (!empty($translatorOn) || $destName !== '') ? ('Reply in English. It is sent in '.($destName !== '' ? $destName : 'the client’s language').'.') : 'Type a message' }}"></textarea>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
             @endif
@@ -638,7 +638,7 @@
         return '<div class="bubble ' + (message.out ? 'out' : 'in') + '" data-id="' + message.id + '" data-day="' + esc(dayKey) + '"' + (at ? ' data-at="' + esc(at) + '"' : '') + '>'
             + (message.who ? '<span class="who">' + esc(message.who) + '</span>' : '')
             + media
-            + (message.text ? esc(message.text) : '')
+            + (message.text ? '<span class="body">' + esc(message.text) + '</span>' : '')
             + (message.aside ? '<span class="aside">' + esc(message.aside) + '</span>' : '')
             + '<time' + (at ? ' data-at="' + esc(at) + '"' : '') + '><span class="clock">' + esc(clock) + '</span>' + (message.out ? tickHtml(message.tick) : '') + '</time></div>';
     }
@@ -748,6 +748,28 @@
                     }
                 } else {
                     placeMessages(openGroup ? (data.group_messages || []) : (data.messages || []), false);
+                    (data.translated || []).forEach(function (message) {
+                        if (!stream) return;
+                        var bubble = stream.querySelector('.bubble[data-id="' + message.id + '"]');
+                        if (!bubble || !message.text) return;
+                        var body = bubble.querySelector('.body');
+                        if (!body) {
+                            body = document.createElement('span');
+                            body.className = 'body';
+                            var time = bubble.querySelector('time');
+                            bubble.insertBefore(body, time || null);
+                        }
+                        body.textContent = message.text;
+                        var aside = bubble.querySelector('.aside');
+                        if (message.aside) {
+                            if (!aside) {
+                                aside = document.createElement('span');
+                                aside.className = 'aside';
+                                body.insertAdjacentElement('afterend', aside);
+                            }
+                            aside.textContent = message.aside;
+                        }
+                    });
                     paintTicks(data.ticks || []);
                     paintList(data.items || []);
                 }
