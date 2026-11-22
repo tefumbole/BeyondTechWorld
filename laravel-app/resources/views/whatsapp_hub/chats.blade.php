@@ -112,6 +112,8 @@
     .chats-compose textarea:focus { outline: none; background: #fff; border-color: #9cc2ff; box-shadow: 0 0 0 4px rgba(21, 101, 192, .12); }
     .chats-compose button { border: 0; border-radius: 50%; width: 46px; height: 46px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; flex: none; box-shadow: 0 6px 16px rgba(18, 140, 126, .35); transition: transform .15s, box-shadow .15s; }
     .chats-compose button:hover { transform: scale(1.06); box-shadow: 0 8px 20px rgba(18, 140, 126, .45); }
+    .send-lang { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 18px 0; background: rgba(255,255,255,.94); color: #3b4a68; font-size: 13px; font-weight: 700; }
+    .send-lang select { border: 1px solid #d5deee; border-radius: 999px; min-height: 34px; padding: 0 12px; background: #fff; color: #1d2a44; font-weight: 700; }
     .chats-empty { margin: auto; text-align: center; color: var(--wa-muted); max-width: 440px; padding: 28px; }
     .chats-empty strong { display: block; color: var(--wa-ink); font-size: 26px; font-weight: 800; margin-bottom: 8px; }
     .chats-thread > .chats-empty::before { content: ""; display: block; width: 96px; height: 96px; margin: 0 auto 18px; border-radius: 28px; background: var(--wa-grad) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 11.5a8.4 8.4 0 0 1-12.3 7.5L3 21l2-5.5A8.5 8.5 0 1 1 21 11.5z'/%3E%3C/svg%3E") no-repeat center; box-shadow: 0 16px 36px rgba(21, 101, 192, .3); transform: rotate(-6deg); }
@@ -383,11 +385,28 @@
                 @endforelse
             </div>
             @if($canReply)
+                @php
+                    $destCode = !empty($destination['code']) ? $destination['code'] : '';
+                    $destName = !empty($destination['name']) ? $destination['name'] : '';
+                    if ($destCode !== '' && !isset($translatorLanguages[$destCode])) {
+                        $translatorLanguages[$destCode] = $destName !== '' ? $destName : $destCode;
+                    }
+                @endphp
+                <form class="send-lang" method="POST" action="{{ route('whatsapp.chats.language', $open->id) }}">
+                    @csrf
+                    <label for="sendLang">Send in</label>
+                    <select id="sendLang" name="language" onchange="this.form.submit()" title="Language your English reply is translated into">
+                        <option value="auto" {{ $destCode === '' ? 'selected' : '' }}>Detect</option>
+                        @foreach($translatorLanguages as $code => $name)
+                            <option value="{{ $code }}" {{ $destCode === $code ? 'selected' : '' }}>{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </form>
                 <form class="chats-compose" method="POST" action="{{ route('whatsapp.chats.reply', $open->id) }}" enctype="multipart/form-data">
                     @csrf
                     <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
                     <span class="file-name" id="chatFileName"></span>
-                    <textarea name="body" id="chatBody" placeholder="{{ !empty($translatorOn) ? 'Reply in English. It is sent in the client’s language.' : 'Type a message' }}"></textarea>
+                    <textarea name="body" id="chatBody" placeholder="{{ !empty($translatorOn) ? ('Reply in English. It is sent in '.($destName !== '' ? $destName : 'the client’s language').'.') : 'Type a message' }}"></textarea>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
             @endif

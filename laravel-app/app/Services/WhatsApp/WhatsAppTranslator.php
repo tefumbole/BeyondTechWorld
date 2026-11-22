@@ -192,6 +192,60 @@ class WhatsAppTranslator
         ];
     }
 
+    public function languages()
+    {
+        return [
+            'rw' => 'Kinyarwanda',
+            'fr' => 'French',
+            'sw' => 'Kiswahili',
+            'ln' => 'Lingala',
+            'ar' => 'Arabic',
+            'pt' => 'Portuguese',
+            'es' => 'Spanish',
+            'ha' => 'Hausa',
+            'yo' => 'Yoruba',
+            'am' => 'Amharic',
+            'so' => 'Somali',
+            'zh' => 'Chinese',
+            'de' => 'German',
+            'tr' => 'Turkish',
+        ];
+    }
+
+    /**
+     * Language this chat's English reply is sent in. Empty clears it.
+     *
+     * @return string|null the language name, or null when detection is used
+     */
+    public function setDestination($conversationId, $code)
+    {
+        $code = strtolower(trim((string) $code));
+        if ($code === '' || $code === 'auto') {
+            $this->writeLanguage($conversationId, '');
+
+            return null;
+        }
+        $languages = $this->languages();
+        if (! isset($languages[$code])) {
+            return null;
+        }
+        $this->writeLanguage($conversationId, json_encode([
+            'code' => $code,
+            'name' => $languages[$code],
+            'locked' => true,
+        ]));
+        if (! $this->isOn()) {
+            $this->setOn(true);
+        }
+
+        return $languages[$code];
+    }
+
+    public function destinationFor($conversationId)
+    {
+        return $this->languageFor($conversationId);
+    }
+
     public function token($text)
     {
         $token = strtoupper(trim(preg_replace('/\s+/u', ' ', (string) $text)));
@@ -267,7 +321,15 @@ class WhatsAppTranslator
         if (! $conversationId || $code === '' || $code === 'en' || $code === 'und') {
             return;
         }
-        $payload = json_encode(['code' => $code, 'name' => $name !== '' ? $name : $code]);
+        $existing = $this->languageFor($conversationId);
+        if ($existing && ! empty($existing['locked'])) {
+            return;
+        }
+        $this->writeLanguage($conversationId, json_encode(['code' => $code, 'name' => $name !== '' ? $name : $code]));
+    }
+
+    protected function writeLanguage($conversationId, $payload)
+    {
         $key = 'translator_lang_'.(int) $conversationId;
         try {
             if (Schema::hasTable('whatsapp_settings')) {
@@ -276,6 +338,11 @@ class WhatsAppTranslator
                 return;
             }
         } catch (\Throwable $e) {
+        }
+        if ($payload === '') {
+            Cache::forget('whatsapp.'.$key);
+
+            return;
         }
         Cache::forever('whatsapp.'.$key, $payload);
     }
@@ -306,6 +373,7 @@ class WhatsAppTranslator
         return [
             'code' => $code,
             'name' => $this->languageName(isset($decoded['name']) ? $decoded['name'] : '', $code),
+            'locked' => ! empty($decoded['locked']),
         ];
     }
 

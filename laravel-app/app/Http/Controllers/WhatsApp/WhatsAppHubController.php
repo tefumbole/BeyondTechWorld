@@ -306,11 +306,15 @@ class WhatsAppHubController extends Controller
             $listFilter = 'all';
         }
 
-        $translatorOn = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->isOn();
+        $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
+        $translatorOn = $translator->isOn();
+        $translatorLanguages = $translator->languages();
+        $destination = $open ? $translator->destinationFor($open->id) : null;
 
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
-            'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn'
+            'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn',
+            'translatorLanguages', 'destination'
         ));
     }
 
@@ -558,6 +562,19 @@ class WhatsAppHubController extends Controller
         }
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
         $notice = $translator->setOn(! $translator->isOn());
+
+        return redirect()->route('whatsapp.chats', ['chat' => $id])->with('message', $notice);
+    }
+
+    public function setTranslatorLanguage(Request $request, $id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage', 'whatsapp.conversations', 'whatsapp.view'])) {
+            return $deny;
+        }
+        $name = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->setDestination($id, $request->input('language'));
+        $notice = $name
+            ? 'Replies in this chat are sent in '.$name.'.'
+            : 'This chat will detect the client’s language again.';
 
         return redirect()->route('whatsapp.chats', ['chat' => $id])->with('message', $notice);
     }
