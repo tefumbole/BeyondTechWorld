@@ -87,7 +87,7 @@ class WhatsAppTranslator
         }
 
         $parsed = $this->ask(
-            'You translate a WhatsApp message for a human agent. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the language","is_english":true,"english":"the message in natural English"}. If it is already English, set is_english true, language en, and copy it into english. If it is not English, english must be a real English translation, never a copy of the original. Do not answer the customer. Do not add notes. Keep names, phone numbers, amounts, and dates unchanged.',
+            'You translate a WhatsApp message into fluent, natural English, the way a person would write it. Do not translate word for word. Use everyday wording and correct grammar, and keep the same meaning and tone. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the language","is_english":true,"english":"the fluent English"}. If it is already English, set is_english true, language en, and copy it into english. If it is not English, english must be fluent English, never a copy of the original. Do not answer the customer. Do not add notes. Keep names, phone numbers, amounts, and dates unchanged.',
             $original
         );
         if (! $parsed || ! isset($parsed['english'])) {
@@ -115,6 +115,7 @@ class WhatsAppTranslator
             'english' => $isEnglish ? $original : $english,
             'language' => $isEnglish ? 'en' : $code,
             'language_name' => $isEnglish ? 'English' : $name,
+            'style' => 'fluent',
             'verified' => true,
         ]);
         $this->syncPreview($message, $isEnglish ? $original : $english);
@@ -136,7 +137,7 @@ class WhatsAppTranslator
             return false;
         }
         $meta = $message->translationMeta();
-        if (empty($meta['english'])) {
+        if (empty($meta['english']) || (isset($meta['style']) ? $meta['style'] : '') !== 'fluent') {
             return true;
         }
         if (! empty($meta['verified'])) {
@@ -280,7 +281,7 @@ class WhatsAppTranslator
             return null;
         }
         $parsed = $this->ask(
-            'Translate the agent reply into '.$known['name'].'. Reply with JSON only: {"text":"the translation"}. Keep the tone, names, phone numbers, amounts, and dates. Do not add a greeting or a note. If the reply is already in '.$known['name'].', return it unchanged.',
+            'Translate the agent reply into fluent, natural '.$known['name'].', the way a person would write it on WhatsApp. Do not translate word for word. Use everyday wording and correct grammar, and keep the same meaning and tone. Reply with JSON only: {"text":"the fluent translation"}. Keep names, phone numbers, amounts, and dates. Do not add a greeting or a note. If the reply is already in '.$known['name'].', return it unchanged.',
             $english
         );
         if (! $parsed || ! isset($parsed['text'])) {
