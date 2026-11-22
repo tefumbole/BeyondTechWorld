@@ -869,6 +869,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/whatsapp/chats/media/{id}', 'WhatsApp\WhatsAppHubController@chatMedia')->where('id', '[0-9]+')->name('whatsapp.chats.media');
     Route::post('/admin/whatsapp/chats/group/reply', 'WhatsApp\WhatsAppHubController@chatsGroupReply')->name('whatsapp.chats.group');
     Route::post('/admin/whatsapp/chats/{id}/reply', 'WhatsApp\WhatsAppHubController@chatsReply')->name('whatsapp.chats.reply');
+    Route::post('/admin/whatsapp/chats/{id}/translator', 'WhatsApp\WhatsAppHubController@toggleTranslator')->name('whatsapp.chats.translator');
     Route::get('/admin/whatsapp/conversations', 'WhatsApp\WhatsAppHubController@conversations')->name('whatsapp.conversations');
     Route::post('/admin/whatsapp/conversations/delete', 'WhatsApp\WhatsAppHubController@destroyConversations')->name('whatsapp.conversations.delete');
     Route::post('/admin/whatsapp/conversations/{id}/delete', 'WhatsApp\WhatsAppHubController@destroyConversation')->name('whatsapp.conversation.delete');

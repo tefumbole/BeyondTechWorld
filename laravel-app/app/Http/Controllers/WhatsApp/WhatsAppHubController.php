@@ -197,6 +197,9 @@ class WhatsAppHubController extends Controller
             ->get();
 
         $translatorOn = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->isOn();
+        if ($translatorOn) {
+            app(\App\Services\WhatsApp\WhatsAppTranslator::class)->backfillVisible($messages);
+        }
 
         return view('whatsapp_hub.conversation', compact(
             'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel', 'attendancePanel', 'documentPanel', 'recentChats', 'translatorOn'
@@ -263,6 +266,7 @@ class WhatsAppHubController extends Controller
                 $hasEarlier = $first
                     ? WhatsAppMessage::where('conversation_id', $open->id)->where('id', '<', $first->id)->exists()
                     : false;
+                app(\App\Services\WhatsApp\WhatsAppTranslator::class)->backfillVisible($messages);
             }
         }
         $canReply = $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
@@ -545,6 +549,17 @@ class WhatsAppHubController extends Controller
         }
 
         return redirect()->to($back);
+    }
+
+    public function toggleTranslator($id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage', 'whatsapp.conversations', 'whatsapp.view'])) {
+            return $deny;
+        }
+        $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
+        $notice = $translator->setOn(! $translator->isOn());
+
+        return redirect()->route('whatsapp.chats', ['chat' => $id])->with('message', $notice);
     }
 
     public function chatMedia($id)

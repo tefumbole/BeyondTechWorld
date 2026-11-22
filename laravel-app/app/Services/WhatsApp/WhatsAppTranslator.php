@@ -79,10 +79,6 @@ class WhatsAppTranslator
         if ($original === '' || isset($message->translationMeta()['english'])) {
             return $message;
         }
-        $type = strtoupper((string) $message->type);
-        if ($type !== '' && $type !== 'TEXT' && $type !== 'UNKNOWN') {
-            return $message;
-        }
         if (mb_strlen($original) > 4000) {
             $original = mb_substr($original, 0, 4000);
         }
@@ -103,15 +99,58 @@ class WhatsAppTranslator
         $isEnglish = ! empty($parsed['is_english']) || $code === 'en' || strcasecmp($english, trim((string) $message->body)) === 0;
         if (! $isEnglish) {
             $this->rememberLanguage($message->conversation_id, $code, $name);
-            $this->mergeTranslation($message, [
-                'english' => $english,
-                'language' => $code,
-                'language_name' => $name,
-            ]);
         }
+        $this->mergeTranslation($message, [
+            'english' => $isEnglish ? trim((string) $message->body) : $english,
+            'language' => $isEnglish ? 'en' : $code,
+            'language_name' => $isEnglish ? 'English' : $name,
+        ]);
         $this->syncPreview($message, $isEnglish ? trim((string) $message->body) : $english);
 
         return $message;
+    }
+
+    /**
+     * Translate the incoming messages already on screen. Photo captions count.
+     */
+    public function backfillVisible($messages)
+    {
+        if (! $this->isOn() || ! $messages) {
+            return;
+        }
+        $pending = [];
+        foreach ($messages as $message) {
+            if (! $message instanceof WhatsAppMessage) {
+                continue;
+            }
+            if ($message->direction !== WhatsAppMessage::DIR_IN) {
+                continue;
+            }
+            if (trim((string) $message->body) === '' || ! empty($message->translationMeta()['english'])) {
+                continue;
+            }
+            $pending[] = $message;
+        }
+        $pending = array_slice($pending, -12);
+        foreach ($pending as $message) {
+            $this->decorate($message);
+        }
+    }
+
+    protected function learnLanguage(WhatsAppConversation $conversation)
+    {
+        $rows = WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('direction', WhatsAppMessage::DIR_IN)
+            ->whereNotNull('body')
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get();
+        foreach ($rows as $message) {
+            $this->decorate($message);
+            if ($this->languageFor($conversation->id)) {
+                return;
+            }
+        }
     }
 
     /**
@@ -126,6 +165,10 @@ class WhatsAppTranslator
             return null;
         }
         $known = $this->languageFor($conversation->id);
+        if (! $known) {
+            $this->learnLanguage($conversation);
+            $known = $this->languageFor($conversation->id);
+        }
         if (! $known || $known['code'] === 'en') {
             return null;
         }

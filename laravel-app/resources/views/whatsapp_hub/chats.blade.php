@@ -82,6 +82,7 @@
     .mode-switch button, .announce-btn { border: 0; border-radius: 999px; min-height: 34px; padding: 0 14px; font-weight: 700; cursor: pointer; background: #eef2f9; color: #3b4a68; transition: background .18s, box-shadow .18s; }
     .mode-switch button:hover { background: #e2e9f6; }
     .mode-switch button.is-on { background: var(--wa-grad); color: #fff; box-shadow: 0 6px 16px rgba(21, 101, 192, .28); }
+    .mode-switch button.is-translate.is-on { background: linear-gradient(135deg, #7c5cff, #4f46e5); box-shadow: 0 6px 16px rgba(79, 70, 229, .35); }
     .announce-btn { background: var(--wa-grad); color: #fff; text-decoration: none; display: inline-flex; align-items: center; box-shadow: 0 6px 16px rgba(21, 101, 192, .28); }
     .announce-btn:hover { color: #fff; text-decoration: none; }
     .chats-stream { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 12px 7% 18px; display: flex; flex-direction: column; gap: 4px; }
@@ -325,7 +326,10 @@
                     @if($callDigits !== '')
                         <a class="call-btn" href="tel:+{{ $callDigits }}"><i class="fa fa-phone"></i> Call</a>
                     @endif
-                    @if(!empty($translatorOn))<span class="chat-ai" title="Translator mode">Translate</span>@endif
+                    <form method="POST" action="{{ route('whatsapp.chats.translator', $open->id) }}">
+                        @csrf
+                        <button type="submit" class="is-translate {{ !empty($translatorOn) ? 'is-on' : '' }}" title="{{ !empty($translatorOn) ? 'Translator is on. Click to turn it off.' : 'Show client messages in English and send your English reply in their language.' }}">Translate</button>
+                    </form>
                     <form method="POST" action="{{ route('whatsapp.conversation.enable_ai', $open->id) }}">
                         @csrf
                         <button type="submit" class="{{ $open->mode === 'AI' ? 'is-on' : '' }}">AI</button>
