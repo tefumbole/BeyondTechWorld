@@ -8,6 +8,7 @@ use App\JobPosting;
 use App\Support\WhatsAppPhone;
 use App\Support\WorkingWeekForm;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -1389,6 +1390,18 @@ class ApplicationService
             $opts['supervisor_refs'] ?? [],
             $opts['supervisor_id'] ?? null
         );
+        $autoAssigned = false;
+        if (empty($supervisorBundle['primary_user_id'])) {
+            $auto = $this->nextInternshipSupervisor();
+            if ($auto) {
+                $supervisorBundle = [
+                    'refs' => ['user:'.$auto->id],
+                    'primary_user_id' => (int) $auto->id,
+                    'user_ids' => [(int) $auto->id],
+                ];
+                $autoAssigned = true;
+            }
+        }
         $supervisorId = $supervisorBundle['primary_user_id'];
         $supervisorRefs = $supervisorBundle['refs'];
 
@@ -1415,10 +1428,17 @@ class ApplicationService
         if ($existing) {
             $update = [
                 'start_date' => $startDate,
-                'supervisor_id' => $supervisorId,
-                'supervisor_refs' => $supervisorRefs,
                 'notes' => trim(($existing->notes ? $existing->notes."\n" : '').'Updated from Job Board assign '.$application->reference_number),
             ];
+            $appliedAuto = false;
+            if ($supervisorId && ! $autoAssigned) {
+                $update['supervisor_id'] = $supervisorId;
+                $update['supervisor_refs'] = $supervisorRefs;
+            } elseif ($autoAssigned && $supervisorId && ! $existing->supervisor_id) {
+                $update['supervisor_id'] = $supervisorId;
+                $update['supervisor_refs'] = $supervisorRefs;
+                $appliedAuto = true;
+            }
             if (! $existing->assignments()->exists()) {
                 $update['start_curriculum_day'] = $startDay;
                 $update['planned_duration_days'] = $duration;
@@ -1428,12 +1448,19 @@ class ApplicationService
                 $existing->save();
             }
             $service->updatePlacement($existing, $update);
-            if ($existing->fresh()->status === 'active') {
+            $existing = $existing->fresh();
+            if ($appliedAuto) {
+                $this->notifySupervisorAssignment($application, $existing, $supervisorRefs);
+            }
+            if (! $existing->supervisor_id) {
+                $this->requestSupervisorAssignment($application);
+            }
+            if ($existing->status === 'active') {
                 $service->reconcileReleases($existing->id);
             }
             $this->sendAcceptanceLetterIfUnsigned($application);
 
-            return $existing->fresh();
+            return $existing;
         }
 
         $enrolment = $service->enroll([
@@ -1447,10 +1474,111 @@ class ApplicationService
             'start_curriculum_day' => $startDay,
             'notes' => 'Assigned from Job Board applicants · '.$application->reference_number.' ('.$duration.' days from day '.$startDay.')',
         ]);
+        if (! $enrolment) {
+            return null;
+        }
+        if ($autoAssigned) {
+            $this->notifySupervisorAssignment($application, $enrolment, $supervisorRefs);
+        } elseif (! $enrolment->supervisor_id) {
+            $this->requestSupervisorAssignment($application);
+        }
         $service->reconcileReleases($enrolment->id);
         $this->sendAcceptanceLetterIfUnsigned($application);
 
         return $enrolment;
+    }
+
+    /**
+     * Least-loaded active Internship Supervisor, so acceptance can finish
+     * the assignment without a second manual step.
+     */
+    public function nextInternshipSupervisor()
+    {
+        $roleIds = \Spatie\Permission\Models\Role::where('guard_name', 'web')
+            ->where(function ($q) {
+                $q->where('name', 'Internship Supervisor')
+                    ->orWhere('name', 'like', '%Internship Supervisor%');
+            })
+            ->pluck('id');
+
+        $users = $roleIds->isEmpty()
+            ? collect()
+            : \App\User::where('is_deleted', false)
+                ->where('is_active', 1)
+                ->whereIn('role_id', $roleIds->all())
+                ->get();
+        if ($users->isEmpty()) {
+            $knownIds = InternshipEnrolment::whereNotNull('supervisor_id')->pluck('supervisor_id');
+            $users = \App\User::where('is_deleted', false)
+                ->where('is_active', 1)
+                ->whereIn('id', $knownIds->all() ?: [0])
+                ->get();
+        }
+        if ($users->isEmpty()) {
+            return null;
+        }
+
+        $loads = InternshipEnrolment::where('status', 'active')
+            ->whereIn('supervisor_id', $users->pluck('id')->all())
+            ->select('supervisor_id', DB::raw('COUNT(*) as c'))
+            ->groupBy('supervisor_id')
+            ->pluck('c', 'supervisor_id');
+
+        return $users->sortBy(function ($user) use ($loads) {
+            return sprintf('%08d-%s', (int) ($loads[$user->id] ?? 0), strtolower((string) $user->name));
+        })->first();
+    }
+
+    protected function notifySupervisorAssignment(Application $application, InternshipEnrolment $enrolment, array $refs)
+    {
+        if (empty($refs) || ! $enrolment->supervisor_id) {
+            return;
+        }
+        $key = 'internship-supervisor-assigned:'.$enrolment->id.':'.$enrolment->supervisor_id;
+        if (! Cache::add($key, 1, now()->addDays(30))) {
+            return;
+        }
+
+        $program = $enrolment->program ?: \App\InternshipProgram::find($enrolment->program_id);
+        $programName = $program && method_exists($program, 'displayName')
+            ? $program->displayName()
+            : ($program ? $program->name : 'Internship Programme');
+        $duration = (int) ($enrolment->planned_duration_days ?: $application->internship_duration_days ?: 0);
+        $durationLabel = $duration > 0 ? $duration.' day'.($duration === 1 ? '' : 's') : '—';
+        $startLabel = $enrolment->start_date
+            ? \Carbon\Carbon::parse($enrolment->start_date)->format('F j, Y')
+            : now()->format('F j, Y');
+
+        try {
+            $this->notifier->notifySupervisorsAssigned(
+                $refs,
+                [$application->full_name ?: 'Intern'],
+                $programName,
+                $startLabel,
+                $durationLabel
+            );
+        } catch (\Throwable $e) {
+            Cache::forget($key);
+            Log::warning('Supervisor assignment notify failed for application '.$application->id.': '.$e->getMessage());
+        }
+    }
+
+    protected function requestSupervisorAssignment(Application $application)
+    {
+        $key = 'internship-supervisor-request:'.$application->id;
+        if (! Cache::add($key, 1, now()->addDays(7))) {
+            return;
+        }
+
+        try {
+            $this->notifier->notifyAdminsOfPlacementIssue(
+                $application,
+                'This intern was accepted with no Internship Supervisor on file. Add a supervisor, then place them again so supervision is assigned.'
+            );
+        } catch (\Throwable $e) {
+            Cache::forget($key);
+            Log::warning('Supervisor request failed for application '.$application->id.': '.$e->getMessage());
+        }
     }
 
     /**
@@ -1501,7 +1629,6 @@ class ApplicationService
                 'planned_duration_days' => $application->internship_duration_days ?: 180,
                 'start_date' => now()->toDateString(),
                 'start_curriculum_day' => 1,
-                'supervisor_id' => null,
                 'mark_selected' => false,
             ]);
 

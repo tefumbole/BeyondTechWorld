@@ -1205,7 +1205,7 @@ class WhatsAppMessage
         if ($program) {
             $msg .= " for *{$program}*";
         }
-        $msg .= ".\n\nOpen the link below, read the letter, and *sign* it. Day 1 of your placement is sent only after you sign.\n";
+        $msg .= ".\n\nOpen the link below, read the letter, and *sign* it. Your first lesson is sent after you sign, at your scheduled start time.\n";
         $msg .= self::actionLink('Sign acceptance letter', $signUrl);
         $msg .= self::footer();
 
@@ -1224,7 +1224,7 @@ class WhatsAppMessage
         $msg .= self::greeting($name ?: 'Intern');
         $msg .= "Your internship acceptance letter PDF was sent above.\n\n";
         if ($signUrl) {
-            $msg .= "Please *sign the acceptance letter* with the link below. Day 1 of your placement is sent only after you sign.\n";
+            $msg .= "Please *sign the acceptance letter* with the link below. Your first lesson is sent after you sign, at your scheduled start time.\n";
             $msg .= self::actionLink('Sign acceptance letter', $signUrl);
             $msg .= "\n";
         }

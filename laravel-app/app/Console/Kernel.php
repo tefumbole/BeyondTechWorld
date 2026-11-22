@@ -60,7 +60,7 @@ class Kernel extends ConsoleKernel
         // Signer and antivirus reminders are sent only when someone presses the button.
         $schedule->command('contracts:expiry-alerts')->dailyAt('08:00');
         // Stagger internship WhatsApp so the three hourly jobs do not start together.
-        $schedule->command('internship:reconcile-releases')->hourlyAt(5);
+        $schedule->command('internship:reconcile-releases')->everyFiveMinutes()->withoutOverlapping(8);
         $schedule->command('internship:review-sla')->hourlyAt(20)->withoutOverlapping();
         // Timesheet reminders are off for every intern.
         $schedule->command('online-invitations:send-reminders')->everyMinute();

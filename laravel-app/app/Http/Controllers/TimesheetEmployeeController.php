@@ -236,7 +236,7 @@ class TimesheetEmployeeController extends Controller
         if (\App\Support\InternCompliance::appliesTo(Auth::user())) {
             $this->timesheet->ensureInternshipActivity(Auth::id());
 
-            // Working Week just configured — release Task 1 immediately if due.
+            // Working Week just saved — release the next lesson only if today's start time has passed.
             try {
                 $enrolment = \App\InternshipEnrolment::where('student_user_id', Auth::id())
                     ->where('status', 'active')
@@ -244,7 +244,7 @@ class TimesheetEmployeeController extends Controller
                     ->first();
                 if ($enrolment) {
                     app(\App\Services\Internship\InternshipProgramService::class)
-                        ->tryReleaseNext($enrolment, \Carbon\Carbon::today(), true);
+                        ->tryReleaseNext($enrolment, \Carbon\Carbon::today(), false, false);
                 }
             } catch (\Throwable $e) {
                 \Log::warning('Working week post-save task release failed: '.$e->getMessage());

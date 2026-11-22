@@ -437,7 +437,9 @@ class InternshipProgramService
     }
 
     /**
-     * After the intern signs, release Day 1 (WhatsApp follows from tryReleaseNext).
+     * After the intern signs, release the first lesson only when today's
+     * scheduled start time has been reached. Earlier signatures wait for the
+     * release job.
      */
     public function releaseFirstTaskAfterSignature(InternshipEnrolment $enrolment)
     {
@@ -449,7 +451,18 @@ class InternshipProgramService
             return false;
         }
 
-        return $this->tryReleaseNext($enrolment, Carbon::today(), true, true);
+        $student = $enrolment->student;
+        if ($student && ! InternCompliance::workingWeekConfigured($student)) {
+            try {
+                $this->requestWorkingWeekSetup($student);
+            } catch (\Throwable $e) {
+                Log::warning('Working-week request after signature failed for enrolment '.$enrolment->id.': '.$e->getMessage());
+            }
+
+            return false;
+        }
+
+        return $this->tryReleaseNext($enrolment, Carbon::today(), false, false);
     }
 
     /**
@@ -568,9 +581,8 @@ class InternshipProgramService
             return false;
         }
 
-        // First task after admission: allow release even before Working Week is configured.
-        // Later tasks still require a personal Working Week.
-        if (! $isFirstTask && ! InternCompliance::workingWeekConfigured($student)) {
+        // Every lesson, including the first, waits for the student's saved schedule.
+        if (! InternCompliance::workingWeekConfigured($student)) {
             return false;
         }
 
@@ -603,11 +615,11 @@ class InternshipProgramService
                 return null;
             }
 
-            if (! $isFirstTask && ! $immediate && ! $this->isWorkingDate($student, $today)) {
+            if (! $immediate && ! $this->isWorkingDate($student, $today)) {
                 return null;
             }
 
-            if (! $isFirstTask && ! $forceSameDay && ! $this->releaseWindowOpen($student, $today)) {
+            if (! $immediate && ! $forceSameDay && ! $this->releaseWindowOpen($student, $today)) {
                 return null;
             }
 
@@ -1719,25 +1731,34 @@ class InternshipProgramService
 
         if ($isFirstTask && ! $this->internHasSignedAcceptance($enrolment)) {
             $empty['reason'] = 'unsigned';
-            $empty['message'] = 'Sign your Internship Acceptance letter first. Day 1 is sent only after you sign.';
+            $empty['message'] = 'Sign your Internship Acceptance letter first. Your first lesson is sent after you sign, at your scheduled start time.';
             $empty['next_day'] = $nextDay;
             $empty['task_title'] = $title;
 
             return $empty;
         }
 
-        if (! $isFirstTask && ! InternCompliance::workingWeekConfigured($user)) {
+        if (! InternCompliance::workingWeekConfigured($user)) {
             $empty['reason'] = 'no_week';
-            $empty['message'] = 'Set your Working Week first, then you can request today’s task.';
+            $empty['message'] = 'Set your Working Week first. Lessons are sent at your scheduled start time.';
             $empty['next_day'] = $nextDay;
             $empty['task_title'] = $title;
 
             return $empty;
         }
 
-        if (! $isFirstTask && ! $this->isWorkingDate($user, Carbon::today())) {
+        if (! $this->isWorkingDate($user, Carbon::today())) {
             $empty['reason'] = 'not_working_day';
-            $empty['message'] = 'Today is not one of your working days, so today’s task cannot be requested yet.';
+            $empty['message'] = 'Today is not one of your working days, so today’s lesson cannot be requested yet.';
+            $empty['next_day'] = $nextDay;
+            $empty['task_title'] = $title;
+
+            return $empty;
+        }
+
+        if (! $this->releaseWindowOpen($user, Carbon::today())) {
+            $empty['reason'] = 'before_start';
+            $empty['message'] = 'Your lesson is sent at your scheduled start time. It is not that time yet.';
             $empty['next_day'] = $nextDay;
             $empty['task_title'] = $title;
 
@@ -1762,8 +1783,8 @@ class InternshipProgramService
             'can_request' => true,
             'reason' => 'ready',
             'message' => $isFirstTask
-                ? 'Your first task has not been released yet. Request it to start.'
-                : 'You have not received today’s task yet. Request it now.',
+                ? 'Your first lesson is due. Request it if it has not arrived.'
+                : 'You have not received today’s lesson yet. Request it now.',
             'next_day' => $nextDay,
             'task_title' => $title,
         ];
