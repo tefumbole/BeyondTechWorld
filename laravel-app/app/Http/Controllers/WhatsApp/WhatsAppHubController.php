@@ -308,6 +308,13 @@ class WhatsAppHubController extends Controller
         $translatorOn = $translator->isOn();
         $translatorLanguages = $translator->languages();
         $destination = $open ? $translator->destinationFor($open->id) : null;
+        try {
+            $this->conversations->preferPhoneNames($conversations, true);
+            if ($open) {
+                $this->conversations->preferPhoneNames([$open], false);
+            }
+        } catch (\Throwable $e) {
+        }
 
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
@@ -405,6 +412,10 @@ class WhatsAppHubController extends Controller
             $payload['ticks'] = $ticks->map(function ($message) {
                 return ['id' => (int) $message->id, 'tick' => $message->ticks()];
             })->values();
+            try {
+                app(\App\Services\WhatsApp\WhatsAppTranslator::class)->backfillOthers($chatId);
+            } catch (\Throwable $e) {
+            }
         }
 
         $jid = trim((string) $request->get('group', ''));
@@ -428,6 +439,10 @@ class WhatsAppHubController extends Controller
             ->orderByDesc('id')
             ->limit(150)
             ->get();
+        try {
+            $this->conversations->preferPhoneNames($conversations, false);
+        } catch (\Throwable $e) {
+        }
         $payload['items'] = $conversations->map(function ($row) {
             $person = optional($row->contact)->displayName() ?: 'WhatsApp';
             $when = $row->last_activity_at ?: $row->updated_at;

@@ -397,7 +397,7 @@
                 <form class="send-lang" method="POST" action="{{ route('whatsapp.chats.language', $open->id) }}">
                     @csrf
                     <label for="sendLang">Send in</label>
-                    <select id="sendLang" name="language" onchange="this.form.submit()" title="Language for this chat only">
+                    <select id="sendLang" name="language" data-choice="{{ $sendChoice }}" autocomplete="off" title="Language for this chat only">
                         <option value="off" {{ $sendChoice === 'off' ? 'selected' : '' }}>Off</option>
                         <option value="auto" {{ $sendChoice === 'auto' ? 'selected' : '' }}>Detect</option>
                         @foreach($translatorLanguages as $code => $name)
@@ -604,6 +604,20 @@
         });
         body.form.addEventListener('submit', function (event) {
             if (!canSend()) event.preventDefault();
+        });
+    }
+    var sendLang = document.getElementById('sendLang');
+    if (sendLang) {
+        var langChoice = sendLang.getAttribute('data-choice') || '';
+        if (sendLang.value !== langChoice) sendLang.value = langChoice;
+        var langLive = false;
+        setTimeout(function () { langLive = true; }, 800);
+        sendLang.addEventListener('change', function (event) {
+            if (!langLive || !event.isTrusted) {
+                sendLang.value = langChoice;
+                return;
+            }
+            sendLang.form.submit();
         });
     }
     var chatPage = @json(route('whatsapp.chats'));

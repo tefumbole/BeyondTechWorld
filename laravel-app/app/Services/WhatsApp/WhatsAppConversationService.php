@@ -65,13 +65,51 @@ class WhatsAppConversationService
             $contact->normalized_phone = $normalized;
         }
         $contact->display_phone = $this->identity->display($phone);
-        if ($waName && trim((string) $waName) !== '') {
-            $contact->wa_name = $waName;
+        $book = app(\App\Services\BeyondWasenderService::class)->addressBookName($normalized, false);
+        $digits = preg_replace('/\D+/', '', (string) $normalized);
+        if ($book !== '') {
+            $contact->wa_name = $book;
+            \Illuminate\Support\Facades\Cache::put('wa.book.'.$digits, $book, now()->addDays(30));
+        } else {
+            $saved = \Illuminate\Support\Facades\Cache::get('wa.book.'.$digits);
+            if (is_string($saved) && trim($saved) !== '') {
+                $contact->wa_name = trim($saved);
+            } elseif ($waName && trim((string) $waName) !== '') {
+                $contact->wa_name = trim((string) $waName);
+            }
         }
         $contact->save();
         $this->syncIdentityLinks($contact);
 
         return $contact->fresh('links');
+    }
+
+    /**
+     * Use the name saved on the phone, the same name WhatsApp Web shows.
+     */
+    public function preferPhoneNames($conversations, $fetch = true)
+    {
+        $service = app(\App\Services\BeyondWasenderService::class);
+        $map = $service->addressBookMap($fetch);
+        if (! $map) {
+            return;
+        }
+        foreach ($conversations as $row) {
+            $contact = $row && isset($row->contact) ? $row->contact : null;
+            if (! $contact) {
+                continue;
+            }
+            $name = $service->addressBookName($contact->normalized_phone, false);
+            if ($name === '' || trim((string) $contact->wa_name) === $name) {
+                continue;
+            }
+            $contact->wa_name = $name;
+            $contact->save();
+            $digits = preg_replace('/\D+/', '', (string) $contact->normalized_phone);
+            if ($digits !== '') {
+                \Illuminate\Support\Facades\Cache::put('wa.book.'.$digits, $name, now()->addDays(30));
+            }
+        }
     }
 
     public function syncIdentityLinks(WhatsAppContact $contact)
@@ -550,6 +588,14 @@ class WhatsAppConversationService
 
         $sendBody = $body;
         $translation = $translator->forClient($conversation, $body);
+        if (is_array($translation) && ! empty($translation['failed'])) {
+            $name = ! empty($translation['language_name']) ? $translation['language_name'] : 'the client’s language';
+
+            return [
+                'success' => false,
+                'error' => 'Not sent. This chat stays in '.$name.', and the translation did not finish.',
+            ];
+        }
         if ($translation) {
             $sendBody = $translation['text'];
         }
@@ -639,6 +685,25 @@ class WhatsAppConversationService
             return ['success' => false, 'error' => 'Contact is blocked or missing.'];
         }
 
+        $sendCaption = $caption;
+        $translation = null;
+        if ($caption !== '') {
+            $translation = app(WhatsAppTranslator::class)->forClient($conversation, $caption);
+            if (is_array($translation) && ! empty($translation['failed'])) {
+                $name = ! empty($translation['language_name']) ? $translation['language_name'] : 'the client’s language';
+
+                return [
+                    'success' => false,
+                    'error' => 'Not sent. This chat stays in '.$name.', and the translation did not finish.',
+                ];
+            }
+            if (is_array($translation) && ! empty($translation['text'])) {
+                $sendCaption = $translation['text'];
+            } else {
+                $translation = null;
+            }
+        }
+
         $isImage = stripos((string) $mime, 'image/') === 0;
         $type = $isImage ? 'IMAGE' : 'DOCUMENT';
         $dir = public_path('whatsapp-chat');
@@ -660,12 +725,17 @@ class WhatsAppConversationService
             'contact_id' => $contact->id,
             'direction' => WhatsAppMessage::DIR_OUT,
             'type' => $type,
-            'body' => $caption !== '' ? $caption : null,
-            'media_json' => json_encode([
+            'body' => $sendCaption !== '' ? $sendCaption : null,
+            'media_json' => json_encode(array_filter([
                 'url' => 'whatsapp-chat/'.$stored,
                 'file_name' => (string) $originalName,
                 'type' => $type,
-            ]),
+                'translation' => $translation ? [
+                    'staff' => $translation['staff'],
+                    'language' => $translation['language'],
+                    'language_name' => $translation['language_name'],
+                ] : null,
+            ])),
             'status' => WhatsAppMessage::STATUS_QUEUED,
             'sender_type' => 'STAFF',
             'sender_user_id' => $userId,
@@ -679,9 +749,9 @@ class WhatsAppConversationService
             $message->save();
             $result = ['success' => true];
         } elseif ($isImage) {
-            $result = $this->provider->sendImage($contact->normalized_phone, $dest, $caption !== '' ? $caption : null, true);
+            $result = $this->provider->sendImage($contact->normalized_phone, $dest, $sendCaption !== '' ? $sendCaption : null, true);
         } else {
-            $result = $this->provider->sendDocument($contact->normalized_phone, $dest, $originalName, $caption !== '' ? $caption : null, true);
+            $result = $this->provider->sendDocument($contact->normalized_phone, $dest, $originalName, $sendCaption !== '' ? $sendCaption : null, true);
         }
 
         if (! $conversation->isWebsite()) {
@@ -698,7 +768,7 @@ class WhatsAppConversationService
             }
         }
 
-        $preview = $caption !== '' ? $caption : '['.$type.']';
+        $preview = $sendCaption !== '' ? $this->preview($message->hubText(), $type) : '['.$type.']';
         if (! $conversation->first_message) {
             $conversation->first_message = $preview;
         }

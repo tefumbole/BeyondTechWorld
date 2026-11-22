@@ -1161,4 +1161,125 @@ class BeyondWasenderService
 
         return ['success' => false, 'error' => 'WhatsApp is not connected for this company.'];
     }
+
+    /**
+     * Names saved in the phone address book. WhatsApp Web shows these, not the profile name.
+     *
+     * @return array<string, string>
+     */
+    public function addressBookMap($allowFetch = true)
+    {
+        $key = 'wa.address_book.v1';
+        $cached = \Illuminate\Support\Facades\Cache::get($key);
+        if (is_array($cached)) {
+            return $cached;
+        }
+        if (! $allowFetch || ! $this->isConfigured()) {
+            return [];
+        }
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $full = [];
+        $tails = [];
+        $page = 1;
+        $totalPages = 1;
+        $failed = false;
+        $started = microtime(true);
+        do {
+            if ((microtime(true) - $started) > 8) {
+                break;
+            }
+            $fetched = $this->getJson($base.'/contacts?paginated=true&page='.$page.'&limit=100');
+            if (! empty($fetched['error'])) {
+                $failed = true;
+                break;
+            }
+            $data = isset($fetched['data']) && is_array($fetched['data']) ? $fetched['data'] : [];
+            $items = isset($data['items']) && is_array($data['items']) ? $data['items'] : $data;
+            $totalPages = isset($data['pagination']['totalPages']) ? (int) $data['pagination']['totalPages'] : 1;
+            if (! is_array($items)) {
+                break;
+            }
+            foreach ($items as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $id = isset($row['jid']) ? (string) $row['jid'] : (isset($row['id']) ? (string) $row['id'] : '');
+                if ($id === '' || substr($id, -5) === '@g.us') {
+                    continue;
+                }
+                $phone = '';
+                if (preg_match('/^(\d{6,15})@/i', $id, $match)) {
+                    $phone = $match[1];
+                } elseif (preg_match('/^(\d{8,15})$/', preg_replace('/\D+/', '', $id), $match)) {
+                    $phone = $match[1];
+                }
+                $book = '';
+                foreach (['name', 'contactName', 'savedName', 'shortName'] as $keyName) {
+                    if (! empty($row[$keyName]) && is_string($row[$keyName])) {
+                        $book = trim($row[$keyName]);
+                        break;
+                    }
+                }
+                if ($phone === '' || ! $this->isSavedContactName($book, $phone)) {
+                    continue;
+                }
+                $full[$phone] = $book;
+                $tail = substr($phone, -9);
+                if (! isset($tails[$tail])) {
+                    $tails[$tail] = $book;
+                } elseif ($tails[$tail] !== $book) {
+                    $tails[$tail] = '';
+                }
+            }
+            $page++;
+        } while ($page <= $totalPages && $page <= 40);
+
+        foreach ($tails as $tail => $book) {
+            if ($book !== '' && ! isset($full[$tail])) {
+                $full[$tail] = $book;
+            }
+        }
+        if (! $failed) {
+            $complete = $page > $totalPages;
+            \Illuminate\Support\Facades\Cache::put($key, $full, now()->addMinutes($complete ? 15 : 2));
+        }
+
+        return $full;
+    }
+
+    public function addressBookName($phone, $allowFetch = true)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if ($digits === '') {
+            return '';
+        }
+        $map = $this->addressBookMap($allowFetch);
+        if (isset($map[$digits])) {
+            return $map[$digits];
+        }
+        $tail = substr($digits, -9);
+        if (strlen($tail) >= 9 && isset($map[$tail])) {
+            return $map[$tail];
+        }
+
+        return '';
+    }
+
+    protected function isSavedContactName($name, $phone)
+    {
+        $name = trim((string) $name);
+        if ($name === '' || mb_strlen($name) < 2) {
+            return false;
+        }
+        $nameDigits = preg_replace('/\D+/', '', $name);
+        $phoneDigits = preg_replace('/\D+/', '', (string) $phone);
+        if ($nameDigits !== '' && ($nameDigits === $phoneDigits || substr($phoneDigits, -strlen($nameDigits)) === $nameDigits && strlen($nameDigits) >= 8)) {
+            return false;
+        }
+        if (preg_match('/^\+?\d[\d\s().-]{6,}$/', $name)) {
+            return false;
+        }
+
+        return true;
+    }
 }
