@@ -175,8 +175,8 @@
                                 @if($item->sender_type === 'STAFF')<div class="small text-muted">Staff</div>@endif
                                 <div>{{ $item->hubText() !== '' ? $item->hubText() : '['.$item->type.']' }}</div>
                                 @if($item->hubAside() !== '')<div class="small text-muted">{{ $item->hubAside() }}</div>@endif
-                                <div class="wa-meta">
-                                    {{ $item->created_at }}
+                                <div class="wa-meta" @if($item->created_at) data-at="{{ $item->created_at->toIso8601String() }}" @endif>
+                                    <span class="clock">{{ $item->created_at }}</span>
                                     @if($item->direction === 'OUTGOING')
                                         @php $tick = $item->ticks(); @endphp
                                         <span class="wa-ticks-{{ $tick }}">
@@ -292,7 +292,9 @@
         </div>
     </div>
 </section>
+@include('whatsapp_hub.partials.local_time')
 <script>
+if (window.applyLocalHubTimes) window.applyLocalHubTimes();
 (function () {
     var lastId = {{ (int) ($messages->max('id') ?: 0) }};
     setInterval(function () {

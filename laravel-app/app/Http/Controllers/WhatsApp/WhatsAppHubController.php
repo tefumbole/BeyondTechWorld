@@ -423,6 +423,7 @@ class WhatsAppHubController extends Controller
                 'phone' => (string) optional($row->contact)->display_phone,
                 'preview' => $this->chatPreview($preview),
                 'time' => $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '',
+                'at' => $when ? $when->toIso8601String() : '',
                 'unread' => (int) $row->unread_count,
                 'mode' => (string) $row->mode,
             ];
@@ -455,6 +456,7 @@ class WhatsAppHubController extends Controller
             'text' => $message->hubText(),
             'aside' => $message->hubAside(),
             'time' => $when ? $when->format('H:i') : '',
+            'at' => $when ? $when->toIso8601String() : '',
             'day' => $when ? $when->format('Y-m-d') : '',
             'day_label' => $this->chatDayLabel($when),
             'tick' => $message->ticks(),
@@ -485,6 +487,7 @@ class WhatsAppHubController extends Controller
             'who' => empty($media['outgoing']) ? ($message->participant_name ?: 'Member') : '',
             'text' => (string) $message->body,
             'time' => $when ? $when->format('H:i') : '',
+            'at' => $when ? $when->toIso8601String() : '',
             'day' => $when ? $when->format('Y-m-d') : '',
             'day_label' => $this->chatDayLabel($when),
             'tick' => ! empty($media['outgoing']) ? 'sent' : '',

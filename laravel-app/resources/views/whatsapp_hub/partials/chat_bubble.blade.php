@@ -8,7 +8,7 @@
     $tick = (string) ($tick ?? '');
     $fileLabel = $mediaName !== '' ? $mediaName : ($type === 'IMAGE' ? 'Photo' : ($type === 'AUDIO' ? 'Voice message' : ($type === 'VIDEO' ? 'Video' : ($type === 'LOCATION' ? 'Location' : 'Document'))));
 @endphp
-<div class="bubble {{ !empty($out) ? 'out' : 'in' }}" @if(!empty($id)) data-id="{{ (int) $id }}" @endif @if(!empty($day)) data-day="{{ $day }}" @endif>
+<div class="bubble {{ !empty($out) ? 'out' : 'in' }}" @if(!empty($id)) data-id="{{ (int) $id }}" @endif @if(!empty($at)) data-at="{{ $at }}" @endif @if(!empty($day)) data-day="{{ $day }}" @endif>
     @if(!empty($who))<span class="who">{{ $who }}</span>@endif
     @if($type === 'IMAGE' && $mediaUrl !== '')
         <img class="chat-photo" src="{{ $mediaUrl }}" alt="{{ $fileLabel }}" loading="lazy" decoding="async" onerror="this.replaceWith(document.createTextNode(this.alt||'Photo'))">
@@ -30,5 +30,5 @@
             @endforeach
         </div>
     @endif
-    <time>{{ $time ?? '' }}@if(!empty($out))<span class="tick {{ $tick }}">@if($tick === 'failed')!@elseif(in_array($tick, ['read', 'played', 'delivered'], true))✓✓@else ✓@endif</span>@endif</time>
+    <time @if(!empty($at)) data-at="{{ $at }}" @endif><span class="clock">{{ $time ?? '' }}</span>@if(!empty($out))<span class="tick {{ $tick }}">@if($tick === 'failed')!@elseif(in_array($tick, ['read', 'played', 'delivered'], true))✓✓@else ✓@endif</span>@endif</time>
 </div>

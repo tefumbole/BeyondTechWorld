@@ -199,7 +199,7 @@
                     <span class="chat-main">
                         <span class="chat-top">
                             <span class="chat-name">{{ $person }}</span>
-                            <span class="chat-time">{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
+                            <span class="chat-time" @if($when) data-at="{{ $when->toIso8601String() }}" @endif>{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
                         </span>
                         <span class="chat-bottom">
                             <span class="chat-preview">
@@ -239,7 +239,7 @@
                         <span class="chat-main">
                             <span class="chat-top">
                                 <span class="chat-name">{{ $person }}</span>
-                                <span class="chat-time">{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
+                                <span class="chat-time" @if($when) data-at="{{ $when->toIso8601String() }}" @endif>{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
                             </span>
                             <span class="chat-bottom"><span class="chat-preview">{{ ucfirst(strtolower(str_replace('_', ' ', (string) $call->status))) }}{{ $call->call_type ? ' · '.$call->call_type : '' }}</span></span>
                         </span>
@@ -259,7 +259,7 @@
                         <span class="chat-main">
                             <span class="chat-top">
                                 <span class="chat-name">{{ $person }}</span>
-                                <span class="chat-time">{{ $item->created_at ? $item->created_at->format($item->created_at->isToday() ? 'H:i' : 'M j') : '' }}</span>
+                                <span class="chat-time" @if($item->created_at) data-at="{{ $item->created_at->toIso8601String() }}" @endif>{{ $item->created_at ? $item->created_at->format($item->created_at->isToday() ? 'H:i' : 'M j') : '' }}</span>
                             </span>
                             <span class="chat-bottom"><span class="chat-preview">{{ $label }}{{ $item->body ? ' · '.$item->body : '' }}</span></span>
                         </span>
@@ -279,7 +279,7 @@
                         <span class="chat-main">
                             <span class="chat-top">
                                 <span class="chat-name">{{ $title }}</span>
-                                <span class="chat-time">{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
+                                <span class="chat-time" @if($when) data-at="{{ $when->toIso8601String() }}" @endif>{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
                             </span>
                             <span class="chat-bottom"><span class="chat-preview">{{ \Illuminate\Support\Str::limit(trim(strip_tags((string) $update->body)), 80) }}</span></span>
                         </span>
@@ -362,6 +362,7 @@
                     @include('whatsapp_hub.partials.chat_bubble', [
                         'id' => $message->id,
                         'day' => $message->created_at ? $message->created_at->format('Y-m-d') : '',
+                        'at' => $message->created_at ? $message->created_at->toIso8601String() : '',
                         'out' => $message->direction === 'OUTGOING',
                         'text' => $message->hubText(),
                         'aside' => $message->hubAside(),
@@ -430,6 +431,7 @@
                     @include('whatsapp_hub.partials.chat_bubble', [
                         'id' => $message->id,
                         'day' => $dayKey,
+                        'at' => $when ? $when->toIso8601String() : '',
                         'out' => ! empty($media['outgoing']),
                         'text' => $message->body,
                         'time' => $when ? $when->format('H:i') : '',
@@ -459,6 +461,7 @@
         @endif
     </section>
 </div>
+@include('whatsapp_hub.partials.local_time')
 <script>
 (function () {
     var search = document.getElementById('chatSearch');
@@ -606,12 +609,15 @@
         } else if (message.media && (message.type === 'DOCUMENT' || message.type === 'LOCATION')) {
             media = '<a class="chat-file" target="_blank" rel="noopener" href="' + esc(message.media) + '">' + esc(message.name || 'Document') + '</a>';
         }
-        return '<div class="bubble ' + (message.out ? 'out' : 'in') + '" data-id="' + message.id + '" data-day="' + esc(message.day) + '">'
+        var at = message.at || '';
+        var dayKey = at && window.hubDayKey ? window.hubDayKey(at) : (message.day || '');
+        var clock = at && window.hubClock ? window.hubClock(at) : (message.time || '');
+        return '<div class="bubble ' + (message.out ? 'out' : 'in') + '" data-id="' + message.id + '" data-day="' + esc(dayKey) + '"' + (at ? ' data-at="' + esc(at) + '"' : '') + '>'
             + (message.who ? '<span class="who">' + esc(message.who) + '</span>' : '')
             + media
             + (message.text ? esc(message.text) : '')
             + (message.aside ? '<span class="aside">' + esc(message.aside) + '</span>' : '')
-            + '<time>' + esc(message.time || '') + (message.out ? tickHtml(message.tick) : '') + '</time></div>';
+            + '<time' + (at ? ' data-at="' + esc(at) + '"' : '') + '><span class="clock">' + esc(clock) + '</span>' + (message.out ? tickHtml(message.tick) : '') + '</time></div>';
     }
     function nearBottom(node) {
         return node.scrollHeight - node.scrollTop - node.clientHeight < 140;
@@ -627,6 +633,10 @@
         }
         messages.forEach(function (message) {
             if (stream.querySelector('.bubble[data-id="' + message.id + '"]')) return;
+            if (message.at && window.hubDayKey) {
+                message.day = window.hubDayKey(message.at);
+                message.day_label = window.hubDayLabel(message.at);
+            }
             if (message.day && message.day !== previous) {
                 html += '<div class="day-chip">' + esc(message.day_label || message.day) + '</div>';
                 previous = message.day;
@@ -668,7 +678,8 @@
             var badge = item.unread > 0 ? '<span class="chat-badge">' + item.unread + '</span>' : '';
             var ai = item.mode === 'AI' ? '<span class="chat-ai">AI </span>' : '';
             var initial = (item.name || 'W').charAt(0).toUpperCase();
-            row.innerHTML = '<span class="chat-avatar" data-tone="' + (item.tone || 0) + '">' + esc(initial) + '</span><span class="chat-main"><span class="chat-top"><span class="chat-name">' + esc(item.name) + '</span><span class="chat-time">' + esc(item.time) + '</span></span><span class="chat-bottom"><span class="chat-preview">' + ai + esc(item.preview || '') + '</span>' + badge + '</span></span>';
+            var when = item.at && window.hubListTime ? window.hubListTime(item.at) : (item.time || '');
+            row.innerHTML = '<span class="chat-avatar" data-tone="' + (item.tone || 0) + '">' + esc(initial) + '</span><span class="chat-main"><span class="chat-top"><span class="chat-name">' + esc(item.name) + '</span><span class="chat-time"' + (item.at ? ' data-at="' + esc(item.at) + '"' : '') + '>' + esc(when) + '</span></span><span class="chat-bottom"><span class="chat-preview">' + ai + esc(item.preview || '') + '</span>' + badge + '</span></span>';
             list.insertBefore(row, head ? head.nextSibling : list.firstChild);
         });
         var unread = 0;
@@ -734,6 +745,7 @@
     if (liveReady()) setInterval(poll, 4000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
     function liveReady() { return true; }
+    if (window.applyLocalHubTimes) window.applyLocalHubTimes();
     poll();
 })();
 </script>
