@@ -45,8 +45,9 @@ class WaSenderEventParser
         if ($event === 'message.sent') {
             return $this->parseSent($parsed, $data, $payload);
         }
-        if ($event === 'chats.update' || $event === 'chats.upsert') {
+        if ($event === 'chats.update' || $event === 'chats.upsert' || $event === 'chats.delete') {
             $parsed['type'] = $event;
+            $parsed['provider_event_id'] = substr(sha1(json_encode(isset($payload['data']) ? $payload['data'] : [])), 0, 32);
 
             return $parsed;
         }
@@ -304,9 +305,16 @@ class WaSenderEventParser
     public function chatUpdates(array $payload)
     {
         $data = isset($payload['data']) && is_array($payload['data']) ? $payload['data'] : [];
-        $chats = isset($data['chats']) && is_array($data['chats']) ? $data['chats'] : [];
-        if ($chats !== [] && (isset($chats['id']) || isset($chats['unreadCount']) || isset($chats['messages']))) {
-            $chats = [$chats];
+        if (isset($data['chats']) && is_array($data['chats'])) {
+            $chats = $data['chats'];
+            if (isset($chats['id']) || array_key_exists('unreadCount', $chats) || isset($chats['messages'])) {
+                $chats = [$chats];
+            }
+        } elseif (isset($data['id']) || array_key_exists('unreadCount', $data) || isset($data['messages'])) {
+            $chats = [$data];
+        } else {
+            // Wasender sends data as a list: [{id, unreadCount, conversationTimestamp}].
+            $chats = $data;
         }
         $rows = [];
         foreach ($chats as $chat) {
@@ -331,14 +339,21 @@ class WaSenderEventParser
             $wrapped = $chat['messages'];
         }
         $key = isset($wrapped['key']) && is_array($wrapped['key']) ? $wrapped['key'] : [];
+        $jid = '';
+        if (! empty($chat['id'])) {
+            $jid = (string) $chat['id'];
+        } elseif (! empty($chat['jid'])) {
+            $jid = (string) $chat['jid'];
+        }
         $phone = $wrapped ? $this->phoneFromKey($key, $wrapped) : null;
-        if (! $phone && ! empty($chat['id'])) {
-            $phone = $this->phoneFromJid($chat['id']);
+        if (! $phone && $jid !== '' && substr($jid, -4) !== '@lid') {
+            $phone = $this->phoneFromJid($jid);
         }
         $stamp = isset($chat['conversationTimestamp']) ? $chat['conversationTimestamp'] : (isset($wrapped['messageTimestamp']) ? $wrapped['messageTimestamp'] : (isset($payload['timestamp']) ? $payload['timestamp'] : null));
 
         return [
             'phone' => $phone,
+            'jid' => $jid,
             'from_me' => ! empty($key['fromMe']),
             'message_id' => isset($key['id']) ? (string) $key['id'] : null,
             'wa_name' => $wrapped ? $this->pushName($wrapped, $chat) : (isset($chat['name']) ? (string) $chat['name'] : null),

@@ -74,6 +74,12 @@ class WhatsAppWebhookProcessor
             $event->status = WhatsAppWebhookEvent::PROCESSED;
         } elseif ($type === 'chats.update' || $type === 'chats.upsert') {
             foreach ($this->parser->chatUpdates($event->payloadArray()) as $chat) {
+                if (empty($chat['phone']) && ! empty($chat['jid'])) {
+                    $chat['phone'] = app(\App\Services\BeyondWasenderService::class)->phoneForChatId($chat['jid']);
+                }
+                if (empty($chat['phone'])) {
+                    continue;
+                }
                 $this->conversations->syncPhoneChat($chat);
             }
             $event->status = WhatsAppWebhookEvent::PROCESSED;

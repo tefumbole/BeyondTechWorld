@@ -304,7 +304,7 @@ if (window.applyLocalHubTimes) window.applyLocalHubTimes();
             (data.messages || []).forEach(function (m) { if (m.id > max) max = m.id; });
             if (max > lastId) { window.location.reload(); }
         });
-    }, 12000);
+    }, 2000);
 })();
 </script>
 @endsection

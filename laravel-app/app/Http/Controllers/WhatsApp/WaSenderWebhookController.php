@@ -76,7 +76,25 @@ class WaSenderWebhookController extends Controller
             ], 200);
         }
 
-        ProcessWasenderWebhook::dispatch($event->id)->onQueue('whatsapp');
+        $immediate = [
+            'chats.update', 'chats.upsert',
+            'messages.update', 'message.update',
+            'message-receipt.update', 'messages.receipt', 'message.receipt',
+            'message.sent',
+        ];
+        if (in_array($event->event_type, $immediate, true)) {
+            try {
+                app(\App\Services\WhatsApp\WhatsAppWebhookProcessor::class)->process($event);
+            } catch (\Throwable $e) {
+                Log::warning('[whatsapp-hub] immediate webhook failed', [
+                    'event_id' => $event->id,
+                    'error' => $e->getMessage(),
+                ]);
+                ProcessWasenderWebhook::dispatch($event->id)->onQueue('whatsapp');
+            }
+        } else {
+            ProcessWasenderWebhook::dispatch($event->id)->onQueue('whatsapp');
+        }
 
         return response()->json(['ok' => true, 'id' => $event->id], 200);
     }

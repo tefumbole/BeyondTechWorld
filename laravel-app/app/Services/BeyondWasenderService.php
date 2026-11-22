@@ -905,6 +905,46 @@ class BeyondWasenderService
         ];
     }
 
+    /**
+     * Phone for a Wasender chat id. Numeric ids and @s.whatsapp.net are used
+     * directly. A privacy @lid is resolved once and remembered.
+     */
+    public function phoneForChatId($id)
+    {
+        $id = trim((string) $id);
+        if ($id === '') {
+            return null;
+        }
+        if (substr($id, -4) !== '@lid') {
+            $digits = preg_replace('/\D+/', '', preg_replace('/@.+$/', '', $id));
+
+            return $digits !== '' ? $digits : null;
+        }
+        $cacheKey = 'wa.lid.'.md5($id);
+        $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        if (is_string($cached) && $cached !== '') {
+            return $cached;
+        }
+        if (! $this->isConfigured()) {
+            return null;
+        }
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $fetched = $this->getJson($base.'/pn-from-lid/'.rawurlencode($id));
+        $pn = '';
+        if (isset($fetched['data']['pn'])) {
+            $pn = (string) $fetched['data']['pn'];
+        } elseif (isset($fetched['data']['phone'])) {
+            $pn = (string) $fetched['data']['phone'];
+        }
+        $digits = preg_replace('/\D+/', '', preg_replace('/@.+$/', '', $pn));
+        if ($digits === '') {
+            return null;
+        }
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $digits, now()->addDays(30));
+
+        return $digits;
+    }
+
     public function markRead(array $key)
     {
         if (! $this->isConfigured() || empty($key['id']) || empty($key['remoteJid'])) {

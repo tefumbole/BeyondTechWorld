@@ -152,7 +152,12 @@ class WhatsAppConversationService
         $message = $message->fresh() ?: $message;
         $preview = $this->preview($message->hubText(), $parsed['message_type'] ?? 'TEXT');
 
-        $conversation->unread_count = (int) $conversation->unread_count + 1;
+        if ($this->phoneAlreadyRead($conversation, $parsed)) {
+            $message->read_at = $message->read_at ?: now();
+            $message->save();
+        } else {
+            $conversation->unread_count = (int) $conversation->unread_count + 1;
+        }
         if (! $conversation->first_message) {
             $conversation->first_message = $preview;
         }
@@ -317,11 +322,12 @@ class WhatsAppConversationService
             // thread open and has seen the incoming messages. Treat it as read.
             $markReadFromPhone = true;
             $conversation->unread_count = 0;
-        } elseif ($created && empty($parsed['from_me']) && $at && $at->greaterThan(now()->subMinutes(10))) {
+        } elseif ($created && empty($parsed['from_me']) && $at && $at->greaterThan(now()->subMinutes(10)) && ! $this->phoneAlreadyRead($conversation, $parsed)) {
             $conversation->unread_count = (int) $conversation->unread_count + 1;
         }
 
         if ($markReadFromPhone) {
+            \Illuminate\Support\Facades\Cache::put('wa.phone_read.'.$conversation->id, time(), now()->addMinutes(30));
             WhatsAppMessage::where('conversation_id', $conversation->id)
                 ->where('direction', WhatsAppMessage::DIR_IN)
                 ->whereNull('read_at')
@@ -855,8 +861,32 @@ class WhatsAppConversationService
             $conversation->unread_count = $left;
             $conversation->save();
         }
+        if ($left === 0) {
+            \Illuminate\Support\Facades\Cache::put('wa.phone_read.'.$conversation->id, time(), now()->addMinutes(30));
+        }
 
         return $conversation;
+    }
+
+    /**
+     * The phone already marked this chat read, and this message is not newer
+     * than that read. Keeps a late webhook from putting the badge back.
+     */
+    protected function phoneAlreadyRead(WhatsAppConversation $conversation, array $parsed)
+    {
+        $readAt = \Illuminate\Support\Facades\Cache::get('wa.phone_read.'.$conversation->id);
+        if (! $readAt) {
+            return false;
+        }
+        $stamp = isset($parsed['timestamp']) ? (int) $parsed['timestamp'] : time();
+        if ($stamp > 1000000000000) {
+            $stamp = (int) floor($stamp / 1000);
+        }
+        if ($stamp < 1000000000) {
+            $stamp = time();
+        }
+
+        return $stamp <= ((int) $readAt) + 3;
     }
 
     public function assign(WhatsAppConversation $conversation, $userId, $actorId = null)

@@ -18,7 +18,13 @@ class SyncWhatsAppPhone extends Command
         $types = ['chats.update', 'chats.upsert', 'message.sent', 'messages.upsert'];
         $count = 0;
         WhatsAppWebhookEvent::whereIn('event_type', $types)
-            ->where('status', WhatsAppWebhookEvent::IGNORED)
+            ->where(function ($query) {
+                $query->where('status', WhatsAppWebhookEvent::IGNORED)
+                    ->orWhere(function ($recent) {
+                        $recent->whereIn('event_type', ['chats.update', 'chats.upsert'])
+                            ->where('received_at', '>=', now()->subHours(36));
+                    });
+            })
             ->orderBy('id')
             ->chunkById(200, function ($events) use ($processor, &$count) {
                 foreach ($events as $event) {

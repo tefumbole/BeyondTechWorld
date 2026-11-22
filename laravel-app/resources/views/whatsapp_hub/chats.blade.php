@@ -742,7 +742,7 @@
             if (before) poll('&before=' + before);
         });
     }
-    if (liveReady()) setInterval(poll, 4000);
+    if (liveReady()) setInterval(poll, 1000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
     function liveReady() { return true; }
     if (window.applyLocalHubTimes) window.applyLocalHubTimes();
