@@ -52,13 +52,15 @@
     .chat-main { min-width: 0; flex: 1; }
     .chat-top, .chat-bottom { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .chat-bottom { margin-top: 3px; }
-    .chat-name { font-weight: 600; font-size: 15px; color: var(--wa-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-name { font-weight: 600; font-size: 15px; color: var(--wa-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
     .chat-time { color: var(--wa-muted); font-size: 12px; flex: none; }
     .chat-preview { color: var(--wa-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .chat-row[data-read="0"] .chat-name { font-weight: 800; }
-    .chat-row[data-read="0"] .chat-preview { color: #2c3a57; font-weight: 600; }
-    .chat-row[data-read="0"] .chat-time { color: var(--wa-teal); font-weight: 700; }
-    .chat-badge { background: var(--wa-green); color: #fff; border-radius: 999px; min-width: 22px; height: 22px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; padding: 0 7px; flex: none; box-shadow: 0 3px 8px rgba(37, 211, 102, .4); }
+    .chat-state { flex: none; border-radius: 999px; background: #18a957; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; }
+    .chat-row[data-read="0"] { background: #e7f8ee; box-shadow: inset 4px 0 0 #18a957; }
+    .chat-row[data-read="0"] .chat-name { font-weight: 800; color: #0c2416; }
+    .chat-row[data-read="0"] .chat-preview { color: #14301f; font-weight: 700; }
+    .chat-row[data-read="0"] .chat-time { color: #0d8a45; font-weight: 800; }
+    .chat-badge { background: #18a957; color: #fff; border-radius: 999px; min-width: 24px; height: 24px; font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; padding: 0 7px; flex: none; box-shadow: 0 3px 8px rgba(24, 169, 87, .45); }
     .chat-ai { display: inline-block; color: #fff; background: linear-gradient(135deg, #7c5cff, #4f46e5); font-size: 10px; font-weight: 800; border-radius: 6px; padding: 1px 6px; margin-right: 4px; letter-spacing: .3px; }
     .chats-thread { flex: 1 1 auto; min-width: 0; min-height: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column;
         background-color: #eef3fb;
@@ -91,9 +93,10 @@
     .bubble.in { background: #fff; }
     .bubble.out { align-self: flex-end; background: linear-gradient(135deg, #d9fdd3 0%, #c8f5e4 100%); border-radius: 16px 4px 16px 16px; margin-left: auto; }
     @keyframes bubbleIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-    .bubble time { float: right; margin: 8px 0 0 10px; color: #7c8aa5; font-size: 11px; line-height: 1; }
-    .bubble .tick { margin-left: 3px; letter-spacing: -1px; }
-    .bubble .tick.read { color: #34b7f1; }
+    .bubble time { float: right; margin: 8px 0 0 10px; color: #7c8aa5; font-size: 11px; line-height: 1; white-space: nowrap; }
+    .bubble .tick { margin-left: 6px; font-weight: 800; letter-spacing: 0; }
+    .bubble .tick.sent, .bubble .tick.queued, .bubble .tick.delivered { color: #5c6b84; }
+    .bubble .tick.read, .bubble .tick.played { color: #fff; background: #0b86d0; border-radius: 999px; padding: 2px 6px; }
     .bubble .tick.failed { color: #e5484d; }
     .bubble img.chat-photo { display: block; max-width: 280px; width: 100%; border-radius: 10px; margin-bottom: 5px; }
     .bubble audio, .bubble video { display: block; max-width: 280px; width: 100%; margin-bottom: 5px; border-radius: 10px; }
@@ -189,6 +192,22 @@
         <div class="chats-list" id="chatList">
             <div class="chat-none" id="chatNone" @if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0) style="display:block" @endif>@if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0)No conversations yet. Chats from the Wasender number appear here.@else Nothing in this list.@endif</div>
             @if($pane === 'chats')
+            @php
+                $conversations = $conversations->sort(function ($a, $b) use ($openId) {
+                    $aUnread = (int) $a->id !== $openId && (int) $a->unread_count > 0 ? 1 : 0;
+                    $bUnread = (int) $b->id !== $openId && (int) $b->unread_count > 0 ? 1 : 0;
+                    if ($aUnread !== $bUnread) {
+                        return $bUnread - $aUnread;
+                    }
+                    $aTime = $a->last_activity_at ?: $a->updated_at;
+                    $bTime = $b->last_activity_at ?: $b->updated_at;
+                    if ($aTime == $bTime) {
+                        return 0;
+                    }
+
+                    return $aTime < $bTime ? 1 : -1;
+                })->values();
+            @endphp
             @foreach($conversations as $row)
                 @php
                     $person = optional($row->contact)->displayName() ?: 'WhatsApp';
@@ -207,6 +226,7 @@
                     <span class="chat-main">
                         <span class="chat-top">
                             <span class="chat-name">{{ $person }}</span>
+                            @if($rowUnread > 0)<span class="chat-state">Unread</span>@endif
                             <span class="chat-time" @if($when) data-at="{{ $when->toIso8601String() }}" @endif>{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
                         </span>
                         <span class="chat-bottom">
@@ -635,8 +655,11 @@
     }
     function tickHtml(tick) {
         if (!tick) return '';
-        if (tick === 'failed') return '<span class="tick failed">!</span>';
-        if (tick === 'read' || tick === 'played' || tick === 'delivered') return '<span class="tick ' + tick + '">✓✓</span>';
+        if (tick === 'failed') return '<span class="tick failed">! Not sent</span>';
+        if (tick === 'read' || tick === 'played') return '<span class="tick ' + tick + '">✓✓ Read</span>';
+        if (tick === 'delivered') return '<span class="tick delivered">✓✓ Delivered</span>';
+        if (tick === 'sent') return '<span class="tick sent">✓ Sent</span>';
+        if (tick === 'queued') return '<span class="tick queued">Sending</span>';
         return '<span class="tick">✓</span>';
     }
     function bubbleHtml(message) {
@@ -704,6 +727,7 @@
         if (!list || !filters || !items) return;
         list.querySelectorAll('.chat-row.is-on').forEach(function (row) { row.classList.remove('is-on'); });
         var head = document.getElementById('chatNone');
+        var readTop = null;
         items.slice().reverse().forEach(function (item) {
             var row = list.querySelector('.chat-row[data-id="' + item.id + '"]');
             if (!row) {
@@ -717,11 +741,21 @@
             row.setAttribute('data-name', (item.name + ' ' + (item.phone || '')).toLowerCase());
             if (openChat && item.id === openChat) row.classList.add('is-on');
             var badge = item.unread > 0 ? '<span class="chat-badge">' + item.unread + '</span>' : '';
+            var state = item.unread > 0 ? '<span class="chat-state">Unread</span>' : '';
             var ai = item.mode === 'AI' ? '<span class="chat-ai">AI </span>' : '';
             var initial = (item.name || 'W').charAt(0).toUpperCase();
             var when = item.at && window.hubListTime ? window.hubListTime(item.at) : (item.time || '');
-            row.innerHTML = '<span class="chat-avatar" data-tone="' + (item.tone || 0) + '">' + esc(initial) + '</span><span class="chat-main"><span class="chat-top"><span class="chat-name">' + esc(item.name) + '</span><span class="chat-time"' + (item.at ? ' data-at="' + esc(item.at) + '"' : '') + '>' + esc(when) + '</span></span><span class="chat-bottom"><span class="chat-preview">' + ai + esc(item.preview || '') + '</span>' + badge + '</span></span>';
-            list.insertBefore(row, head ? head.nextSibling : list.firstChild);
+            row.innerHTML = '<span class="chat-avatar" data-tone="' + (item.tone || 0) + '">' + esc(initial) + '</span><span class="chat-main"><span class="chat-top"><span class="chat-name">' + esc(item.name) + '</span>' + state + '<span class="chat-time"' + (item.at ? ' data-at="' + esc(item.at) + '"' : '') + '>' + esc(when) + '</span></span><span class="chat-bottom"><span class="chat-preview">' + ai + esc(item.preview || '') + '</span>' + badge + '</span></span>';
+            if (item.unread > 0) list.insertBefore(row, head ? head.nextSibling : list.firstChild);
+            else if (!readTop) {
+                var groupRow = list.querySelector('.chat-row[data-kind="group"]');
+                if (groupRow) list.insertBefore(row, groupRow);
+                else list.appendChild(row);
+                readTop = row;
+            } else {
+                list.insertBefore(row, readTop);
+                readTop = row;
+            }
         });
         var unread = 0;
         var read = 0;
@@ -741,7 +775,7 @@
             var node = stream.querySelector('.bubble[data-id="' + item.id + '"] .tick');
             if (!node) return;
             node.className = 'tick' + (item.tick ? ' ' + item.tick : '');
-            node.textContent = item.tick === 'failed' ? '!' : ((item.tick === 'read' || item.tick === 'played' || item.tick === 'delivered') ? '✓✓' : '✓');
+            node.textContent = item.tick === 'failed' ? '! Not sent' : (item.tick === 'read' || item.tick === 'played' ? '✓✓ Read' : (item.tick === 'delivered' ? '✓✓ Delivered' : (item.tick === 'sent' ? '✓ Sent' : (item.tick === 'queued' ? 'Sending' : '✓'))));
         });
     }
     function poll(extra) {
@@ -811,7 +845,28 @@
     if (window.applyLocalHubTimes) window.applyLocalHubTimes();
     poll();
     setTimeout(function () {
-        fetch(chatPage + '?poll=1&names=1', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' }).catch(function () {});
+        fetch(chatPage + '?poll=1&names=1', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                var rows = document.getElementById('chatList');
+                (data.names || []).forEach(function (item) {
+                    if (!item.name) return;
+                    if (rows) {
+                        var row = rows.querySelector('.chat-row[data-id="' + item.id + '"]');
+                        if (row) {
+                            var name = row.querySelector('.chat-name');
+                            if (name) name.textContent = item.name;
+                            var avatar = row.querySelector('.chat-avatar');
+                            if (avatar) avatar.textContent = item.name.charAt(0).toUpperCase();
+                        }
+                    }
+                    if (openChat && item.id === openChat) {
+                        var title = document.querySelector('.chats-head h2');
+                        if (title) title.textContent = item.name;
+                    }
+                });
+            })
+            .catch(function () {});
     }, 600);
 })();
 </script>

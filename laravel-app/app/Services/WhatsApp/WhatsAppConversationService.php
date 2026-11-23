@@ -74,7 +74,7 @@ class WhatsAppConversationService
             $saved = \Illuminate\Support\Facades\Cache::get('wa.book.'.$digits);
             if (is_string($saved) && trim($saved) !== '') {
                 $contact->wa_name = trim($saved);
-            } elseif ($waName && trim((string) $waName) !== '') {
+            } elseif (trim((string) $contact->wa_name) === '' && $waName && trim((string) $waName) !== '') {
                 $contact->wa_name = trim((string) $waName);
             }
         }

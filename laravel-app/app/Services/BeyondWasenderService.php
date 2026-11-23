@@ -1169,82 +1169,159 @@ class BeyondWasenderService
      */
     public function addressBookMap($allowFetch = true)
     {
-        $key = 'wa.address_book.v1';
+        $key = 'wa.address_book.v2';
         $cached = \Illuminate\Support\Facades\Cache::get($key);
-        if (is_array($cached)) {
+        if (is_array($cached) && $cached) {
             return $cached;
         }
         if (! $allowFetch || ! $this->isConfigured()) {
-            return [];
+            return is_array($cached) ? $cached : [];
         }
         $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $fetched = $this->getJson($base.'/contacts');
+        $items = $this->contactItems($fetched);
+        if (! $items) {
+            $items = [];
+            $page = 1;
+            $totalPages = 1;
+            $started = microtime(true);
+            do {
+                if ((microtime(true) - $started) > 20) {
+                    break;
+                }
+                $pageFetch = $this->getJson($base.'/contacts?paginated=true&page='.$page.'&limit=100');
+                if (! empty($pageFetch['error'])) {
+                    break;
+                }
+                $data = isset($pageFetch['data']) && is_array($pageFetch['data']) ? $pageFetch['data'] : [];
+                $totalPages = isset($data['pagination']['totalPages']) ? (int) $data['pagination']['totalPages'] : 1;
+                $chunk = $this->contactItems($pageFetch);
+                foreach ($chunk as $row) {
+                    $items[] = $row;
+                }
+                $page++;
+            } while ($page <= $totalPages && $page <= 40);
+        }
+        $full = $this->namesFromContactRows($items);
+        if ($full) {
+            \Illuminate\Support\Facades\Cache::put($key, $full, now()->addMinutes(15));
+        }
+
+        return $full;
+    }
+
+    /**
+     * @param  array<string, mixed>  $fetched
+     * @return array<int, array<string, mixed>>
+     */
+    protected function contactItems(array $fetched)
+    {
+        if (! empty($fetched['error'])) {
+            return [];
+        }
+        $data = isset($fetched['data']) && is_array($fetched['data']) ? $fetched['data'] : [];
+        if (isset($data['items']) && is_array($data['items'])) {
+            return $data['items'];
+        }
+        if (isset($data['contacts']) && is_array($data['contacts'])) {
+            return $data['contacts'];
+        }
+        if (isset($data[0]) && is_array($data[0])) {
+            return $data;
+        }
+
+        return [];
+    }
+
+    /**
+     * @param  array<int, mixed>  $items
+     * @return array<string, string>
+     */
+    protected function namesFromContactRows(array $items)
+    {
         $full = [];
         $tails = [];
-        $page = 1;
-        $totalPages = 1;
-        $failed = false;
-        $started = microtime(true);
-        do {
-            if ((microtime(true) - $started) > 8) {
-                break;
+        foreach ($items as $row) {
+            if (! is_array($row)) {
+                continue;
             }
-            $fetched = $this->getJson($base.'/contacts?paginated=true&page='.$page.'&limit=100');
-            if (! empty($fetched['error'])) {
-                $failed = true;
-                break;
+            $phone = $this->contactListPhone($row);
+            $book = $this->savedBookName($row);
+            if ($phone === '' || ! $this->isSavedContactName($book, $phone)) {
+                continue;
             }
-            $data = isset($fetched['data']) && is_array($fetched['data']) ? $fetched['data'] : [];
-            $items = isset($data['items']) && is_array($data['items']) ? $data['items'] : $data;
-            $totalPages = isset($data['pagination']['totalPages']) ? (int) $data['pagination']['totalPages'] : 1;
-            if (! is_array($items)) {
-                break;
+            $full[$phone] = $book;
+            $tail = substr($phone, -9);
+            if (! isset($tails[$tail])) {
+                $tails[$tail] = $book;
+            } elseif ($tails[$tail] !== $book) {
+                $tails[$tail] = '';
             }
-            foreach ($items as $row) {
-                if (! is_array($row)) {
-                    continue;
-                }
-                $id = isset($row['jid']) ? (string) $row['jid'] : (isset($row['id']) ? (string) $row['id'] : '');
-                if ($id === '' || substr($id, -5) === '@g.us') {
-                    continue;
-                }
-                $phone = '';
-                if (preg_match('/^(\d{6,15})@/i', $id, $match)) {
-                    $phone = $match[1];
-                } elseif (preg_match('/^(\d{8,15})$/', preg_replace('/\D+/', '', $id), $match)) {
-                    $phone = $match[1];
-                }
-                $book = '';
-                foreach (['name', 'contactName', 'savedName', 'shortName'] as $keyName) {
-                    if (! empty($row[$keyName]) && is_string($row[$keyName])) {
-                        $book = trim($row[$keyName]);
-                        break;
-                    }
-                }
-                if ($phone === '' || ! $this->isSavedContactName($book, $phone)) {
-                    continue;
-                }
-                $full[$phone] = $book;
-                $tail = substr($phone, -9);
-                if (! isset($tails[$tail])) {
-                    $tails[$tail] = $book;
-                } elseif ($tails[$tail] !== $book) {
-                    $tails[$tail] = '';
-                }
-            }
-            $page++;
-        } while ($page <= $totalPages && $page <= 40);
-
+        }
         foreach ($tails as $tail => $book) {
             if ($book !== '' && ! isset($full[$tail])) {
                 $full[$tail] = $book;
             }
         }
-        if (! $failed) {
-            $complete = $page > $totalPages;
-            \Illuminate\Support\Facades\Cache::put($key, $full, now()->addMinutes($complete ? 15 : 2));
-        }
 
         return $full;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    protected function contactListPhone(array $row)
+    {
+        $jid = isset($row['jid']) ? (string) $row['jid'] : (isset($row['id']) ? (string) $row['id'] : '');
+        if ($jid !== '' && substr($jid, -5) === '@g.us') {
+            return '';
+        }
+        if (substr($jid, -4) === '@lid') {
+            foreach (['pn', 'phone', 'phoneNumber', 'number'] as $key) {
+                if (empty($row[$key]) || ! is_string($row[$key])) {
+                    continue;
+                }
+                $digits = preg_replace('/\D+/', '', preg_replace('/@.+$/', '', $row[$key]));
+                if (strlen($digits) >= 8 && strlen($digits) <= 15) {
+                    return $digits;
+                }
+            }
+
+            return '';
+        }
+        $raw = preg_replace('/@.+$/', '', $jid);
+        $raw = preg_replace('/:.+$/', '', (string) $raw);
+        $digits = preg_replace('/\D+/', '', (string) $raw);
+        if (strlen($digits) >= 8 && strlen($digits) <= 15) {
+            return $digits;
+        }
+        foreach (['pn', 'phone', 'phoneNumber', 'number'] as $key) {
+            if (empty($row[$key]) || ! is_string($row[$key])) {
+                continue;
+            }
+            $digits = preg_replace('/\D+/', '', preg_replace('/@.+$/', '', $row[$key]));
+            if (strlen($digits) >= 8 && strlen($digits) <= 15) {
+                return $digits;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * The name saved on the phone. The profile name in notify is not used.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    protected function savedBookName(array $row)
+    {
+        foreach (['name', 'fullName', 'contactName', 'savedName', 'shortName'] as $key) {
+            if (! empty($row[$key]) && is_string($row[$key])) {
+                return trim($row[$key]);
+            }
+        }
+
+        return '';
     }
 
     public function addressBookName($phone, $allowFetch = true)

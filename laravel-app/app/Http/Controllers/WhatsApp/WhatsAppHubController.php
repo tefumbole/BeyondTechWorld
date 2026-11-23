@@ -211,15 +211,20 @@ class WhatsAppHubController extends Controller
         $this->keepSignedIn();
         if ($request->get('poll')) {
             if ($request->get('names')) {
+                $named = WhatsAppConversation::with('contact')->orderByDesc('last_activity_at')->orderByDesc('id')->limit(150)->get();
                 try {
-                    $this->conversations->preferPhoneNames(
-                        WhatsAppConversation::with('contact')->orderByDesc('last_activity_at')->orderByDesc('id')->limit(150)->get(),
-                        true
-                    );
+                    $this->conversations->preferPhoneNames($named, true);
                 } catch (\Throwable $e) {
                 }
+                $names = [];
+                foreach ($named as $row) {
+                    $names[] = [
+                        'id' => (int) $row->id,
+                        'name' => optional($row->contact)->displayName() ?: 'WhatsApp',
+                    ];
+                }
 
-                return response()->json(['ok' => true])->header('Cache-Control', 'no-store');
+                return response()->json(['ok' => true, 'names' => $names])->header('Cache-Control', 'no-store');
             }
 
             return response()->json($this->chatsFeed($request))->header('Cache-Control', 'no-store');

@@ -30,5 +30,5 @@
             @endforeach
         </div>
     @endif
-    <time @if(!empty($at)) data-at="{{ $at }}" @endif><span class="clock">{{ $time ?? '' }}</span>@if(!empty($out))<span class="tick {{ $tick }}">@if($tick === 'failed')!@elseif(in_array($tick, ['read', 'played', 'delivered'], true))✓✓@else ✓@endif</span>@endif</time>
+    <time @if(!empty($at)) data-at="{{ $at }}" @endif><span class="clock">{{ $time ?? '' }}</span>@if(!empty($out))<span class="tick {{ $tick }}">@if($tick === 'failed')! Not sent@elseif($tick === 'read' || $tick === 'played')✓✓ Read@elseif($tick === 'delivered')✓✓ Delivered@elseif($tick === 'sent')✓ Sent@elseif($tick === 'queued')Sending@else ✓@endif</span>@endif</time>
 </div>
