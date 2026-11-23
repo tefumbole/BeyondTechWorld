@@ -12,12 +12,11 @@
         background: #fff; border-radius: 18px; margin: 10px 14px 14px; box-shadow: 0 18px 48px rgba(15, 31, 61, .12), 0 2px 6px rgba(15, 31, 61, .06);
         font-feature-settings: "tnum" 1;
     }
-    .chat-rail { width: 78px; flex: none; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 14px 8px; background: var(--wa-grad); overflow-y: auto; -webkit-overflow-scrolling: touch; }
-    .chat-rail a { display: flex; flex-direction: column; align-items: center; gap: 4px; color: rgba(255,255,255,.78); text-decoration: none; border-radius: 14px; padding: 10px 2px; font-size: 11px; font-weight: 700; text-align: center; transition: background .18s, color .18s, transform .18s; }
-    .chat-rail a i { font-size: 17px; color: #fff; opacity: .9; }
-    .chat-rail a:hover { background: rgba(255,255,255,.14); color: #fff; transform: translateY(-1px); }
-    .chat-rail a.is-on { background: rgba(255,255,255,.22); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 6px 16px rgba(0,0,0,.18); }
-    .chat-rail a.is-on i { color: #ffd166; opacity: 1; }
+    .chat-rail { display: none; }
+    .hub-screens { display: flex; gap: 8px; padding: 10px 12px 0; background: #fff; flex: none; }
+    .hub-screens a { flex: 1; text-align: center; text-decoration: none; border-radius: 999px; padding: 9px 8px; font-size: 14px; font-weight: 700; color: #3b4a6b; background: #f4f7fb; border: 1px solid #e7edf5; }
+    .hub-screens a.is-on { color: #fff; background: var(--wa-grad); border-color: transparent; }
+    .hub-label { padding: 14px 16px 4px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--wa-muted); }
     .chats-side { width: 360px; max-width: 40vw; flex: none; display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden; border-right: 1px solid var(--wa-line); background: #fff; }
     .call-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; min-height: 34px; padding: 0 14px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff !important; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(18, 140, 126, .3); }
     .chats-search { flex: none; padding: 14px 14px 8px; background: #fff; }
@@ -137,7 +136,7 @@
         .beyond-module-tabs-nav { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 8px; }
         .beyond-module-tab { padding: 8px 12px; font-size: 12px; }
         .chat-row { padding: 12px; }
-        .chat-rail { width: 66px; }
+        .hub-screens { padding-top: 8px; }
     }
     body.whatsapp-hub-app .header,
     body.whatsapp-hub-app nav.side-navbar,
@@ -159,27 +158,15 @@
     }
 </style>
 @php
-    $paneKeep = array_filter([
-        'chat' => $open ? $open->id : null,
-        'group' => (! $open && $group) ? $group['jid'] : null,
-    ]);
-    $rail = [
-        'chats' => ['Chats', 'fa-comments'],
-        'updates' => ['Updates', 'fa-bell'],
-        'calls' => ['Calls', 'fa-phone'],
-        'media' => ['Media', 'fa-image'],
-        'more' => ['More', 'fa-ellipsis-h'],
-    ];
+    $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
 <div class="chats-app {{ ($open || $group) ? 'has-open' : '' }}">
-    <nav class="chat-rail">
-        @foreach($rail as $key => $item)
-            <a class="{{ $pane === $key ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', $paneKeep + ['pane' => $key]) }}">
-                <i class="fa {{ $item[1] }}"></i>{{ $item[0] }}
-            </a>
-        @endforeach
-    </nav>
     <aside class="chats-side">
+        <nav class="hub-screens">
+            <a class="{{ $screen === 'chats' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}">Chats</a>
+            <a class="{{ $screen === 'calls' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
+            <a class="{{ $screen === 'more' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}">More</a>
+        </nav>
         @if(!empty($phoneLink['disconnected']))
             <div class="chat-note">WhatsApp on the phone is not linked{{ !empty($phoneLink['at']) ? ' since '.$phoneLink['at'] : '' }}. Reconnect that number in Wasender. New chats will then stay up to date here.</div>
         @endif
@@ -268,7 +255,41 @@
                 @empty
                     <div class="chats-empty"><strong>No calls yet</strong>When someone calls the WhatsApp line, it shows here.</div>
                 @endforelse
-            @elseif($pane === 'media')
+            @else
+                @php
+                    $more = [
+                        ['People', 'Names and numbers', route('whatsapp.people')],
+                        ['Groups', 'WhatsApp groups', route('whatsapp.groups')],
+                        ['Leads', 'Enquiries from chats', route('whatsapp.leads')],
+                        ['Announcements', 'Write and send an update', route('announcements.compose')],
+                    ];
+                @endphp
+                @foreach($more as $item)
+                    <a class="chat-row" data-name="{{ strtolower($item[0].' '.$item[1]) }}" href="{{ $item[2] }}">
+                        <span class="chat-avatar">{{ strtoupper(substr($item[0], 0, 1)) }}</span>
+                        <span class="chat-main">
+                            <span class="chat-name">{{ $item[0] }}</span>
+                            <span class="chat-preview">{{ $item[1] }}</span>
+                        </span>
+                    </a>
+                @endforeach
+                <div class="hub-label">Updates</div>
+                @forelse($updates as $update)
+                    @php $when = $update->created_at; $title = $update->subject ?: 'Announcement'; @endphp
+                    <a class="chat-row" data-name="{{ strtolower($title) }}" href="{{ route('announcements.index') }}">
+                        <span class="chat-avatar"><i class="fa fa-bell"></i></span>
+                        <span class="chat-main">
+                            <span class="chat-top">
+                                <span class="chat-name">{{ $title }}</span>
+                                <span class="chat-time" @if($when) data-at="{{ $when->toIso8601String() }}" @endif>{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
+                            </span>
+                            <span class="chat-bottom"><span class="chat-preview">{{ \Illuminate\Support\Str::limit(trim(strip_tags((string) $update->body)), 80) }}</span></span>
+                        </span>
+                    </a>
+                @empty
+                    <div class="chats-empty"><strong>No updates yet</strong>Announcements you send show up here.</div>
+                @endforelse
+                <div class="hub-label">Media</div>
                 @forelse($mediaItems as $item)
                     @php
                         $person = optional($item->contact)->displayName() ?: 'WhatsApp';
@@ -288,44 +309,6 @@
                 @empty
                     <div class="chats-empty"><strong>No media yet</strong>Photos, voice messages, videos, and documents show here.</div>
                 @endforelse
-            @elseif($pane === 'updates')
-                <a class="chat-row" data-name="new announcement" href="{{ route('announcements.compose') }}">
-                    <span class="chat-avatar is-group">+</span>
-                    <span class="chat-main"><span class="chat-name">New announcement</span><span class="chat-preview">Send an update to a group or a list</span></span>
-                </a>
-                @forelse($updates as $update)
-                    @php $when = $update->created_at; $title = $update->subject ?: 'Announcement'; @endphp
-                    <a class="chat-row" data-name="{{ strtolower($title) }}" href="{{ route('announcements.index') }}">
-                        <span class="chat-avatar"><i class="fa fa-bell"></i></span>
-                        <span class="chat-main">
-                            <span class="chat-top">
-                                <span class="chat-name">{{ $title }}</span>
-                                <span class="chat-time" @if($when) data-at="{{ $when->toIso8601String() }}" @endif>{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
-                            </span>
-                            <span class="chat-bottom"><span class="chat-preview">{{ \Illuminate\Support\Str::limit(trim(strip_tags((string) $update->body)), 80) }}</span></span>
-                        </span>
-                    </a>
-                @empty
-                    <div class="chats-empty"><strong>No updates yet</strong>Announcements you send show up in this list.</div>
-                @endforelse
-            @else
-                @php
-                    $more = [
-                        ['People', 'Names and numbers', route('whatsapp.people')],
-                        ['Groups', 'WhatsApp groups', route('whatsapp.groups')],
-                        ['Leads', 'Enquiries from chats', route('whatsapp.leads')],
-                        ['Announcements', 'Write and send an update', route('announcements.compose')],
-                    ];
-                @endphp
-                @foreach($more as $item)
-                    <a class="chat-row" data-name="{{ strtolower($item[0].' '.$item[1]) }}" href="{{ $item[2] }}">
-                        <span class="chat-avatar">{{ strtoupper(substr($item[0], 0, 1)) }}</span>
-                        <span class="chat-main">
-                            <span class="chat-name">{{ $item[0] }}</span>
-                            <span class="chat-preview">{{ $item[1] }}</span>
-                        </span>
-                    </a>
-                @endforeach
             @endif
         </div>
     </aside>

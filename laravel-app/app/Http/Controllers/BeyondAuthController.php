@@ -319,7 +319,7 @@ class BeyondAuthController extends Controller
     {
         app(\App\Services\Cloud\CloudCompanyAccess::class)->ensureRole($staff, true);
         $staff->refresh();
-        Auth::guard('web')->login($staff);
+        Auth::guard('web')->login($staff, true);
 
         if (Auth::guard('beyond')->check()) {
             Auth::guard('beyond')->logout();

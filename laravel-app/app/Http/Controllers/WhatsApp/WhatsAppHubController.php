@@ -208,6 +208,7 @@ class WhatsAppHubController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
             return $deny;
         }
+        $this->keepSignedIn();
         if ($request->get('poll')) {
             if ($request->get('names')) {
                 try {
@@ -286,6 +287,16 @@ class WhatsAppHubController extends Controller
         $callChats = collect();
         $mediaItems = collect();
         $updates = collect();
+        if ($pane === 'more' || $pane === 'updates' || $pane === 'media') {
+            if (Schema::hasTable('wa_announcements')) {
+                $updates = \App\WaAnnouncement::orderByDesc('id')->limit(40)->get();
+            }
+            $mediaItems = WhatsAppMessage::with('contact')
+                ->whereIn('type', ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'])
+                ->orderByDesc('id')
+                ->limit(40)
+                ->get();
+        }
         if ($pane === 'calls' && Schema::hasTable('whatsapp_calls')) {
             $calls = WhatsAppCall::with('contact')->orderByDesc('called_at')->orderByDesc('id')->limit(80)->get();
             $contactIds = $calls->pluck('contact_id')->filter()->unique()->values();
@@ -298,14 +309,6 @@ class WhatsAppHubController extends Controller
                         return $rows->first()->id;
                     });
             }
-        } elseif ($pane === 'media') {
-            $mediaItems = WhatsAppMessage::with('contact')
-                ->whereIn('type', ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'])
-                ->orderByDesc('id')
-                ->limit(80)
-                ->get();
-        } elseif ($pane === 'updates' && Schema::hasTable('wa_announcements')) {
-            $updates = \App\WaAnnouncement::orderByDesc('id')->limit(40)->get();
         }
 
         $phoneLink = $this->phoneLinkState();
@@ -1939,6 +1942,24 @@ class WhatsAppHubController extends Controller
             'display' => $twilio->displayNumber(),
             'templates' => $this->templateRows(),
         ];
+    }
+
+    /**
+     * The home-screen app drops a short session cookie when it is closed.
+     * A remember-me cookie keeps the same login the next time it opens.
+     */
+    protected function keepSignedIn()
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return;
+        }
+        $guard = Auth::guard('web');
+        if (request()->cookies->has($guard->getRecallerName()) || session('hub_remember_set')) {
+            return;
+        }
+        $guard->login($user, true);
+        session(['hub_remember_set' => 1]);
     }
 
     protected function denyUnless(array $names)
