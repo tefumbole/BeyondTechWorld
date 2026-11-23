@@ -91,7 +91,8 @@
         background-image: radial-gradient(circle at 12px 12px, rgba(21,101,192,.07) 2px, transparent 2.5px), radial-gradient(circle at 36px 36px, rgba(18,164,164,.07) 2px, transparent 2.5px), linear-gradient(180deg, #f4f8ff 0%, #e9f1fb 100%);
         background-size: 48px 48px, 48px 48px, 100% 100%; }
     .chats-head { min-height: 66px; background: rgba(255,255,255,.92); backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--wa-line); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 18px; }
-    .chat-back { display: none; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; color: #1565c0; font-size: 28px; font-weight: 700; text-decoration: none; flex: none; line-height: 1; }
+    .chat-back { display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 76px; height: 40px; padding: 0 14px 0 10px; border-radius: 999px; background: var(--wa-grad); color: #fff !important; font-size: 15px; font-weight: 800; text-decoration: none; flex: none; line-height: 1; box-shadow: 0 6px 16px rgba(21, 101, 192, .35); }
+    .chat-back:hover { color: #fff; text-decoration: none; }
     .chats-head-person { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .chats-head-person .chat-avatar { width: 42px; height: 42px; font-size: 15px; }
     .chats-head-person h2, .chats-head-person p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -362,7 +363,7 @@
             @php $title = optional($open->contact)->displayName() ?: 'WhatsApp'; @endphp
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats', array_filter(['filter' => $listFilter !== 'all' ? $listFilter : null])) }}" aria-label="Back to chats">‹</a>
+                    <a class="chat-back" href="{{ route('whatsapp.chats', array_filter(['filter' => $listFilter !== 'all' ? $listFilter : null])) }}" aria-label="Back to chats">‹ Back</a>
                     <span class="chat-avatar" data-tone="{{ sprintf('%u', crc32(strtolower($title))) % 8 }}">{{ mb_strtoupper(mb_substr($title, 0, 1)) }}</span>
                     <div>
                         <h2>{{ $title }}</h2>
@@ -475,7 +476,7 @@
         @elseif($group)
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}" aria-label="Back to chats">‹</a>
+                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}" aria-label="Back to chats">‹ Back</a>
                     <div>
                         <h2>{{ $group['name'] }}</h2>
                         <p>{{ $group['members'] === null ? 'WhatsApp group' : number_format($group['members']).' contacts' }}</p>
