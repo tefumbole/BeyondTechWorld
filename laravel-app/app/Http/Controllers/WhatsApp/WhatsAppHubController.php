@@ -326,11 +326,13 @@ class WhatsAppHubController extends Controller
         $translatorOn = $translator->isOn();
         $translatorLanguages = $translator->languages();
         $destination = $open ? $translator->destinationFor($open->id) : null;
+        $staffLanguage = $translator->staffLanguage();
+        $defaultReply = $translator->defaultReply();
 
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
             'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn',
-            'translatorLanguages', 'destination'
+            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply'
         ));
     }
 
@@ -605,14 +607,34 @@ class WhatsAppHubController extends Controller
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
         $name = $translator->setDestination($id, $request->input('language'));
         if ($name === false) {
-            $notice = 'Translation is off for this chat. Other chats are unchanged.';
+            $notice = 'Replies in this chat stay in the language you type. Other chats are unchanged.';
         } elseif ($name === '' || $name === null) {
-            $notice = 'This chat will detect the client’s language. Other chats are unchanged.';
+            $notice = 'This chat will detect their language. Other chats are unchanged.';
         } else {
-            $notice = 'Replies in this chat are sent in '.$name.'. Other chats are unchanged.';
+            $notice = 'Everything you send in this chat goes out in '.$name.', until you change it. If they write in your language, you still see it that way.';
         }
 
         return redirect()->route('whatsapp.chats', ['chat' => $id])->with('message', $notice);
+    }
+
+    public function saveLanguageSettings(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage', 'whatsapp.conversations', 'whatsapp.view'])) {
+            return $deny;
+        }
+        $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
+        $staff = $translator->setStaffLanguage($request->input('staff_language', 'en'));
+        $reply = $translator->setDefaultReply($request->input('default_reply', ''));
+        $notice = 'You write in '.$staff.'.';
+        if ($reply) {
+            $notice .= ' Chats without their own reply language are sent in '.$reply.'.';
+        } else {
+            $notice .= ' Each chat uses the reply language you pick there.';
+        }
+        $chat = (int) $request->input('chat');
+        $query = $chat > 0 ? ['chat' => $chat] : [];
+
+        return redirect()->route('whatsapp.chats', $query)->with('message', $notice);
     }
 
     public function chatMedia($id)

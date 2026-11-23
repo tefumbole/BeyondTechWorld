@@ -86,12 +86,9 @@ class WhatsAppTranslator
             $original = mb_substr($original, 0, 4000);
         }
 
-        $known = $this->languageFor($message->conversation_id);
-        $from = ($known && ! empty($known['name']) && ! empty($known['code']) && $known['code'] !== 'en')
-            ? ' The sender writes in '.$known['name'].'. Translate from '.$known['name'].' into fluent English.'
-            : '';
+        $staff = $this->staffLanguage();
         $parsed = $this->ask(
-            'You translate a WhatsApp message into fluent, natural English, the way a person would write it. Do not translate word for word. Use everyday wording and correct grammar, and keep the same meaning and tone.'.$from.' Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the language","is_english":true,"english":"the fluent English"}. If it is already English, set is_english true, language en, and copy it into english. If it is not English, english must be fluent English, never a copy of the original. Do not answer the customer. Do not add notes. Keep names, phone numbers, amounts, and dates unchanged.',
+            'You translate a WhatsApp message into fluent, natural '.$staff['name'].', the way a person would write it. Do not translate word for word. Use everyday wording and correct grammar, and keep the same meaning and tone. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the language","is_english":true,"english":"the fluent '.$staff['name'].'"}. If it is already '.$staff['name'].', set is_english true, language '.$staff['code'].', and copy it into english. If it is not '.$staff['name'].', english must be fluent '.$staff['name'].', never a copy of the original. Do not answer the customer. Do not add notes. Keep names, phone numbers, amounts, and dates unchanged.',
             $original
         );
         if (! $parsed || ! isset($parsed['english'])) {
@@ -106,10 +103,24 @@ class WhatsAppTranslator
         $code = $this->languageCode(isset($parsed['language']) ? $parsed['language'] : '');
         $name = $this->languageName(isset($parsed['language_name']) ? $parsed['language_name'] : '', $code);
         $same = strcasecmp($english, $original) === 0;
-        if ($same && $code !== 'en') {
-            $fromName = ($known && ! empty($known['name'])) ? $known['name'] : 'the original language';
+        $staffCode = $staff['code'];
+        $alreadyMine = ! empty($parsed['is_english']) || $code === $staffCode || $code === 'en';
+        if ($alreadyMine) {
+            $this->mergeTranslation($message, [
+                'english' => $original,
+                'language' => $staffCode,
+                'language_name' => $staff['name'],
+                'style' => 'fluent',
+                'verified' => true,
+            ]);
+            $this->syncPreview($message, $original);
+
+            return $message;
+        }
+        if ($same && $code !== '' && $code !== $staffCode) {
+            $fromName = $name !== '' ? $name : 'its original language';
             $again = $this->ask(
-                'The WhatsApp message below is in '.$fromName.', not English. Translate it into fluent, natural English, the way a person would write it. Do not translate word for word and do not copy the original. Reply with JSON only: {"english":"the fluent English"}. Keep names, phone numbers, amounts, and dates unchanged.',
+                'The WhatsApp message below is in '.$fromName.', not '.$staff['name'].'. Translate it into fluent, natural '.$staff['name'].', the way a person would write it. Do not translate word for word and do not copy the original. If it is already '.$staff['name'].', copy it unchanged. Reply with JSON only: {"english":"the fluent translation"}. Keep names, phone numbers, amounts, and dates unchanged.',
                 $original
             );
             $english = $again && isset($again['english']) ? trim((string) $again['english']) : '';
@@ -118,22 +129,21 @@ class WhatsAppTranslator
 
                 return $message;
             }
-            $code = $known && ! empty($known['code']) ? $known['code'] : ($code !== '' ? $code : 'und');
-            $name = $known && ! empty($known['name']) ? $known['name'] : $name;
+            $code = $code !== '' ? $code : 'und';
             $same = false;
         }
-        $isEnglish = $code === 'en' || ($same && ! empty($parsed['is_english']));
-        if (! $isEnglish) {
+        $isMine = $code === $staffCode || $code === 'en' || ($same && ! empty($parsed['is_english']));
+        if (! $isMine) {
             $this->rememberLanguage($message->conversation_id, $code, $name);
         }
         $this->mergeTranslation($message, [
-            'english' => $isEnglish ? $original : $english,
-            'language' => $isEnglish ? 'en' : $code,
-            'language_name' => $isEnglish ? 'English' : $name,
+            'english' => $isMine ? $original : $english,
+            'language' => $isMine ? $staffCode : $code,
+            'language_name' => $isMine ? $staff['name'] : $name,
             'style' => 'fluent',
             'verified' => true,
         ]);
-        $this->syncPreview($message, $isEnglish ? $original : $english);
+        $this->syncPreview($message, $isMine ? $original : $english);
 
         return $message;
     }
@@ -152,19 +162,23 @@ class WhatsAppTranslator
             return false;
         }
         $meta = $message->translationMeta();
-        $known = $this->languageFor($message->conversation_id);
-        $foreign = $known && ! empty($known['enabled']) && ! empty($known['code']) && $known['code'] !== 'en';
-        if ($foreign && (empty($meta['english']) || strcasecmp(trim((string) $meta['english']), $body) === 0)) {
+        if (empty($meta['english']) || (isset($meta['style']) ? $meta['style'] : '') !== 'fluent') {
             return true;
         }
-        if (empty($meta['english']) || (isset($meta['style']) ? $meta['style'] : '') !== 'fluent') {
+        $stored = isset($meta['language']) ? (string) $meta['language'] : '';
+        $copied = strcasecmp(trim((string) $meta['english']), $body) === 0;
+        $staffCode = $this->staffLanguage()['code'];
+        if ($stored === $staffCode || $stored === 'en') {
+            return false;
+        }
+        if ($copied && $stored !== '') {
             return true;
         }
         if (! empty($meta['verified'])) {
             return false;
         }
 
-        return strcasecmp(trim((string) $meta['english']), $body) === 0;
+        return $copied;
     }
 
     /**
@@ -289,19 +303,20 @@ class WhatsAppTranslator
     public function forClient(WhatsAppConversation $conversation, $english)
     {
         $english = trim((string) $english);
-        if ($english === '' || ! $this->activeFor($conversation->id)) {
+        if ($english === '') {
             return null;
         }
-        $known = $this->languageFor($conversation->id);
-        if (! $known || $known['code'] === '' || $known['code'] === 'en') {
+        $known = $this->outgoingLanguage($conversation->id);
+        if ($known && $known['code'] === '') {
             $this->learnLanguage($conversation);
-            $known = $this->languageFor($conversation->id);
+            $known = $this->outgoingLanguage($conversation->id);
         }
-        if (! $known || $known['code'] === '' || $known['code'] === 'en') {
+        $staff = $this->staffLanguage();
+        if (! $known || $known['code'] === '' || $known['code'] === $staff['code']) {
             return null;
         }
         $parsed = $this->ask(
-            'Translate the agent reply into fluent, natural '.$known['name'].', the way a person would write it on WhatsApp. Do not translate word for word. Use everyday wording and correct grammar, and keep the same meaning and tone. Reply with JSON only: {"text":"the fluent translation"}. Keep names, phone numbers, amounts, and dates. Do not add a greeting or a note. If the reply is already in '.$known['name'].', return it unchanged.',
+            'The message below was written in '.$staff['name'].'. Translate it into fluent, natural '.$known['name'].', the way a person would write it on WhatsApp. Do not translate word for word. Use everyday wording and correct grammar, and keep the same meaning and tone. Reply with JSON only: {"text":"the fluent translation"}. Keep names, phone numbers, amounts, and dates. Do not add a greeting or a note. If it is already in '.$known['name'].', return it unchanged.',
             $english
         );
         if (! $parsed || ! isset($parsed['text'])) {
@@ -322,7 +337,8 @@ class WhatsAppTranslator
 
     public function languages()
     {
-        return [
+        $languages = [
+            'en' => 'English',
             'rw' => 'Kinyarwanda',
             'fr' => 'French',
             'sw' => 'Kiswahili',
@@ -337,7 +353,113 @@ class WhatsAppTranslator
             'zh' => 'Chinese',
             'de' => 'German',
             'tr' => 'Turkish',
+            'it' => 'Italian',
+            'nl' => 'Dutch',
+            'ru' => 'Russian',
+            'hi' => 'Hindi',
+            'ja' => 'Japanese',
+            'ko' => 'Korean',
+            'pl' => 'Polish',
+            'el' => 'Greek',
+            'he' => 'Hebrew',
+            'uk' => 'Ukrainian',
+            'vi' => 'Vietnamese',
+            'id' => 'Indonesian',
+            'th' => 'Thai',
+            'bn' => 'Bengali',
+            'zu' => 'Zulu',
+            'af' => 'Afrikaans',
+            'ti' => 'Tigrinya',
         ];
+        asort($languages);
+
+        return $languages;
+    }
+
+    public function staffLanguage()
+    {
+        $languages = $this->languages();
+        $code = $this->setting('translator_staff_lang', 'en');
+        if (! isset($languages[$code])) {
+            $code = 'en';
+        }
+
+        return ['code' => $code, 'name' => $languages[$code]];
+    }
+
+    public function setStaffLanguage($code)
+    {
+        $languages = $this->languages();
+        $code = strtolower(trim((string) $code));
+        if (! isset($languages[$code])) {
+            $code = 'en';
+        }
+        $this->putSetting('translator_staff_lang', $code);
+
+        return $languages[$code];
+    }
+
+    public function defaultReply()
+    {
+        $languages = $this->languages();
+        $code = $this->setting('translator_default_reply', '');
+        if ($code === '' || ! isset($languages[$code])) {
+            return null;
+        }
+
+        return ['code' => $code, 'name' => $languages[$code]];
+    }
+
+    public function setDefaultReply($code)
+    {
+        $languages = $this->languages();
+        $code = strtolower(trim((string) $code));
+        if ($code === '' || $code === 'off' || ! isset($languages[$code])) {
+            $this->putSetting('translator_default_reply', '');
+
+            return null;
+        }
+        $this->putSetting('translator_default_reply', $code);
+
+        return $languages[$code];
+    }
+
+    /**
+     * Language an outgoing reply is sent in. A choice on this chat wins.
+     * A chat set to Off does not fall back to the default.
+     *
+     * @return array{code:string,name:string,locked:bool,enabled:bool}|null
+     */
+    public function outgoingLanguage($conversationId)
+    {
+        $staff = $this->staffLanguage()['code'];
+        $known = $this->languageFor($conversationId);
+        if ($known && ! empty($known['off'])) {
+            return null;
+        }
+        if ($known && ! empty($known['locked']) && $known['code'] !== '' && $known['code'] !== $staff) {
+            return $known;
+        }
+        if ($known && ! empty($known['enabled']) && $known['code'] !== '' && $known['code'] !== $staff) {
+            return $known;
+        }
+        if ($known && ! empty($known['enabled']) && $known['code'] === '') {
+            return $known;
+        }
+        if ($known && empty($known['enabled'])) {
+            return null;
+        }
+        $default = $this->defaultReply();
+        if ($default && $default['code'] !== $staff) {
+            return [
+                'code' => $default['code'],
+                'name' => $default['name'],
+                'locked' => true,
+                'enabled' => true,
+            ];
+        }
+
+        return null;
     }
 
     /**
@@ -349,7 +471,13 @@ class WhatsAppTranslator
     {
         $code = strtolower(trim((string) $code));
         if ($code === 'off') {
-            $this->setChat($conversationId, false);
+            $this->writeLanguage($conversationId, json_encode([
+                'enabled' => false,
+                'code' => '',
+                'name' => '',
+                'locked' => false,
+                'off' => true,
+            ]));
 
             return false;
         }
@@ -586,7 +714,7 @@ class WhatsAppTranslator
         $enabled = array_key_exists('enabled', $decoded)
             ? ! empty($decoded['enabled'])
             : ($code !== '');
-        if (! $enabled && $code === '') {
+        if (! $enabled && $code === '' && empty($decoded['off'])) {
             return $this->languageCache[$id] = null;
         }
 
@@ -595,6 +723,7 @@ class WhatsAppTranslator
             'name' => $code === '' ? '' : $this->languageName(isset($decoded['name']) ? $decoded['name'] : '', $code),
             'locked' => ! empty($decoded['locked']),
             'enabled' => $enabled,
+            'off' => ! empty($decoded['off']),
         ];
     }
 
@@ -619,6 +748,34 @@ class WhatsAppTranslator
         }
 
         return $code !== '' ? strtoupper($code) : 'their language';
+    }
+
+    protected function setting($key, $default)
+    {
+        try {
+            if (Schema::hasTable('whatsapp_settings')) {
+                $value = WhatsAppSetting::getValue($key, $default);
+
+                return is_string($value) ? $value : (string) $default;
+            }
+        } catch (\Throwable $e) {
+        }
+        $cached = Cache::get('whatsapp.'.$key, $default);
+
+        return is_string($cached) ? $cached : (string) $default;
+    }
+
+    protected function putSetting($key, $value)
+    {
+        try {
+            if (Schema::hasTable('whatsapp_settings')) {
+                WhatsAppSetting::putValue($key, $value);
+
+                return;
+            }
+        } catch (\Throwable $e) {
+        }
+        Cache::forever('whatsapp.'.$key, $value);
     }
 
     protected function flag()

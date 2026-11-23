@@ -16,6 +16,30 @@
     .hub-screens { display: flex; gap: 8px; padding: 10px 12px 0; background: #fff; flex: none; }
     .hub-screens a { flex: 1; text-align: center; text-decoration: none; border-radius: 999px; padding: 9px 8px; font-size: 14px; font-weight: 700; color: #3b4a6b; background: #f4f7fb; border: 1px solid #e7edf5; }
     .hub-screens a.is-on { color: #fff; background: var(--wa-grad); border-color: transparent; }
+    .hub-gear, .chat-gear { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #e7edf5; background: #fff; color: #1565c0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(15,31,61,.08); }
+    .hub-gear svg, .chat-gear svg { width: 18px; height: 18px; }
+    .reply-bar { display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 14px 0; background: rgba(255,255,255,.94); }
+    .reply-pick { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 0 14px; border: 0; border-radius: 16px; background: linear-gradient(135deg, #f4f7ff, #eef8f6); color: #16315c; cursor: pointer; text-align: left; box-shadow: inset 0 0 0 1px #d7e3f5; }
+    .reply-pick span { font-size: 12px; font-weight: 700; color: #6b7a99; }
+    .reply-pick strong { font-size: 15px; }
+    .reply-pick em { font-style: normal; font-size: 11px; font-weight: 800; color: #1565c0; background: #fff; border-radius: 999px; padding: 2px 8px; }
+    .lang-sheet { position: fixed; inset: 0; z-index: 80; display: none; align-items: flex-end; justify-content: center; background: rgba(10, 22, 48, .46); padding: 0; }
+    .lang-sheet.is-on { display: flex; }
+    .lang-card { width: min(520px, 100%); max-height: min(86vh, 720px); overflow: auto; background: #fff; border-radius: 24px 24px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); box-shadow: 0 -16px 50px rgba(15,31,61,.2); }
+    .lang-card h3 { margin: 0; font-size: 20px; }
+    .lang-card header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+    .lang-card p { margin: 0 0 12px; color: #5d6d8c; font-size: 13px; }
+    .lang-card label { display: block; margin: 12px 0 6px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #6b7a99; }
+    .lang-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: #f1f4fa; color: #16315c; font-size: 22px; cursor: pointer; }
+    .lang-filter { width: 100%; border: 1px solid #d7e3f5; border-radius: 14px; min-height: 44px; padding: 0 14px; background: #f7f9fd; font-size: 15px; }
+    .lang-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; margin-top: 8px; }
+    .lang-option { border: 0; background: #f4f7fb; color: #16315c; border-radius: 12px; min-height: 42px; padding: 0 14px; text-align: left; font-weight: 700; cursor: pointer; }
+    .lang-option.is-on { background: var(--wa-grad); color: #fff; }
+    .lang-save { width: 100%; margin-top: 14px; border: 0; border-radius: 14px; min-height: 46px; background: var(--wa-grad); color: #fff; font-weight: 800; cursor: pointer; }
+    @media (min-width: 801px) {
+        .lang-sheet { align-items: center; padding: 24px; }
+        .lang-card { border-radius: 24px; }
+    }
     .hub-label { padding: 14px 16px 4px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--wa-muted); }
     .chats-side { width: 360px; max-width: 40vw; flex: none; display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden; border-right: 1px solid var(--wa-line); background: #fff; }
     .call-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; min-height: 34px; padding: 0 14px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff !important; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(18, 140, 126, .3); }
@@ -169,6 +193,7 @@
             <a class="{{ $screen === 'chats' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}">Chats</a>
             <a class="{{ $screen === 'calls' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
             <a class="{{ $screen === 'more' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}">More</a>
+            <button type="button" class="hub-gear js-lang-settings" aria-label="Language settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
         </nav>
         @if(!empty($phoneLink['disconnected']))
             <div class="chat-note">WhatsApp on the phone is not linked{{ !empty($phoneLink['at']) ? ' since '.$phoneLink['at'] : '' }}. Reconnect that number in Wasender. New chats will then stay up to date here.</div>
@@ -349,6 +374,7 @@
                     @if($callDigits !== '')
                         <a class="call-btn" href="tel:+{{ $callDigits }}"><i class="fa fa-phone"></i> Call</a>
                     @endif
+                    <button type="button" class="chat-gear js-lang-settings" aria-label="Language settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
                     <form method="POST" action="{{ route('whatsapp.chats.translator', $open->id) }}">
                         @csrf
                         <button type="submit" class="is-translate {{ !empty($destination['enabled']) ? 'is-on' : '' }}" title="Translation for this chat only. Other chats keep their own language.">Translate</button>
@@ -408,29 +434,41 @@
             @if($canReply)
                 @php
                     $chatOn = !empty($destination['enabled']);
-                    $destCode = ($chatOn && !empty($destination['locked']) && !empty($destination['code'])) ? $destination['code'] : '';
-                    $destName = ($chatOn && $destCode !== '' && !empty($destination['name'])) ? $destination['name'] : '';
-                    if ($destCode !== '' && !isset($translatorLanguages[$destCode])) {
-                        $translatorLanguages[$destCode] = $destName !== '' ? $destName : $destCode;
+                    $replyCode = 'off';
+                    $replyName = 'Off';
+                    $replyHint = '';
+                    if (!empty($destination['off'])) {
+                        $replyCode = 'off';
+                        $replyName = 'Off';
+                    } elseif (!empty($destination['locked']) && !empty($destination['code'])) {
+                        $replyCode = $destination['code'];
+                        $replyName = $destination['name'] ?: $destination['code'];
+                    } elseif ($chatOn && empty($destination['code'])) {
+                        $replyCode = 'auto';
+                        $replyName = 'Detect';
+                    } elseif (!empty($defaultReply)) {
+                        $replyCode = $defaultReply['code'];
+                        $replyName = $defaultReply['name'];
+                        $replyHint = 'Default';
                     }
-                    $sendChoice = ! $chatOn ? 'off' : ($destCode === '' ? 'auto' : $destCode);
+                    $writeName = !empty($staffLanguage['name']) ? $staffLanguage['name'] : 'English';
                 @endphp
-                <form class="send-lang" method="POST" action="{{ route('whatsapp.chats.language', $open->id) }}">
+                <div class="reply-bar">
+                    <button type="button" class="reply-pick" id="openReplyLang">
+                        <span>Reply in</span>
+                        <strong>{{ $replyName }}</strong>
+                        @if($replyHint !== '')<em>{{ $replyHint }}</em>@endif
+                    </button>
+                </div>
+                <form id="replyLangForm" method="POST" action="{{ route('whatsapp.chats.language', $open->id) }}" hidden>
                     @csrf
-                    <label for="sendLang">Send in</label>
-                    <select id="sendLang" name="language" data-choice="{{ $sendChoice }}" autocomplete="off" title="Language for this chat only">
-                        <option value="off" {{ $sendChoice === 'off' ? 'selected' : '' }}>Off</option>
-                        <option value="auto" {{ $sendChoice === 'auto' ? 'selected' : '' }}>Detect</option>
-                        @foreach($translatorLanguages as $code => $name)
-                            <option value="{{ $code }}" {{ $sendChoice === $code ? 'selected' : '' }}>{{ $name }}</option>
-                        @endforeach
-                    </select>
+                    <input type="hidden" name="language" id="replyLangValue" value="{{ $replyCode }}">
                 </form>
                 <form class="chats-compose" method="POST" action="{{ route('whatsapp.chats.reply', $open->id) }}" enctype="multipart/form-data">
                     @csrf
                     <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
                     <span class="file-name" id="chatFileName"></span>
-                    <textarea name="body" id="chatBody" placeholder="{{ $chatOn ? ('Reply in English. It is sent in '.($destName !== '' ? $destName : 'this client’s language').'.') : 'Type a message' }}"></textarea>
+                    <textarea name="body" id="chatBody" placeholder="{{ $replyCode !== 'off' && $replyCode !== '' ? ('Type in '.$writeName.'. It is sent in '.$replyName.'.') : 'Type a message' }}"></textarea>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
             @endif
@@ -508,6 +546,58 @@
         @endif
     </section>
 </div>
+@php
+    $staffCode = !empty($staffLanguage['code']) ? $staffLanguage['code'] : 'en';
+    $defaultCode = !empty($defaultReply['code']) ? $defaultReply['code'] : '';
+@endphp
+<div class="lang-sheet" id="langSettings">
+    <form class="lang-card" method="POST" action="{{ route('whatsapp.chats.settings') }}">
+        @csrf
+        <input type="hidden" name="chat" value="{{ $open ? $open->id : '' }}">
+        <header>
+            <h3>Language</h3>
+            <button type="button" class="lang-close" data-close="langSettings" aria-label="Close">×</button>
+        </header>
+        <p>You write in one language. Each person can receive your reply in another. That choice stays until you change it.</p>
+        <label>I write in</label>
+        <input class="lang-filter" type="search" data-list="staffList" placeholder="Search languages" autocomplete="off">
+        <input type="hidden" name="staff_language" id="staffLanguage" value="{{ $staffCode }}">
+        <div class="lang-list" id="staffList">
+            @foreach($translatorLanguages as $code => $name)
+                <button type="button" class="lang-option {{ $staffCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="staffLanguage">{{ $name }}</button>
+            @endforeach
+        </div>
+        <label>Default reply language</label>
+        <input class="lang-filter" type="search" data-list="defaultList" placeholder="Search languages" autocomplete="off">
+        <input type="hidden" name="default_reply" id="defaultReply" value="{{ $defaultCode }}">
+        <div class="lang-list" id="defaultList">
+            <button type="button" class="lang-option {{ $defaultCode === '' ? 'is-on' : '' }}" data-code="" data-target="defaultReply">No default</button>
+            @foreach($translatorLanguages as $code => $name)
+                <button type="button" class="lang-option {{ $defaultCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="defaultReply">{{ $name }}</button>
+            @endforeach
+        </div>
+        <button type="submit" class="lang-save">Save</button>
+    </form>
+</div>
+@if($open && $canReply)
+<div class="lang-sheet" id="replyLang">
+    <div class="lang-card">
+        <header>
+            <h3>Reply to {{ $title }}</h3>
+            <button type="button" class="lang-close" data-close="replyLang" aria-label="Close">×</button>
+        </header>
+        <p>Everything you send in this chat goes out in the language you pick, until you change it. A message they write in {{ $writeName }} still arrives in {{ $writeName }}.</p>
+        <input class="lang-filter" type="search" data-list="replyList" placeholder="Search languages" autocomplete="off">
+        <div class="lang-list" id="replyList">
+            <button type="button" class="lang-option {{ $replyCode === 'off' ? 'is-on' : '' }}" data-code="off" data-target="replyLangValue" data-submit="1">Off</button>
+            <button type="button" class="lang-option {{ $replyCode === 'auto' ? 'is-on' : '' }}" data-code="auto" data-target="replyLangValue" data-submit="1">Detect their language</button>
+            @foreach($translatorLanguages as $code => $name)
+                <button type="button" class="lang-option {{ $replyCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="replyLangValue" data-submit="1">{{ $name }}</button>
+            @endforeach
+        </div>
+    </div>
+</div>
+@endif
 @include('whatsapp_hub.partials.local_time')
 <script>
 (function () {
@@ -627,20 +717,53 @@
             if (!canSend()) event.preventDefault();
         });
     }
-    var sendLang = document.getElementById('sendLang');
-    if (sendLang) {
-        var langChoice = sendLang.getAttribute('data-choice') || '';
-        if (sendLang.value !== langChoice) sendLang.value = langChoice;
-        var langLive = false;
-        setTimeout(function () { langLive = true; }, 800);
-        sendLang.addEventListener('change', function (event) {
-            if (!langLive || !event.isTrusted) {
-                sendLang.value = langChoice;
-                return;
-            }
-            sendLang.form.submit();
-        });
+    function openSheet(id) {
+        var sheet = document.getElementById(id);
+        if (!sheet) return;
+        sheet.classList.add('is-on');
+        var search = sheet.querySelector('.lang-filter');
+        if (search) { search.value = ''; search.dispatchEvent(new Event('input')); search.focus(); }
     }
+    function closeSheet(id) {
+        var sheet = document.getElementById(id);
+        if (sheet) sheet.classList.remove('is-on');
+    }
+    document.querySelectorAll('.js-lang-settings').forEach(function (button) {
+        button.addEventListener('click', function () { openSheet('langSettings'); });
+    });
+    var openReply = document.getElementById('openReplyLang');
+    if (openReply) openReply.addEventListener('click', function () { openSheet('replyLang'); });
+    document.querySelectorAll('.lang-sheet').forEach(function (sheet) {
+        sheet.addEventListener('click', function (event) {
+            if (event.target === sheet) closeSheet(sheet.id);
+        });
+    });
+    document.querySelectorAll('.lang-close').forEach(function (button) {
+        button.addEventListener('click', function () { closeSheet(button.getAttribute('data-close')); });
+    });
+    document.querySelectorAll('.lang-filter').forEach(function (input) {
+        input.addEventListener('input', function () {
+            var query = input.value.trim().toLowerCase();
+            var list = document.getElementById(input.getAttribute('data-list'));
+            if (!list) return;
+            list.querySelectorAll('.lang-option').forEach(function (option) {
+                option.style.display = option.textContent.toLowerCase().indexOf(query) === -1 ? 'none' : '';
+            });
+        });
+    });
+    document.querySelectorAll('.lang-option').forEach(function (option) {
+        option.addEventListener('click', function () {
+            var list = option.parentNode;
+            if (list) list.querySelectorAll('.lang-option').forEach(function (row) { row.classList.remove('is-on'); });
+            option.classList.add('is-on');
+            var target = document.getElementById(option.getAttribute('data-target'));
+            if (target) target.value = option.getAttribute('data-code') || '';
+            if (option.getAttribute('data-submit') === '1') {
+                var form = document.getElementById('replyLangForm');
+                if (form) form.submit();
+            }
+        });
+    });
     var chatPage = @json(route('whatsapp.chats'));
     var openChat = {{ $open ? (int) $open->id : 0 }};
     var openGroup = @json($group ? $group['jid'] : '');
