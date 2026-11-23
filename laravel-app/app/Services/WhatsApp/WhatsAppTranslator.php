@@ -88,7 +88,7 @@ class WhatsAppTranslator
 
         $staff = $this->staffLanguage();
         $parsed = $this->ask(
-            'You translate a WhatsApp message into fluent, natural '.$staff['name'].', the way a person would write it. Do not translate word for word. Use everyday wording and correct grammar, and keep the same meaning and tone. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the language","is_english":true,"english":"the fluent '.$staff['name'].'"}. If it is already '.$staff['name'].', set is_english true, language '.$staff['code'].', and copy it into english. If it is not '.$staff['name'].', english must be fluent '.$staff['name'].', never a copy of the original. Do not answer the customer. Do not add notes. Keep names, phone numbers, amounts, and dates unchanged.',
+            'You rewrite a WhatsApp message into very basic, fluent '.$staff['name'].', the way people talk in daily life. Use short, simple words. Do not translate word for word and do not use formal or complicated language. If a sentence is confused or does not make sense, rewrite it so the meaning is clear. Do not add facts, prices, or promises that are not in the message. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the language","is_english":true,"english":"the simple '.$staff['name'].'"}. If it is already simple '.$staff['name'].', set is_english true, language '.$staff['code'].', and copy it into english. If it is not '.$staff['name'].', english must be simple daily '.$staff['name'].', never a copy of the original. Do not answer the customer. Do not add notes. Keep names, phone numbers, amounts, and dates unchanged.',
             $original
         );
         if (! $parsed || ! isset($parsed['english'])) {
@@ -110,7 +110,7 @@ class WhatsAppTranslator
                 'english' => $original,
                 'language' => $staffCode,
                 'language_name' => $staff['name'],
-                'style' => 'fluent',
+                'style' => 'basic',
                 'verified' => true,
             ]);
             $this->syncPreview($message, $original);
@@ -120,7 +120,7 @@ class WhatsAppTranslator
         if ($same && $code !== '' && $code !== $staffCode) {
             $fromName = $name !== '' ? $name : 'its original language';
             $again = $this->ask(
-                'The WhatsApp message below is in '.$fromName.', not '.$staff['name'].'. Translate it into fluent, natural '.$staff['name'].', the way a person would write it. Do not translate word for word and do not copy the original. If it is already '.$staff['name'].', copy it unchanged. Reply with JSON only: {"english":"the fluent translation"}. Keep names, phone numbers, amounts, and dates unchanged.',
+                'The WhatsApp message below is in '.$fromName.', not '.$staff['name'].'. Rewrite it in very basic, fluent '.$staff['name'].', the way people talk day to day. Use short simple words. If it is confused, make the meaning clear. Do not add facts that are not there and do not copy the original. If it is already '.$staff['name'].', copy it unchanged. Reply with JSON only: {"english":"the simple translation"}. Keep names, phone numbers, amounts, and dates unchanged.',
                 $original
             );
             $english = $again && isset($again['english']) ? trim((string) $again['english']) : '';
@@ -140,7 +140,7 @@ class WhatsAppTranslator
             'english' => $isMine ? $original : $english,
             'language' => $isMine ? $staffCode : $code,
             'language_name' => $isMine ? $staff['name'] : $name,
-            'style' => 'fluent',
+            'style' => 'basic',
             'verified' => true,
         ]);
         $this->syncPreview($message, $isMine ? $original : $english);
@@ -162,7 +162,7 @@ class WhatsAppTranslator
             return false;
         }
         $meta = $message->translationMeta();
-        if (empty($meta['english']) || (isset($meta['style']) ? $meta['style'] : '') !== 'fluent') {
+        if (empty($meta['english']) || (isset($meta['style']) ? $meta['style'] : '') !== 'basic') {
             return true;
         }
         $stored = isset($meta['language']) ? (string) $meta['language'] : '';
@@ -316,7 +316,7 @@ class WhatsAppTranslator
             return null;
         }
         $parsed = $this->ask(
-            'The message below was written in '.$staff['name'].'. Translate it into fluent, natural '.$known['name'].', the way a person would write it on WhatsApp. Do not translate word for word. Use everyday wording and correct grammar, and keep the same meaning and tone. Reply with JSON only: {"text":"the fluent translation"}. Keep names, phone numbers, amounts, and dates. Do not add a greeting or a note. If it is already in '.$known['name'].', return it unchanged.',
+            'The message below was written in '.$staff['name'].'. Rewrite it in very basic, fluent '.$known['name'].', the way people talk on WhatsApp every day. Use short, simple words. Do not translate word for word and do not sound formal. If a sentence is confused or does not make sense, make the meaning clear without adding facts that were not written. Reply with JSON only: {"text":"the simple translation"}. Keep names, phone numbers, amounts, and dates. Do not add a greeting or a note. If it is already simple '.$known['name'].', return it unchanged.',
             $english
         );
         if (! $parsed || ! isset($parsed['text'])) {
