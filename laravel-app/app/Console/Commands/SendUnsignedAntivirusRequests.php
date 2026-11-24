@@ -13,12 +13,9 @@ class SendUnsignedAntivirusRequests extends Command
 
     public function handle(AntivirusRequestService $requests)
     {
-        $result = $requests->sendUnsignedForSignature();
-        $requesters = $requests->notifyRequestersSentForApproval();
-        $this->info('Approver signature requests sent: '.$result['approvers']);
-        $this->info('Chief signature requests sent: '.$result['chiefs']);
-        $this->info('Requester notices sent: '.$requesters['sent']);
-        $this->info('Skipped: '.($result['skipped'] + $requesters['skipped']));
+        $requests->sendUnsignedForSignature();
+        $requests->notifyRequestersSentForApproval();
+        $this->info('Antivirus reminders are off. Nothing was sent to approvers, signers, or requesters.');
 
         return 0;
     }

@@ -749,110 +749,23 @@ class AntivirusRequestService
     }
 
     /**
-     * Send each unsigned station approver and each waiting Chief one signature request.
+     * Reminders to unsigned approvers and the Chief stay off.
      *
      * @return array<string, int>
      */
     public function sendUnsignedForSignature()
     {
-        $approvers = 0;
-        $chiefs = 0;
-        $skipped = 0;
-        app(CloudTenantContext::class)->withoutIsolation(function () use (&$approvers, &$chiefs, &$skipped) {
-            $pending = AntivirusApprover::with('requestRow')
-                ->where('status', 'pending')
-                ->orderBy('id')
-                ->get();
-            foreach ($pending as $approver) {
-                $request = $approver->requestRow;
-                if (! $request || $request->status !== 'awaiting_station') {
-                    $skipped++;
-                    continue;
-                }
-                if ($this->signatureAlreadySent($request, 'approver_link', $approver->phone, $approver->updated_at)) {
-                    $skipped++;
-                    continue;
-                }
-                try {
-                    $this->resendApprover($approver);
-                    $approvers++;
-                } catch (\Throwable $e) {
-                    $skipped++;
-                }
-            }
-            $waiting = AntivirusRequest::where('status', 'awaiting_chief')->orderBy('id')->get();
-            foreach ($waiting as $request) {
-                $settings = $this->settings();
-                if (! $settings->chief_phone) {
-                    $skipped++;
-                    continue;
-                }
-                if ($this->signatureAlreadySent($request, 'station_chief', $settings->chief_phone, $request->forwarded_at)) {
-                    $skipped++;
-                    continue;
-                }
-                try {
-                    $this->resendChief($request);
-                    $chiefs++;
-                } catch (\Throwable $e) {
-                    $skipped++;
-                }
-            }
-        });
-
-        return ['approvers' => $approvers, 'chiefs' => $chiefs, 'skipped' => $skipped];
+        return ['approvers' => 0, 'chiefs' => 0, 'skipped' => 0];
     }
 
     /**
-     * Tell each requester once that an open request was sent for approval.
+     * Reminders to the person who requested stay off.
      *
      * @return array<string, int>
      */
     public function notifyRequestersSentForApproval()
     {
-        $sent = 0;
-        $skipped = 0;
-        app(CloudTenantContext::class)->withoutIsolation(function () use (&$sent, &$skipped) {
-            $rows = AntivirusRequest::with('approvers')
-                ->whereIn('status', ['awaiting_station', 'awaiting_chief'])
-                ->orderBy('id')
-                ->get();
-            foreach ($rows as $request) {
-                if (! $request->requester_phone) {
-                    $skipped++;
-                    continue;
-                }
-                if ($this->signatureAlreadySent($request, 'submitted_requester', $request->requester_phone, $request->submitted_at ?: $request->created_at)) {
-                    $skipped++;
-                    continue;
-                }
-                $people = [];
-                foreach ($request->approvers as $approver) {
-                    $people[] = [
-                        'name' => $approver->name,
-                        'role' => $approver->role,
-                        'role_other' => $approver->role_other,
-                    ];
-                }
-                if (count($people) === 0) {
-                    $people = $this->savedApprovers($request);
-                }
-                try {
-                    $this->replaceNotice(
-                        $request,
-                        'submitted_requester',
-                        $request->requester_phone,
-                        AntivirusCatalog::submittedMessage($request, AntivirusCatalog::approverList($people)),
-                        true
-                    );
-                    $sent++;
-                } catch (\Throwable $e) {
-                    $skipped++;
-                }
-            }
-        });
-
-        return ['sent' => $sent, 'skipped' => $skipped];
+        return ['sent' => 0, 'skipped' => 0];
     }
 
     /**
