@@ -272,6 +272,7 @@ class WhatsAppHubController extends Controller
             if ($open) {
                 $this->conversations->readOnWeb($open);
                 $messages = WhatsAppMessage::where('conversation_id', $open->id)
+                    ->orderByDesc('created_at')
                     ->orderByDesc('id')
                     ->limit(60)
                     ->get()

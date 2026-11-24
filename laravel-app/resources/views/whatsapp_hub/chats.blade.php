@@ -116,7 +116,8 @@
     .bubble { flex: none; align-self: flex-start; max-width: min(680px, 78%); margin: 0; padding: 7px 11px 5px; border-radius: 4px 16px 16px 16px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; color: var(--wa-ink); font-size: 14px; box-shadow: 0 1px 2px rgba(15,31,61,.08), 0 2px 8px rgba(15,31,61,.05); animation: bubbleIn .18s ease-out; }
     .bubble .aside { display: block; margin-top: 4px; font-size: 11px; line-height: 1.3; opacity: .72; }
     .bubble.in { background: #fff; }
-    .bubble.out { align-self: flex-end; background: linear-gradient(135deg, #d9fdd3 0%, #c8f5e4 100%); border-radius: 16px 4px 16px 16px; margin-left: auto; }
+    .bubble.out { align-self: flex-end; background: #e4e7ee; color: #5c6573; border-radius: 16px 4px 16px 16px; margin-left: auto; }
+    .bubble.out .aside, .bubble.out time { color: #8b93a3; }
     @keyframes bubbleIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
     .bubble time { float: right; margin: 8px 0 0 10px; color: #7c8aa5; font-size: 11px; line-height: 1; white-space: nowrap; }
     .bubble .tick { margin-left: 6px; font-weight: 800; letter-spacing: 0; }
@@ -219,16 +220,11 @@
             <div class="chat-none" id="chatNone" @if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0) style="display:block" @endif>@if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0)No conversations yet. Chats from the Wasender number appear here.@else Nothing in this list.@endif</div>
             @if($pane === 'chats')
             @php
-                $conversations = $conversations->sort(function ($a, $b) use ($openId) {
-                    $aUnread = (int) $a->id !== $openId && (int) $a->unread_count > 0 ? 1 : 0;
-                    $bUnread = (int) $b->id !== $openId && (int) $b->unread_count > 0 ? 1 : 0;
-                    if ($aUnread !== $bUnread) {
-                        return $bUnread - $aUnread;
-                    }
+                $conversations = $conversations->sort(function ($a, $b) {
                     $aTime = $a->last_activity_at ?: $a->updated_at;
                     $bTime = $b->last_activity_at ?: $b->updated_at;
                     if ($aTime == $bTime) {
-                        return 0;
+                        return (int) $b->id - (int) $a->id;
                     }
 
                     return $aTime < $bTime ? 1 : -1;
@@ -851,8 +847,14 @@
         if (!list || !filters || !items) return;
         list.querySelectorAll('.chat-row.is-on').forEach(function (row) { row.classList.remove('is-on'); });
         var head = document.getElementById('chatNone');
-        var readTop = null;
-        items.slice().reverse().forEach(function (item) {
+        var ordered = items.slice().sort(function (a, b) {
+            var left = Date.parse(a.at || '') || 0;
+            var right = Date.parse(b.at || '') || 0;
+            if (left === right) return (b.id || 0) - (a.id || 0);
+            return right - left;
+        });
+        var after = head;
+        ordered.forEach(function (item) {
             var row = list.querySelector('.chat-row[data-id="' + item.id + '"]');
             if (!row) {
                 row = document.createElement('a');
@@ -870,16 +872,9 @@
             var initial = (item.name || 'W').charAt(0).toUpperCase();
             var when = item.at && window.hubListTime ? window.hubListTime(item.at) : (item.time || '');
             row.innerHTML = '<span class="chat-avatar" data-tone="' + (item.tone || 0) + '">' + esc(initial) + '</span><span class="chat-main"><span class="chat-top"><span class="chat-name">' + esc(item.name) + '</span>' + state + '<span class="chat-time"' + (item.at ? ' data-at="' + esc(item.at) + '"' : '') + '>' + esc(when) + '</span></span><span class="chat-bottom"><span class="chat-preview">' + ai + esc(item.preview || '') + '</span>' + badge + '</span></span>';
-            if (item.unread > 0) list.insertBefore(row, head ? head.nextSibling : list.firstChild);
-            else if (!readTop) {
-                var groupRow = list.querySelector('.chat-row[data-kind="group"]');
-                if (groupRow) list.insertBefore(row, groupRow);
-                else list.appendChild(row);
-                readTop = row;
-            } else {
-                list.insertBefore(row, readTop);
-                readTop = row;
-            }
+            var next = after ? after.nextSibling : list.firstChild;
+            if (next !== row) list.insertBefore(row, next);
+            after = row;
         });
         var unread = 0;
         var read = 0;
