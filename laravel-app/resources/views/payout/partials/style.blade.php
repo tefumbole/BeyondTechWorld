@@ -70,6 +70,7 @@
     .pay-linkbox { display: flex; gap: 8px; max-width: 760px; }
     .pay-linkbox input { flex: 1; }
     .pay-muted { color: #6f7b91; }
+    .pay-amount-col { font-weight: 800; white-space: nowrap; }
     .pay-modal { position: fixed; z-index: 4000; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px; overflow: auto; background: rgba(7, 47, 107, .45); }
     .pay-modal[hidden] { display: none; }
     .pay-modal-card { width: min(920px, 100%); margin-top: 8px; border-radius: 16px; }

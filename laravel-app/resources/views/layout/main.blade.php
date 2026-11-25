@@ -816,6 +816,7 @@
                                         <li id="payout-index-menu"><a href="{{ route('payout.index') }}">Withdrawals</a></li>
                                     @endif
                                     <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">Deposits</a></li>
+                                    <li id="payment-transactions-menu"><a href="{{ route('payment.transactions') }}">Transactions</a></li>
                                 </ul>
                             </li>
                         @endif
@@ -2516,7 +2517,7 @@
                               <div id="beyond-module-tabs-nav" class="beyond-module-tabs-nav"></div>
                           </div>
                           @php
-                              $momoWalletRoutes = ['payment.index', 'momo.payments', 'payout.index', 'payout.request', 'deposit.index', 'donations.index'];
+                              $momoWalletRoutes = ['payment.index', 'momo.payments', 'payout.index', 'payout.request', 'deposit.index', 'donations.index', 'payment.transactions'];
                               $showMomoWallet = in_array(optional(request()->route())->getName(), $momoWalletRoutes, true);
                               $momoWalletText = $showMomoWallet ? \Illuminate\Support\Facades\Cache::get('btw.campay.wallet_label') : null;
                           @endphp
@@ -2824,6 +2825,7 @@
                   'momo-payments-menu': 'fa fa-list',
                   'payout-index-menu': 'fa fa-paper-plane',
                   'desposit-index-menu': 'fa fa-university',
+                  'payment-transactions-menu': 'fa fa-exchange',
                   'role-menu': 'dripicons-lock',
                   'warehouse-menu': 'dripicons-home',
                   'biller-list-menu': 'dripicons-user-id',

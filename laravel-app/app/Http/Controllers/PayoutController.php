@@ -1495,6 +1495,11 @@ class PayoutController extends Controller
             if ($ar !== $br) {
                 return $ar < $br ? -1 : 1;
             }
+            $at = $a->created_at ? $a->created_at->timestamp : 0;
+            $bt = $b->created_at ? $b->created_at->timestamp : 0;
+            if ($at !== $bt) {
+                return $at < $bt ? 1 : -1;
+            }
 
             return (int) $b->id - (int) $a->id;
         })->values();

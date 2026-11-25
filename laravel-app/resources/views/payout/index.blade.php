@@ -56,6 +56,7 @@
                         <th style="width:36px"><input type="checkbox" id="pendingAll" form="pendingDeleteForm" title="Select all"></th>
                         <th>When</th>
                         <th>People</th>
+                        <th>Amount</th>
                         <th>Reason</th>
                         <th>Status</th>
                         <th></th>
@@ -80,12 +81,22 @@
                             <td data-label="When">{{ $row->created_at ? $row->created_at->format('M j, Y H:i') : '' }}</td>
                             <td class="pay-people" data-label="People">
                                 @forelse($row->lines as $line)
-                                    <div>{{ trim((string) $line->momo_name) !== '' ? $line->momo_name : $line->person_name }} <span class="pay-muted">{{ number_format($line->amount, 0, '.', ' ') }} XAF</span></div>
+                                    <div>{{ trim((string) $line->momo_name) !== '' ? $line->momo_name : $line->person_name }}</div>
                                 @empty
                                     <span class="pay-muted">No one on this request.</span>
                                 @endforelse
                                 @if($row->requester_name)
                                     <div class="pay-muted">From {{ $row->requester_name }}</div>
+                                @endif
+                            </td>
+                            <td class="pay-amount-col" data-label="Amount">
+                                @php $amountTotal = 0; @endphp
+                                @foreach($row->lines as $line)
+                                    @php $amountTotal += (int) $line->amount; @endphp
+                                    <div>{{ number_format($line->amount, 0, '.', ' ') }} XAF</div>
+                                @endforeach
+                                @if($row->lines->count() > 1)
+                                    <div class="pay-muted">{{ number_format($amountTotal, 0, '.', ' ') }} XAF</div>
                                 @endif
                             </td>
                             <td data-label="Reason">{{ $row->note }}</td>
@@ -111,7 +122,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="pay-muted">No withdrawals yet.</td></tr>
+                        <tr><td colspan="7" class="pay-muted">No withdrawals yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

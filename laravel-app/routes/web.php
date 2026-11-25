@@ -1808,6 +1808,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
     Route::get('payment/index', 'PaymentController@index')->name('payment.index');
     Route::get('payment/momo', 'PaymentController@momoPayments')->name('momo.payments');
+    Route::get('payment/transactions', 'PaymentTransactionController@index')->name('payment.transactions');
     Route::post('payment/delete-selection', 'PaymentController@deleteSelection')->name('payment.delete_selection');
     Route::post('payment/request-selection', 'PaymentController@requestSelection')->name('payment.request_selection');
     Route::get('payment/desposits', 'PaymentController@Desposit')->name('deposit.index');
