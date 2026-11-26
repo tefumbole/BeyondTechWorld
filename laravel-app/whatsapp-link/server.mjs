@@ -183,9 +183,18 @@ async function startSocket(id, expected) {
   entry.id = id
   loadSavedChats(entry)
   const savedChats = Object.keys(entry.chats || {}).length
-  if (!savedChats && state.creds && Array.isArray(state.creds.processedHistoryMessages) && state.creds.processedHistoryMessages.length) {
-    state.creds.processedHistoryMessages = []
+  entry.recoverChats = savedChats === 0
+  if (entry.recoverChats && state.creds) {
+    if (Array.isArray(state.creds.processedHistoryMessages) && state.creds.processedHistoryMessages.length) {
+      state.creds.processedHistoryMessages = []
+    }
+    state.creds.accountSyncCounter = 0
     await saveCreds()
+    fs.readdirSync(dir).forEach((file) => {
+      if (file.indexOf('app-state-sync-version-') === 0) {
+        fs.rmSync(path.join(dir, file), { force: true })
+      }
+    })
   }
   const version = await fetchLatestBaileysVersion()
   if (!entry.chats) entry.chats = {}
@@ -229,6 +238,16 @@ async function startSocket(id, expected) {
       unread: Number(chat.unreadCount) || 0,
     }))
   })
+  sock.ev.on('chats.update', (chats) => {
+    ;(chats || []).forEach((chat) => {
+      if (!chat || !chat.id) return
+      touchChat(entry, chat.id, {
+        name: chat.name || '',
+        at: Number(chat.conversationTimestamp) || 0,
+        unread: typeof chat.unreadCount === 'number' ? chat.unreadCount : undefined,
+      })
+    })
+  })
   sock.ev.on('contacts.upsert', (people) => {
     ;(people || []).forEach((person) => touchChat(entry, person.id, { name: person.name || person.notify || '' }))
   })
@@ -244,6 +263,17 @@ async function startSocket(id, expected) {
       entry.retries = 0
       const raw = sock.user && sock.user.id ? String(sock.user.id) : ''
       entry.phone = raw.split(':')[0].split('@')[0]
+      if (entry.recoverChats && !entry.historyAsked && typeof sock.resyncAppState === 'function') {
+        entry.historyAsked = true
+        sock.resyncAppState(['critical_block', 'critical_unblock_low', 'regular_high', 'regular_low', 'regular'], true)
+          .then(() => {
+            console.error('mai chats ' + id + ' ' + Object.keys(entry.chats || {}).length)
+          })
+          .catch((error) => {
+            const message = error && error.message ? String(error.message) : 'sync failed'
+            console.error('mai chat sync ' + message.slice(0, 140))
+          })
+      }
       if (entry.expected && !samePhone(entry.expected, entry.phone)) {
         entry.status = 'ERROR'
         entry.error = 'This WhatsApp is a different number.'
