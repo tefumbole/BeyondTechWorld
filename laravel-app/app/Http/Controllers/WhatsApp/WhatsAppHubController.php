@@ -210,6 +210,9 @@ class WhatsAppHubController extends Controller
         }
         $phone = $this->linkedMaiPhone();
         $to = trim((string) $request->input('to'));
+        if (\App\Services\Mai\MaiBusinessLine::is($phone) || \App\Services\Mai\MaiBusinessLine::is($to)) {
+            return redirect()->to(route('whatsapp.chats'))->with('not_permitted', 'That number stays on the business WhatsApp line.');
+        }
         $text = trim((string) $request->input('text'));
         $back = route('whatsapp.chats', ['jid' => $to]);
         if ($text === '' || ! preg_match('/^([1-9][0-9]{6,16}@s\.whatsapp\.net|[0-9]+(-[0-9]+)?@g\.us|[1-9][0-9]{7,14})$/', $to)) {
@@ -285,6 +288,8 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $this->keepSignedIn();
+        // Staff chats stay on the WaSender business line. ?line=main is the same
+        // page. A line, provider, or phone parameter cannot switch this inbox.
         if ($request->get('open')) {
             return response()->json($this->chatThread((int) $request->get('chat')))->header('Cache-Control', 'no-store');
         }
@@ -648,8 +653,11 @@ class WhatsAppHubController extends Controller
     protected function inboxSnapshot()
     {
         $load = function () {
-            $rows = WhatsAppConversation::with('contact')
-                ->orderByDesc('last_activity_at')
+            $rows = WhatsAppConversation::with('contact');
+            if (Schema::hasColumn('whatsapp_conversations', 'mai_session_id')) {
+                $rows->whereNull('mai_session_id');
+            }
+            $rows = $rows->orderByDesc('last_activity_at')
                 ->orderByDesc('id')
                 ->limit(150)
                 ->get();
@@ -667,14 +675,27 @@ class WhatsAppHubController extends Controller
 
     protected function inboxConversation($id)
     {
-        $row = WhatsAppConversation::with('contact')->find($id);
+        $row = $this->staffConversation($id);
         if ($row || ! $id || ! config('cloud.isolate_queries')) {
             return $row;
         }
 
         return app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation(function () use ($id) {
-            return WhatsAppConversation::with('contact')->find($id);
+            return $this->staffConversation($id);
         });
+    }
+
+    /**
+     * Customer session threads stay out of the business inbox.
+     */
+    protected function staffConversation($id)
+    {
+        $query = WhatsAppConversation::with('contact')->where('id', (int) $id);
+        if (Schema::hasColumn('whatsapp_conversations', 'mai_session_id')) {
+            $query->whereNull('mai_session_id');
+        }
+
+        return $query->first();
     }
 
     protected function chatPreview($preview)

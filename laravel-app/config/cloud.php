@@ -72,6 +72,22 @@ return [
     ],
 
     /*
+    | Customer sessions on mai.beyondtechworld.com. Off until the morning check.
+    | Turning this off does not disconnect the WaSender business line.
+    */
+    'mai_customer' => [
+        'enabled' => env('CLOUD_MAI_CUSTOMER', false),
+        'host' => env('CLOUD_MAI_HOST', 'mai.beyondtechworld.com'),
+        'business_phone' => '237675321739',
+        'link_url' => env('CLOUD_WHATSAPP_LINK_URL', 'http://127.0.0.1:3921'),
+        'transport' => null,
+        'ai_reply' => null,
+        'webhook_sender' => null,
+        'webhook_resolver' => null,
+        'webhook_allow_http' => false,
+    ],
+
+    /*
     | Rwanda Mobile Money is not collected until a gateway for RWF exists.
     | A Rwanda number can still pay 10 USD by card.
     */

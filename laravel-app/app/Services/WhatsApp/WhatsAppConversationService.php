@@ -671,6 +671,28 @@ class WhatsAppConversationService
             $message->sent_at = now();
             $message->save();
             $result = ['success' => true, 'msg_id' => $message->provider_message_id, 'channel' => 'website'];
+        } elseif (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+            $result = app(\App\Services\Mai\MaiOutboundService::class)->deliver(
+                $conversation,
+                $sendBody,
+                'hub-'.$message->id,
+                $message
+            );
+            if (! empty($result['uncertain'])) {
+                $message->error = 'Delivery was not confirmed. It was not sent again.';
+                $message->save();
+            } elseif (! empty($result['success'])) {
+                $msgId = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
+                $message->provider_message_id = $msgId ?: null;
+                $message->status = WhatsAppMessage::STATUS_SENT;
+                $message->sent_at = now();
+                $message->save();
+            } else {
+                $message->status = WhatsAppMessage::STATUS_FAILED;
+                $message->failed_at = now();
+                $message->error = isset($result['error']) ? substr((string) $result['error'], 0, 500) : 'send failed';
+                $message->save();
+            }
         } else {
             if ($quoteWasender !== '') {
                 $result = app(\App\Services\BeyondWasenderService::class)->sendTextRaw(

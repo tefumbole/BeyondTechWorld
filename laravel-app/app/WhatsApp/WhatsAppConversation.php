@@ -30,7 +30,7 @@ class WhatsAppConversation extends Model
         'contact_id', 'assigned_user_id', 'mode', 'status', 'channel', 'session_token',
         'page_context', 'unread_count',
         'first_message', 'last_message', 'last_activity_at',
-        'last_incoming_at', 'last_outgoing_at',
+        'last_incoming_at', 'last_outgoing_at', 'mai_session_id',
     ];
 
     protected $dates = ['last_activity_at', 'last_incoming_at', 'last_outgoing_at'];

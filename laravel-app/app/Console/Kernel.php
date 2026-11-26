@@ -78,6 +78,9 @@ class Kernel extends ConsoleKernel
             $schedule->command('whatsapp:appointment-reminders')->hourlyAt(15)->withoutOverlapping();
         }
         $schedule->command('hotspot:enforce')->everyMinute()->withoutOverlapping();
+        if (config('cloud.mai_customer.enabled')) {
+            $schedule->command('mai:ingest-events')->everyMinute()->withoutOverlapping();
+        }
     }
 
     /**

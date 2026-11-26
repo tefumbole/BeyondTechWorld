@@ -11,6 +11,16 @@ import {
 } from '@whiskeysockets/baileys'
 import pino from 'pino'
 import QRCode from 'qrcode'
+import {
+  appendOutbox,
+  backoffMs,
+  claimLock,
+  isProtectedPhone,
+  opaqueId,
+  sealCreds,
+  unlinkKeepHistory,
+  unsealCreds,
+} from './session-store.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../storage/app/whatsapp-link')
 const tokenPath = path.join(root, 'token')
@@ -48,7 +58,12 @@ function phoneKey(phone) {
 }
 
 function sessionKey(value) {
-  return tenantId(value) || (/^p[1-9][0-9]{7,14}$/.test(String(value || '')) ? String(value) : '')
+  return opaqueId(value) || tenantId(value) || (/^p[1-9][0-9]{7,14}$/.test(String(value || '')) ? String(value) : '')
+}
+
+function emit(entry, event) {
+  if (!entry || !entry.id) return
+  appendOutbox(path.join(root, 'outbox'), Object.assign({ session_id: entry.id }, event))
 }
 
 function samePhone(expected, reported) {
@@ -162,6 +177,16 @@ function rememberMessage(entry, msg) {
   })
   if (entry.inbox.length > 200) entry.inbox.splice(0, entry.inbox.length - 200)
   scheduleSave(entry)
+  if (msg.key.id) {
+    emit(entry, {
+      event_id: String(msg.key.id),
+      kind: 'message',
+      from_me: !!msg.key.fromMe,
+      text: text.slice(0, 1000),
+      remote: jidDigits(jid),
+      at: String(msg.messageTimestamp || ''),
+    })
+  }
 }
 
 async function attachLids(entry) {
@@ -199,7 +224,15 @@ async function startSocket(id, expected) {
   }
   const dir = sessionDir(id)
   ensureDir(dir)
+  if (!claimLock(dir)) {
+    throw new Error('This session already has a worker.')
+  }
+  unsealCreds(dir, process.env.MAI_SESSION_KEY || '')
   const { state, saveCreds } = await useMultiFileAuthState(dir)
+  const persistCreds = async () => {
+    await saveCreds()
+    sealCreds(dir, process.env.MAI_SESSION_KEY || '')
+  }
   const entry = existing || { status: 'AWAITING_QR', phone: null, qr: null, sock: null, retries: 0, inbox: [], chats: {} }
   entry.id = id
   loadSavedChats(entry)
@@ -235,7 +268,7 @@ async function startSocket(id, expected) {
     markOnlineOnConnect: false,
   })
   entry.sock = sock
-  sock.ev.on('creds.update', saveCreds)
+  sock.ev.on('creds.update', persistCreds)
   sock.ev.on('messages.upsert', (packet) => {
     const list = packet && packet.messages ? packet.messages : []
     list.forEach((msg) => rememberMessage(entry, msg))
@@ -295,6 +328,7 @@ async function startSocket(id, expected) {
             console.error('mai chat sync ' + message.slice(0, 140))
           })
       }
+      emit(entry, { event_id: 'open-' + Date.now(), kind: 'status', status: 'CONNECTED', phone: entry.phone || '' })
       if (entry.expected && !samePhone(entry.expected, entry.phone)) {
         entry.status = 'ERROR'
         entry.error = 'This WhatsApp is a different number.'
@@ -308,10 +342,11 @@ async function startSocket(id, expected) {
         : 0
       entry.sock = null
       if (entry.closing || code === DisconnectReason.loggedOut) {
-        entry.status = 'DISCONNECTED'
+        entry.status = code === DisconnectReason.loggedOut ? 'UNLINKED' : 'DISCONNECTED'
         entry.qr = null
-        entry.phone = null
-        fs.rmSync(dir, { recursive: true, force: true })
+        entry.pairing = null
+        unlinkKeepHistory(dir)
+        emit(entry, { event_id: 'unlink-' + Date.now(), kind: 'status', status: 'UNLINKED' })
         return
       }
       entry.retries += 1
@@ -321,7 +356,7 @@ async function startSocket(id, expected) {
           startSocket(id).catch(() => {
             entry.status = 'ERROR'
           })
-        }, 3000)
+        }, backoffMs(entry.retries))
       }
     }
   })
@@ -476,7 +511,7 @@ const server = http.createServer((req, res) => {
     let raw = ''
     req.on('data', (chunk) => {
       raw += chunk
-      if (raw.length > 200) {
+      if (raw.length > 800) {
         req.destroy()
       }
     })
@@ -488,12 +523,16 @@ const server = http.createServer((req, res) => {
         send(res, 422, { error: 'invalid' })
         return
       }
-      const id = body.phone ? phoneKey(body.phone) : tenantId(body.tenant_id)
+      if (isProtectedPhone(body.phone)) {
+        send(res, 403, { error: 'protected' })
+        return
+      }
+      const id = opaqueId(body.session_id) || (body.phone ? phoneKey(body.phone) : tenantId(body.tenant_id))
       if (!id) {
         send(res, 422, { error: 'invalid' })
         return
       }
-      const expected = body.phone ? id.slice(1) : ''
+      const expected = body.phone ? String(body.phone).replace(/\D/g, '') : (id.indexOf('p') === 0 ? id.slice(1) : '')
       startSocket(id, expected).then((entry) => {
         const ready = entry.qr || entry.status === 'CONNECTED' ? Promise.resolve() : waitForQr(entry, 8000)
         ready.then(() => send(res, 200, publicState(entry, true)))
@@ -572,7 +611,7 @@ const server = http.createServer((req, res) => {
           sock.logout().catch(() => {})
         }
       }
-      fs.rmSync(sessionDir(id), { recursive: true, force: true })
+      unlinkKeepHistory(sessionDir(id))
       send(res, 200, { status: 'DISCONNECTED', phone: null, qr: null })
       return
     }
@@ -586,7 +625,7 @@ server.listen(port, '127.0.0.1', () => {
     if (!sessionKey(id)) {
       return
     }
-    if (fs.existsSync(path.join(sessionDir(id), 'creds.json'))) {
+    if (fs.existsSync(path.join(sessionDir(id), 'creds.json')) || fs.existsSync(path.join(sessionDir(id), 'creds.json.enc'))) {
       startSocket(id).catch(() => {})
     }
   })

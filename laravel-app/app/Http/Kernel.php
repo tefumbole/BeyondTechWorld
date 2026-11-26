@@ -38,6 +38,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\LogActivity::class,
+            \App\Http\Middleware\RedirectMaiHost::class,
         ],
 
         'api' => [
@@ -71,6 +72,7 @@ class Kernel extends HttpKernel
         'cloud.member' => \App\Http\Middleware\EnsureCloudMembership::class,
         'nbc.member' => \App\Http\Middleware\EnsureNbcMember::class,
         'travel.enabled' => \App\Http\Middleware\EnsureTravelEnabled::class,
+        'mai.key' => \App\Http\Middleware\AuthenticateMaiKey::class,
     ];
 
     /**

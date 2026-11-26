@@ -39,7 +39,22 @@ class RouteServiceProvider extends ServiceProvider
 
         $this->mapWebRoutes();
 
-        //
+        $this->mapMaiRoutes();
+    }
+
+    /**
+     * Customer Whats MAI portal and API. The staff WaSender inbox is unchanged.
+     */
+    protected function mapMaiRoutes()
+    {
+        Route::middleware('web')
+            ->namespace($this->namespace)
+            ->group(base_path('routes/mai_web.php'));
+
+        Route::prefix('api')
+            ->middleware('api')
+            ->namespace($this->namespace)
+            ->group(base_path('routes/mai_api.php'));
     }
 
     /**
