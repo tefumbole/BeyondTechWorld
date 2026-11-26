@@ -209,6 +209,9 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $this->keepSignedIn();
+        if ($request->get('open')) {
+            return response()->json($this->chatThread((int) $request->get('chat')))->header('Cache-Control', 'no-store');
+        }
         if ($request->get('poll')) {
             if ($request->get('names')) {
                 $named = WhatsAppConversation::with('contact')->orderByDesc('last_activity_at')->orderByDesc('id')->limit(150)->get();
@@ -368,6 +371,56 @@ class WhatsAppHubController extends Controller
         ];
     }
 
+    protected function chatThread($chatId)
+    {
+        $conversation = WhatsAppConversation::with('contact')->find($chatId);
+        if (! $conversation) {
+            return ['ok' => false];
+        }
+        $this->conversations->readOnWeb($conversation);
+        $messages = WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(60)
+            ->get()
+            ->reverse()
+            ->values();
+        $first = $messages->first();
+        $contact = $conversation->contact;
+        $name = $contact ? $contact->displayName() : 'WhatsApp';
+        $digits = preg_replace('/\D/', '', (string) ($contact ? $contact->normalized_phone : ''));
+        $destination = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->destinationFor($conversation->id);
+        $staff = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->staffLanguage();
+        $defaultReply = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->defaultReply();
+
+        return [
+            'ok' => true,
+            'chat' => [
+                'id' => (int) $conversation->id,
+                'name' => $name ?: 'WhatsApp',
+                'phone' => $contact ? (string) $contact->display_phone : '',
+                'digits' => $digits,
+                'tone' => (int) (sprintf('%u', crc32(strtolower($name ?: 'whatsapp'))) % 8),
+                'mode' => (string) $conversation->mode,
+                'translate' => $destination && ! empty($destination['enabled']),
+                'destination' => $destination,
+                'staff' => $staff,
+                'default_reply' => $defaultReply,
+                'reply' => route('whatsapp.chats.reply', $conversation->id),
+                'translator' => route('whatsapp.chats.translator', $conversation->id),
+                'language' => route('whatsapp.chats.language', $conversation->id),
+                'ai' => route('whatsapp.conversation.enable_ai', $conversation->id),
+                'human' => route('whatsapp.conversation.takeover', $conversation->id),
+            ],
+            'messages' => $messages->map(function ($message) {
+                return $this->chatFeedMessage($message);
+            })->values(),
+            'has_earlier' => $first
+                ? WhatsAppMessage::where('conversation_id', $conversation->id)->where('id', '<', $first->id)->exists()
+                : false,
+        ];
+    }
+
     protected function chatsFeed(Request $request)
     {
         $chatId = (int) $request->get('chat');
@@ -406,10 +459,16 @@ class WhatsAppHubController extends Controller
             }
             $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
             if ($translator->activeFor($chatId)) {
-                $translator->backfillVisible($fresh, 20, true);
-                $payload['translated'] = collect($translator->backfillChat($chatId, 8))->map(function ($message) {
-                    return $this->chatFeedMessage($message);
-                })->values();
+                $latestIn = null;
+                foreach ($fresh as $row) {
+                    if ($row->direction === WhatsAppMessage::DIR_IN) {
+                        $latestIn = $row;
+                    }
+                }
+                if ($latestIn && $translator->needsTranslation($latestIn)) {
+                    $translator->decorate($latestIn, false);
+                    $payload['translated'] = [$this->chatFeedMessage($latestIn)];
+                }
             }
             $payload['messages'] = $fresh->map(function ($message) {
                 return $this->chatFeedMessage($message);
@@ -422,10 +481,6 @@ class WhatsAppHubController extends Controller
             $payload['ticks'] = $ticks->map(function ($message) {
                 return ['id' => (int) $message->id, 'tick' => $message->ticks()];
             })->values();
-            try {
-                app(\App\Services\WhatsApp\WhatsAppTranslator::class)->backfillOthers($chatId);
-            } catch (\Throwable $e) {
-            }
         }
 
         $jid = trim((string) $request->get('group', ''));
@@ -444,6 +499,14 @@ class WhatsAppHubController extends Controller
             }
         }
 
+        $stamp = (string) WhatsAppConversation::max('updated_at').'|'.(int) WhatsAppConversation::sum('unread_count');
+        $payload['stamp'] = $stamp;
+        if ((string) $request->get('stamp') === $stamp) {
+            $payload['list'] = false;
+
+            return $payload;
+        }
+        $payload['list'] = true;
         $conversations = WhatsAppConversation::with('contact')
             ->orderByDesc('last_activity_at')
             ->orderByDesc('id')
@@ -561,11 +624,33 @@ class WhatsAppHubController extends Controller
         }
         $conversation = WhatsAppConversation::with('contact')->findOrFail($id);
         $back = route('whatsapp.chats', ['chat' => $conversation->id]);
+        $json = $request->ajax() || $request->wantsJson() || $request->filled('send_token');
+        $token = substr(preg_replace('/[^A-Za-z0-9]/', '', (string) $request->input('send_token')), 0, 40);
+        $tokenKey = $token !== '' ? 'wa.send.'.$conversation->id.'.'.$token : '';
+        if ($tokenKey !== '') {
+            if (! \Illuminate\Support\Facades\Cache::add($tokenKey, 'pending', now()->addMinutes(3))) {
+                $held = \Illuminate\Support\Facades\Cache::get($tokenKey);
+                $existing = is_numeric($held) ? WhatsAppMessage::find($held) : null;
+
+                return response()->json([
+                    'ok' => true,
+                    'duplicate' => true,
+                    'message' => $existing ? $this->chatFeedMessage($existing) : null,
+                ]);
+            }
+        }
         $file = $request->file('file');
         if ($file) {
             $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx'];
             $ext = strtolower((string) $file->getClientOriginalExtension());
             if (! in_array($ext, $allowed, true) || $file->getSize() > 8 * 1024 * 1024) {
+                if ($tokenKey !== '') {
+                    \Illuminate\Support\Facades\Cache::forget($tokenKey);
+                }
+                if ($json) {
+                    return response()->json(['ok' => false, 'error' => 'Send a photo or document up to 8 MB.'], 422);
+                }
+
                 return redirect()->to($back)->with('not_permitted', 'Send a photo or document up to 8 MB.');
             }
             $result = $this->conversations->replyFile(
@@ -580,7 +665,30 @@ class WhatsAppHubController extends Controller
             $result = $this->conversations->reply($conversation, $request->input('body'), Auth::id());
         }
         if (empty($result['success'])) {
+            if ($tokenKey !== '') {
+                \Illuminate\Support\Facades\Cache::forget($tokenKey);
+            }
+            $failed = isset($result['message']) ? $result['message'] : null;
+            if ($json) {
+                return response()->json([
+                    'ok' => false,
+                    'error' => isset($result['error']) ? $result['error'] : 'Send failed.',
+                    'message' => $failed ? $this->chatFeedMessage($failed) : null,
+                ], 422);
+            }
+
             return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'Send failed.');
+        }
+        $saved = isset($result['message']) ? $result['message'] : null;
+        if ($tokenKey !== '' && $saved) {
+            \Illuminate\Support\Facades\Cache::put($tokenKey, (int) $saved->id, now()->addMinutes(3));
+        }
+        if ($json) {
+            return response()->json([
+                'ok' => true,
+                'notice' => isset($result['notice']) ? $result['notice'] : '',
+                'message' => $saved ? $this->chatFeedMessage($saved) : null,
+            ]);
         }
         if (! empty($result['notice'])) {
             return redirect()->to($back)->with('message', $result['notice']);
@@ -595,7 +703,14 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
-        $notice = $translator->setChat($id, ! $translator->activeFor($id));
+        $turningOn = ! $translator->activeFor($id);
+        $notice = $translator->setChat($id, $turningOn);
+        if ($turningOn) {
+            try {
+                $translator->backfillChat($id, 20);
+            } catch (\Throwable $e) {
+            }
+        }
 
         return redirect()->route('whatsapp.chats', ['chat' => $id])->with('message', $notice);
     }
@@ -664,11 +779,20 @@ class WhatsAppHubController extends Controller
         $jid = trim((string) $request->input('jid'));
         $body = trim((string) $request->input('body'));
         $back = route('whatsapp.chats', ['group' => $jid]);
+        $json = $request->ajax() || $request->wantsJson() || $request->filled('send_token');
         if (substr($jid, -5) !== '@g.us' || $body === '') {
+            if ($json) {
+                return response()->json(['ok' => false, 'error' => 'Type a message for the group.'], 422);
+            }
+
             return redirect()->to($back)->with('not_permitted', 'Type a message for the group.');
         }
         $result = $this->provider->sendGroupText($jid, $body);
         if (empty($result['success'])) {
+            if ($json) {
+                return response()->json(['ok' => false, 'error' => isset($result['error']) ? $result['error'] : 'Send failed.'], 422);
+            }
+
             return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'Send failed.');
         }
         if (Schema::hasTable('whatsapp_groups') && Schema::hasTable('whatsapp_group_messages')) {
@@ -687,6 +811,25 @@ class WhatsAppHubController extends Controller
                     'message_at' => now(),
                 ]);
             }
+        }
+
+        $savedId = isset($msgId) ? $msgId : ('staff:'.uniqid('', true));
+        if ($json) {
+            return response()->json([
+                'ok' => true,
+                'message' => [
+                    'id' => $savedId,
+                    'out' => true,
+                    'text' => $body,
+                    'time' => now()->format('H:i'),
+                    'at' => now()->toIso8601String(),
+                    'tick' => 'sent',
+                    'type' => 'TEXT',
+                    'media' => '',
+                    'name' => '',
+                    'aside' => '',
+                ],
+            ]);
         }
 
         return redirect()->to($back);

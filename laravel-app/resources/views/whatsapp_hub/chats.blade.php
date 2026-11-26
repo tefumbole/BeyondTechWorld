@@ -17,6 +17,7 @@
     .hub-screens a { flex: 1; text-align: center; text-decoration: none; border-radius: 999px; padding: 9px 8px; font-size: 14px; font-weight: 700; color: #3b4a6b; background: #f4f7fb; border: 1px solid #e7edf5; }
     .hub-screens a.is-on { color: #fff; background: var(--wa-grad); border-color: transparent; }
     .hub-gear, .chat-gear { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #e7edf5; background: #fff; color: #1565c0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(15,31,61,.08); }
+    .hub-install { width: auto; min-width: 52px; padding: 0 12px; border-radius: 999px; font-weight: 800; font-size: 13px; }
     .hub-gear svg, .chat-gear svg { width: 18px; height: 18px; }
     .reply-bar { display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 14px 0; background: rgba(255,255,255,.94); }
     .reply-pick { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 0 14px; border: 0; border-radius: 16px; background: linear-gradient(135deg, #f4f7ff, #eef8f6); color: #16315c; cursor: pointer; text-align: left; box-shadow: inset 0 0 0 1px #d7e3f5; }
@@ -136,7 +137,7 @@
     .clip input { display: none; }
     .file-name { align-self: center; color: var(--wa-muted); font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .chats-compose { display: flex; align-items: center; flex-wrap: nowrap; gap: 10px; padding: 12px 18px; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); }
-    .chats-compose textarea { flex: 1; border: 1px solid transparent; border-radius: 22px; background: #f1f4fa; color: var(--wa-ink); min-height: 44px; max-height: 120px; padding: 11px 16px; resize: none; transition: border-color .18s, box-shadow .18s, background-color .18s; }
+    .chats-compose textarea { flex: 1; border: 1px solid transparent; border-radius: 22px; background: #f1f4fa; color: var(--wa-ink); min-height: 44px; max-height: 120px; padding: 11px 16px; resize: none; font-size: 16px; transition: border-color .18s, box-shadow .18s, background-color .18s; }
     .chats-compose textarea:focus { outline: none; background: #fff; border-color: #9cc2ff; box-shadow: 0 0 0 4px rgba(21, 101, 192, .12); }
     .chats-compose button { border: 0; border-radius: 50%; width: 46px; height: 46px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; flex: none; box-shadow: 0 6px 16px rgba(18, 140, 126, .35); transition: transform .15s, box-shadow .15s; }
     .chats-compose button:hover { transform: scale(1.06); box-shadow: 0 8px 20px rgba(18, 140, 126, .45); }
@@ -158,8 +159,12 @@
         .chats-stream { padding: 8px 12px 12px; }
         .bubble { max-width: 90%; }
         .chats-compose { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
-        .chats-head { padding: 8px 10px; }
+        .chats-head { padding: 8px 10px; flex-wrap: wrap; align-items: flex-start; }
+        .chats-head-person { flex: 1 1 180px; }
+        .mode-switch { flex-wrap: wrap; justify-content: flex-end; }
         .mode-switch button, .announce-btn, .call-btn { min-height: 36px; }
+        .chats-search input, .chats-compose textarea { font-size: 16px; }
+        .hub-install { flex: none; }
         .beyond-module-tabs { margin-bottom: 0; }
         .beyond-module-tabs-label { display: none; }
         .beyond-module-tabs-nav { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 8px; }
@@ -195,6 +200,7 @@
             <a class="{{ $screen === 'chats' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}">Chats</a>
             <a class="{{ $screen === 'calls' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
             <a class="{{ $screen === 'more' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}">More</a>
+            <button type="button" class="hub-gear hub-install" id="hubInstall">App</button>
             <button type="button" class="hub-gear js-lang-settings" aria-label="Language settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
         </nav>
         @if(!empty($phoneLink['disconnected']))
@@ -360,27 +366,25 @@
             <header class="chats-head">
                 <div class="chats-head-person">
                     <a class="chat-back" href="{{ route('whatsapp.chats', array_filter(['filter' => $listFilter !== 'all' ? $listFilter : null])) }}" aria-label="Back to chats">‹ Back</a>
-                    <span class="chat-avatar" data-tone="{{ sprintf('%u', crc32(strtolower($title))) % 8 }}">{{ mb_strtoupper(mb_substr($title, 0, 1)) }}</span>
+                    <span class="chat-avatar" id="threadAvatar" data-tone="{{ sprintf('%u', crc32(strtolower($title))) % 8 }}">{{ mb_strtoupper(mb_substr($title, 0, 1)) }}</span>
                     <div>
-                        <h2>{{ $title }}</h2>
-                        <p>{{ optional($open->contact)->display_phone }} <span class="mode-pill {{ $open->mode === 'AI' ? '' : 'is-human' }}">{{ $open->mode === 'AI' ? 'AI' : 'Human' }}</span></p>
+                        <h2 id="threadName">{{ $title }}</h2>
+                        <p id="threadPhone">{{ optional($open->contact)->display_phone }} <span class="mode-pill {{ $open->mode === 'AI' ? '' : 'is-human' }}">{{ $open->mode === 'AI' ? 'AI' : 'Human' }}</span></p>
                     </div>
                 </div>
                 <div class="mode-switch">
                     @php $callDigits = preg_replace('/\D/', '', (string) optional($open->contact)->normalized_phone); @endphp
-                    @if($callDigits !== '')
-                        <a class="call-btn" href="tel:+{{ $callDigits }}"><i class="fa fa-phone"></i> Call</a>
-                    @endif
+                    <a class="call-btn" id="threadCall" href="{{ $callDigits !== '' ? 'tel:+'.$callDigits : '#' }}" @if($callDigits === '') hidden @endif><i class="fa fa-phone"></i> Call</a>
                     <button type="button" class="chat-gear js-lang-settings" aria-label="Language settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
-                    <form method="POST" action="{{ route('whatsapp.chats.translator', $open->id) }}">
+                    <form method="POST" id="threadTranslate" action="{{ route('whatsapp.chats.translator', $open->id) }}">
                         @csrf
                         <button type="submit" class="is-translate {{ !empty($destination['enabled']) ? 'is-on' : '' }}" title="Translation for this chat only. Other chats keep their own language.">Translate</button>
                     </form>
-                    <form method="POST" action="{{ route('whatsapp.conversation.enable_ai', $open->id) }}">
+                    <form method="POST" id="threadAi" action="{{ route('whatsapp.conversation.enable_ai', $open->id) }}">
                         @csrf
                         <button type="submit" class="{{ $open->mode === 'AI' ? 'is-on' : '' }}">AI</button>
                     </form>
-                    <form method="POST" action="{{ route('whatsapp.conversation.takeover', $open->id) }}">
+                    <form method="POST" id="threadHuman" action="{{ route('whatsapp.conversation.takeover', $open->id) }}">
                         @csrf
                         <button type="submit" class="{{ $open->mode !== 'AI' ? 'is-on' : '' }}">Human</button>
                     </form>
@@ -453,7 +457,7 @@
                 <div class="reply-bar">
                     <button type="button" class="reply-pick" id="openReplyLang">
                         <span>Reply in</span>
-                        <strong>{{ $replyName }}</strong>
+                        <strong id="threadReplyName">{{ $replyName }}</strong>
                         @if($replyHint !== '')<em>{{ $replyHint }}</em>@endif
                     </button>
                 </div>
@@ -461,7 +465,7 @@
                     @csrf
                     <input type="hidden" name="language" id="replyLangValue" value="{{ $replyCode }}">
                 </form>
-                <form class="chats-compose" method="POST" action="{{ route('whatsapp.chats.reply', $open->id) }}" enctype="multipart/form-data">
+                <form class="chats-compose" id="chatCompose" method="POST" action="{{ route('whatsapp.chats.reply', $open->id) }}" enctype="multipart/form-data">
                     @csrf
                     <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
                     <span class="file-name" id="chatFileName"></span>
@@ -543,6 +547,38 @@
         @endif
     </section>
 </div>
+<template id="hubThreadShell">
+    <header class="chats-head">
+        <div class="chats-head-person">
+            <a class="chat-back" href="{{ route('whatsapp.chats') }}" aria-label="Back to chats">‹ Back</a>
+            <span class="chat-avatar" id="threadAvatar" data-tone="0">W</span>
+            <div>
+                <h2 id="threadName">WhatsApp</h2>
+                <p id="threadPhone"></p>
+            </div>
+        </div>
+        <div class="mode-switch">
+            <a class="call-btn" id="threadCall" href="#" hidden><i class="fa fa-phone"></i> Call</a>
+            <button type="button" class="chat-gear js-lang-settings" aria-label="Language settings">⚙</button>
+            <form method="POST" id="threadTranslate" action="">@csrf<button type="submit" class="is-translate">Translate</button></form>
+            <form method="POST" id="threadAi" action="">@csrf<button type="submit">AI</button></form>
+            <form method="POST" id="threadHuman" action="">@csrf<button type="submit">Human</button></form>
+        </div>
+    </header>
+    <div class="chat-live" id="chatLive">Reconnecting…</div>
+    <div class="chats-stream" id="chatStream"></div>
+    @if($canReply)
+    <div class="reply-bar"><button type="button" class="reply-pick" id="openReplyLang"><span>Reply in</span><strong id="threadReplyName">Off</strong></button></div>
+    <form id="replyLangForm" method="POST" action="" hidden>@csrf<input type="hidden" name="language" id="replyLangValue" value="off"></form>
+    <form class="chats-compose" id="chatCompose" method="POST" action="" enctype="multipart/form-data">
+        @csrf
+        <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
+        <span class="file-name" id="chatFileName"></span>
+        <textarea name="body" id="chatBody" placeholder="Type a message"></textarea>
+        <button type="submit" aria-label="Send">➤</button>
+    </form>
+    @endif
+</template>
 @php
     $staffCode = !empty($staffLanguage['code']) ? $staffLanguage['code'] : 'en';
     $defaultCode = !empty($defaultReply['code']) ? $defaultReply['code'] : '';
@@ -653,8 +689,13 @@
             if (filter !== 'all') url.searchParams.set('filter', filter);
             else url.searchParams.delete('filter');
             try { sessionStorage.setItem('chatListScroll', String(list.scrollTop)); } catch (e) {}
+            var chatId = row.getAttribute('data-id') || url.searchParams.get('chat');
+            if (row.getAttribute('data-kind') === 'group' || url.searchParams.get('group') || !chatId) {
+                window.location.href = url.toString();
+                return;
+            }
             event.preventDefault();
-            window.location.href = url.toString();
+            openChatInPlace(chatId);
         });
     }
     if (search) search.addEventListener('input', applyList);
@@ -703,17 +744,24 @@
             }
         });
     }
-    if (body) {
-        body.addEventListener('keydown', function (event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                if (canSend()) body.form.submit();
-            }
-        });
-        body.form.addEventListener('submit', function (event) {
-            if (!canSend()) event.preventDefault();
-        });
-    }
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' || event.shiftKey) return;
+        var field = event.target;
+        if (!field || field.id !== 'chatBody') return;
+        event.preventDefault();
+        if (field.form && field.form.getAttribute('data-sending') !== '1' && field.value.trim() !== '') {
+            if (field.form.requestSubmit) field.form.requestSubmit();
+            else field.form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
+    });
+    document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (!form || !form.classList || !form.classList.contains('chats-compose')) return;
+        var action = form.getAttribute('action') || '';
+        if (!/\/chats\/\d+\/reply/.test(action) && action.indexOf('/chats/group') === -1) return;
+        event.preventDefault();
+        sendChat(form);
+    });
     function openSheet(id) {
         var sheet = document.getElementById(id);
         if (!sheet) return;
@@ -764,6 +812,7 @@
     var chatPage = @json(route('whatsapp.chats'));
     var openChat = {{ $open ? (int) $open->id : 0 }};
     var openGroup = @json($group ? $group['jid'] : '');
+    var listStamp = '';
     var seen = {{ ($open && $messages->last()) ? (int) $messages->last()->id : 0 }};
     var seenGroup = {{ ($group && $groupMessages->last()) ? (int) $groupMessages->last()->id : 0 }};
     var misses = 0;
@@ -807,6 +856,7 @@
         return node.scrollHeight - node.scrollTop - node.clientHeight < 140;
     }
     function placeMessages(messages, prepend) {
+        stream = document.getElementById('chatStream');
         if (!stream || !messages || !messages.length) return;
         var stick = nearBottom(stream);
         var html = '';
@@ -889,6 +939,7 @@
         applyList();
     }
     function paintTicks(ticks) {
+        stream = document.getElementById('chatStream');
         if (!stream || !ticks) return;
         ticks.forEach(function (item) {
             var node = stream.querySelector('.bubble[data-id="' + item.id + '"] .tick');
@@ -897,17 +948,251 @@
             node.textContent = item.tick === 'failed' ? '! Not sent' : (item.tick === 'read' || item.tick === 'played' ? '✓✓ Read' : (item.tick === 'delivered' ? '✓✓ Delivered' : (item.tick === 'sent' ? '✓ Sent' : (item.tick === 'queued' ? 'Sending' : '✓'))));
         });
     }
+    var openingChat = false;
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+    function ensureThread() {
+        if (document.getElementById('threadName') && document.getElementById('chatStream')) return;
+        var shell = document.getElementById('hubThreadShell');
+        var panel = document.querySelector('.chats-thread');
+        if (!shell || !panel) return;
+        panel.innerHTML = shell.innerHTML;
+    }
+    function paintThread(data) {
+        var stream = document.getElementById('chatStream');
+        if (!stream) return;
+        var html = '';
+        if (data.has_earlier && data.messages && data.messages.length) {
+            html += '<button type="button" class="load-earlier" id="loadEarlier" data-before="' + data.messages[0].id + '">Earlier messages</button>';
+        }
+        var previous = '';
+        (data.messages || []).forEach(function (message) {
+            if (message.day && message.day !== previous) {
+                html += '<div class="day-chip">' + esc(message.day_label || message.day) + '</div>';
+                previous = message.day;
+            }
+            html += bubbleHtml(message);
+            if (message.id > seen) seen = message.id;
+        });
+        if (!html) html = '<div class="chats-empty"><strong>No messages yet</strong>Send the first message below.</div>';
+        stream.innerHTML = html;
+        stream.scrollTop = stream.scrollHeight;
+        var earlier = document.getElementById('loadEarlier');
+        if (earlier) {
+            earlier.addEventListener('click', function () {
+                var before = earlier.getAttribute('data-before');
+                if (before) poll('&before=' + before);
+            });
+        }
+    }
+    function applyChat(data) {
+        var chat = data.chat || {};
+        openChat = chat.id || 0;
+        openGroup = '';
+        seen = 0;
+        var name = document.getElementById('threadName');
+        var phone = document.getElementById('threadPhone');
+        var avatar = document.getElementById('threadAvatar');
+        if (name) name.textContent = chat.name || 'WhatsApp';
+        if (phone) phone.innerHTML = esc(chat.phone || '') + ' <span class="mode-pill ' + (chat.mode === 'AI' ? '' : 'is-human') + '">' + (chat.mode === 'AI' ? 'AI' : 'Human') + '</span>';
+        if (avatar) {
+            avatar.textContent = (chat.name || 'W').charAt(0).toUpperCase();
+            avatar.setAttribute('data-tone', chat.tone || 0);
+        }
+        var call = document.getElementById('threadCall');
+        if (call) {
+            if (chat.digits) { call.href = 'tel:+' + chat.digits; call.hidden = false; }
+            else call.hidden = true;
+        }
+        function setAction(id, url) {
+            var form = document.getElementById(id);
+            if (form && url) form.setAttribute('action', url);
+        }
+        setAction('threadTranslate', chat.translator);
+        setAction('threadAi', chat.ai);
+        setAction('threadHuman', chat.human);
+        setAction('replyLangForm', chat.language);
+        setAction('chatCompose', chat.reply);
+        var translateBtn = document.querySelector('#threadTranslate button');
+        var aiBtn = document.querySelector('#threadAi button');
+        var humanBtn = document.querySelector('#threadHuman button');
+        if (translateBtn) translateBtn.classList.toggle('is-on', !!chat.translate);
+        if (aiBtn) aiBtn.classList.toggle('is-on', chat.mode === 'AI');
+        if (humanBtn) humanBtn.classList.toggle('is-on', chat.mode !== 'AI');
+        var forms = document.querySelectorAll('.chats-thread form');
+        if (forms.length && chat.reply) {
+            forms.forEach(function (form) {
+                var action = form.getAttribute('action') || '';
+                if (action.indexOf('/reply') !== -1) form.setAttribute('action', chat.reply);
+                if (action.indexOf('/translator') !== -1) form.setAttribute('action', chat.translator);
+                if (action.indexOf('/enable-ai') !== -1) form.setAttribute('action', chat.ai);
+                if (action.indexOf('/takeover') !== -1) form.setAttribute('action', chat.human);
+                if (action.indexOf('/language') !== -1 && action.indexOf('language-settings') === -1) form.setAttribute('action', chat.language);
+            });
+        }
+        var replyName = document.getElementById('threadReplyName');
+        if (replyName) {
+            var label = 'Off';
+            var dest = chat.destination || {};
+            if (dest.off) label = 'Off';
+            else if (dest.locked && dest.name) label = dest.name;
+            else if (dest.enabled && !dest.code) label = 'Detect';
+            else if (chat.default_reply && chat.default_reply.name) label = chat.default_reply.name;
+            replyName.textContent = label;
+        }
+        var composeField = document.getElementById('chatBody');
+        if (composeField && !composeField.value) {
+            var writeIn = (chat.staff && chat.staff.name) ? chat.staff.name : '';
+            var sentIn = document.getElementById('threadReplyName');
+            var sentName = sentIn ? sentIn.textContent : '';
+            composeField.placeholder = (writeIn && sentName && sentName !== 'Off') ? ('Type in ' + writeIn + '. It is sent in ' + sentName + '.') : 'Type a message';
+        }
+        paintThread(data);
+        var app = document.querySelector('.chats-app');
+        if (app) app.classList.add('has-open');
+        if (list) {
+            list.querySelectorAll('.chat-row.is-on').forEach(function (row) { row.classList.remove('is-on'); });
+            var current = list.querySelector('.chat-row[data-id="' + openChat + '"]');
+            if (current) {
+                current.classList.add('is-on');
+                current.setAttribute('data-read', '1');
+                var badge = current.querySelector('.chat-badge');
+                if (badge) badge.remove();
+                var state = current.querySelector('.chat-state');
+                if (state) state.remove();
+            }
+        }
+    }
+    function showChatList(fromHistory) {
+        var app = document.querySelector('.chats-app');
+        if (app) app.classList.remove('has-open');
+        openChat = 0;
+        openGroup = '';
+        if (list) list.querySelectorAll('.chat-row.is-on').forEach(function (row) { row.classList.remove('is-on'); });
+        if (!fromHistory && window.history && history.pushState) {
+            var url = new URL(chatPage, window.location.href);
+            if (filter && filter !== 'all') url.searchParams.set('filter', filter);
+            history.pushState({ chat: 0 }, '', url.pathname + url.search);
+        }
+    }
+    function openChatInPlace(id, fromHistory) {
+        if (!id || openingChat) return;
+        openingChat = true;
+        var app = document.querySelector('.chats-app');
+        if (app) app.classList.add('has-open');
+        ensureThread();
+        var stream = document.getElementById('chatStream');
+        if (stream) stream.innerHTML = '<div class="chats-empty"><strong>Opening</strong></div>';
+        fetch(chatPage + '?open=1&chat=' + encodeURIComponent(id), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        }).then(function (response) { if (!response.ok) throw new Error('open'); return response.json(); })
+            .then(function (data) {
+                if (!data || !data.ok) throw new Error('open');
+                applyChat(data);
+                if (!fromHistory && window.history && history.pushState) {
+                    var url = new URL(chatPage, window.location.href);
+                    url.searchParams.set('chat', id);
+                    url.searchParams.delete('group');
+                    if (filter && filter !== 'all') url.searchParams.set('filter', filter);
+                    history.pushState({ chat: id }, '', url.pathname + url.search);
+                }
+            })
+            .catch(function () { window.location.href = chatPage + '?chat=' + encodeURIComponent(id); })
+            .then(function () { openingChat = false; });
+    }
+    function sendChat(form) {
+        if (form.getAttribute('data-sending') === '1') return;
+        var field = form.querySelector('#chatBody') || form.querySelector('textarea');
+        var picker = form.querySelector('#chatFile') || form.querySelector('input[type="file"]');
+        var typed = field ? field.value.trim() : '';
+        var picked = picker && picker.files && picker.files.length;
+        if (!typed && !picked) return;
+        form.setAttribute('data-sending', '1');
+        var button = form.querySelector('button[type="submit"]');
+        if (button) button.disabled = true;
+        var token = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        var pendingId = 'pending-' + token;
+        var sentChat = String(openChat || '');
+        var actionMatch = (form.getAttribute('action') || '').match(/chats\/(\d+)\/reply/);
+        if (actionMatch) sentChat = actionMatch[1];
+        var data = new FormData(form);
+        data.append('send_token', token);
+        if (typed) {
+            placeMessages([{ id: pendingId, out: true, text: typed, time: '', at: new Date().toISOString(), tick: 'queued', type: 'TEXT', media: '', name: '', aside: '', day: '' }], false);
+        }
+        if (field) field.value = '';
+        if (picker) picker.value = '';
+        var fileName = document.getElementById('chatFileName');
+        if (fileName) fileName.textContent = '';
+        fetch(form.getAttribute('action'), {
+            method: 'POST',
+            body: data,
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
+        }).then(function (response) { return response.json().then(function (payload) { payload._ok = response.ok; return payload; }); })
+            .then(function (payload) {
+                if (String(openChat || '') !== sentChat) return;
+                var node = document.querySelector('.bubble[data-id="' + pendingId + '"]');
+                function swapPending(message) {
+                    if (!message) return;
+                    var existing = document.querySelector('.bubble[data-id="' + message.id + '"]');
+                    if (node && existing && existing !== node) node.remove();
+                    else if (node) node.outerHTML = bubbleHtml(message);
+                    else if (!existing) placeMessages([message], false);
+                    if (message.id > seen) seen = message.id;
+                }
+                if (payload && payload.notice) {
+                    var note = document.querySelector('.chats-thread .chat-note');
+                    if (!note) {
+                        note = document.createElement('div');
+                        note.className = 'chat-note';
+                        var head = document.querySelector('.chats-head');
+                        if (head) head.insertAdjacentElement('afterend', note);
+                    }
+                    if (note) note.textContent = payload.notice;
+                }
+                if (!payload || !payload.ok) {
+                    if (payload && payload.message) swapPending(payload.message);
+                    else if (node) {
+                        var tick = node.querySelector('.tick');
+                        if (tick) { tick.className = 'tick failed'; tick.textContent = '! Not sent'; }
+                    }
+                    if (field && typed) field.value = typed;
+                    return;
+                }
+                if (payload.message) swapPending(payload.message);
+                else if (node) node.remove();
+                poll();
+            })
+            .catch(function () {
+                var node = document.querySelector('.bubble[data-id="' + pendingId + '"]');
+                if (node) {
+                    var tick = node.querySelector('.tick');
+                    if (tick) { tick.className = 'tick failed'; tick.textContent = '! Not sent'; }
+                }
+                if (field && typed) field.value = typed;
+            })
+            .then(function () {
+                form.removeAttribute('data-sending');
+                if (button) button.disabled = false;
+            });
+    }
     function poll(extra) {
         if (polling || document.hidden) return;
         polling = true;
         var url = chatPage + '?poll=1';
         if (openChat) url += '&chat=' + openChat + '&after=' + seen;
         if (openGroup) url += '&group=' + encodeURIComponent(openGroup) + '&after_group=' + seenGroup;
+        if (!extra && listStamp) url += '&stamp=' + encodeURIComponent(listStamp);
         if (extra) url += extra;
         var live = document.getElementById('chatLive');
         fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
             .then(function (response) { if (!response.ok) throw new Error('poll'); return response.json(); })
             .then(function (data) {
+                stream = document.getElementById('chatStream');
                 misses = 0;
                 if (live) live.classList.remove('is-on');
                 if (extra) {
@@ -942,7 +1227,8 @@
                         }
                     });
                     paintTicks(data.ticks || []);
-                    paintList(data.items || []);
+                    if (data.list !== false) paintList(data.items || []);
+                    if (data.stamp) listStamp = data.stamp;
                 }
             })
             .catch(function () {
@@ -958,9 +1244,52 @@
             if (before) poll('&before=' + before);
         });
     }
-    if (liveReady()) setInterval(poll, 1000);
+    if (liveReady()) setInterval(poll, 2500);
+    var installBtn = document.getElementById('hubInstall');
+    var deferredInstall = null;
+    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches && installBtn) installBtn.hidden = true;
+    window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        deferredInstall = event;
+        if (installBtn) installBtn.hidden = false;
+    });
+    if (installBtn) installBtn.addEventListener('click', function () {
+        if (deferredInstall) { deferredInstall.prompt(); return; }
+        var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        window.alert(ios
+            ? 'On iPhone, tap Share, then Add to Home Screen. It opens like an app. No App Store.'
+            : 'On a Mac, Chrome shows Install in the address bar. Safari: File, then Add to Dock. No App Store.');
+    });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
     function liveReady() { return true; }
+    document.addEventListener('click', function (event) {
+        var back = event.target.closest && event.target.closest('a.chat-back');
+        if (back) {
+            event.preventDefault();
+            showChatList(false);
+            return;
+        }
+        var gear = event.target.closest && event.target.closest('.js-lang-settings');
+        if (gear) openSheet('langSettings');
+        var replyPick = event.target.closest && event.target.closest('#openReplyLang');
+        if (replyPick) openSheet('replyLang');
+    });
+    document.addEventListener('change', function (event) {
+        if (!event.target || event.target.id !== 'chatFile') return;
+        var picked = event.target.files && event.target.files[0];
+        var name = document.getElementById('chatFileName');
+        if (name) name.textContent = picked ? picked.name : '';
+    });
+    window.addEventListener('popstate', function () {
+        var params = new URL(window.location.href).searchParams;
+        if (params.get('group')) {
+            window.location.reload();
+            return;
+        }
+        var id = params.get('chat');
+        if (id) openChatInPlace(id, true);
+        else showChatList(true);
+    });
     if (window.applyLocalHubTimes) window.applyLocalHubTimes();
     poll();
     setTimeout(function () {

@@ -279,6 +279,41 @@ class WhatsAppTranslator
         return 'Translation is on for this chat. Messages are shown in English, and the reply language is detected from this person.';
     }
 
+    protected function alreadyInLanguage($text, $destinationCode, $staffCode)
+    {
+        if ($destinationCode === '' || $destinationCode === $staffCode) {
+            return true;
+        }
+        if ($staffCode === 'en' && $destinationCode !== 'en') {
+            return ! $this->looksLikeEnglish($text);
+        }
+
+        return false;
+    }
+
+    protected function looksLikeEnglish($text)
+    {
+        $words = preg_split('/\s+/u', mb_strtolower((string) $text));
+        if (! is_array($words)) {
+            return false;
+        }
+        $markers = ['the', 'and', 'you', 'your', 'is', 'are', 'to', 'of', 'a', 'i', 'it', 'this', 'that', 'for', 'with', 'not', 'but', 'what', 'how', 'can', 'will', 'was', 'have', 'do', 'we', 'they', 'my', 'me', 'in', 'on', 'at', 'if', 'or', 'so', 'just', 'please', 'hello', 'hi', 'yes', 'no', 'ok', 'okay', 'sorry', 'mean'];
+        $hits = 0;
+        $count = 0;
+        foreach ($words as $word) {
+            $word = trim($word, ".,!?;:'\"“”");
+            if ($word === '') {
+                continue;
+            }
+            $count++;
+            if (in_array($word, $markers, true) || $word === "don't" || $word === "i'm" || $word === "it's") {
+                $hits++;
+            }
+        }
+
+        return $hits >= 2 || ($hits >= 1 && $count <= 4);
+    }
+
     protected function learnLanguage(WhatsAppConversation $conversation)
     {
         $rows = WhatsAppMessage::where('conversation_id', $conversation->id)
@@ -307,12 +342,11 @@ class WhatsAppTranslator
             return null;
         }
         $known = $this->outgoingLanguage($conversation->id);
-        if ($known && $known['code'] === '') {
-            $this->learnLanguage($conversation);
-            $known = $this->outgoingLanguage($conversation->id);
-        }
         $staff = $this->staffLanguage();
         if (! $known || $known['code'] === '' || $known['code'] === $staff['code']) {
+            return null;
+        }
+        if ($this->alreadyInLanguage($english, $known['code'], $staff['code'])) {
             return null;
         }
         $parsed = $this->ask(
