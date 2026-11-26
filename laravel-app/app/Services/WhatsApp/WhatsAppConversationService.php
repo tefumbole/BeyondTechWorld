@@ -159,6 +159,7 @@ class WhatsAppConversationService
         if (! $contact) {
             return null;
         }
+        app(WhatsAppTyping::class)->forget($contact->normalized_phone);
 
         $conversation = $this->openConversation($contact);
         $conversation = $this->promoteToAiIfDefault($conversation);

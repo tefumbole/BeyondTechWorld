@@ -1153,6 +1153,36 @@ class BeyondWasenderService
         return $http < 400 && is_array($decoded) && ! empty($decoded['success']);
     }
 
+    public function sendPresence($phone, $type)
+    {
+        if (! $this->isConfigured()) {
+            return;
+        }
+        $digits = preg_replace('/\D/', '', (string) $phone);
+        if ($digits === '' || ! in_array($type, ['composing', 'recording'], true)) {
+            return;
+        }
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $ch = curl_init($base.'/send-presence-update');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                'Accept: application/json',
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode([
+                'jid' => $digits.'@s.whatsapp.net',
+                'type' => $type,
+            ]),
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_TIMEOUT => 6,
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+    }
+
     protected function getJson($url)
     {
         $ch = curl_init($url);

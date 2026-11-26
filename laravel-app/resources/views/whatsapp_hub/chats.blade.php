@@ -99,6 +99,8 @@
     .chats-head-person h2, .chats-head-person p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .load-earlier { align-self: center; border: 0; background: #fff; color: #1565c0; border-radius: 999px; min-height: 32px; padding: 0 16px; font-weight: 700; cursor: pointer; margin: 10px 0; box-shadow: 0 3px 10px rgba(15,31,61,.1); }
     .chat-live { display: none; background: linear-gradient(90deg, #fff4d6, #ffe7b3); color: #7a5b10; text-align: center; font-size: 13px; font-weight: 700; padding: 6px 10px; }
+    .typing-line { margin: 0 18px 4px; color: #5c6b84; font-size: 13px; font-weight: 700; }
+    .typing-line[hidden] { display: none !important; }
     .chat-live.is-on { display: block; }
     .chats-head h2 { margin: 0; font-size: 16px; font-weight: 700; color: var(--wa-ink); }
     .chats-head p { margin: 2px 0 0; color: var(--wa-muted); font-size: 12px; }
@@ -496,6 +498,7 @@
                     <div class="chats-empty"><strong>No messages yet</strong>Send the first message below.</div>
                 @endforelse
             </div>
+            <div class="typing-line" id="typingLine" hidden></div>
             @if($canReply)
                 @php
                     $chatOn = !empty($destination['enabled']);
@@ -1608,6 +1611,47 @@
                 if (button) button.disabled = false;
             });
     }
+    function paintTyping(state) {
+        var line = document.getElementById('typingLine');
+        var label = state === 'recording' ? 'recording a voice note…' : (state === 'typing' ? 'typing…' : '');
+        if (line) {
+            line.hidden = label === '';
+            line.textContent = label;
+        }
+        if (!list || !openChat) return;
+        var preview = list.querySelector('.chat-row[data-id="' + openChat + '"] .chat-preview');
+        if (!preview) return;
+        if (label) {
+            if (!preview.getAttribute('data-preview')) preview.setAttribute('data-preview', preview.textContent);
+            preview.textContent = label;
+        } else if (preview.getAttribute('data-preview') !== null) {
+            preview.textContent = preview.getAttribute('data-preview');
+            preview.removeAttribute('data-preview');
+        }
+    }
+    var typingSent = 0;
+    function notifyTyping(state) {
+        if (!openChat || openGroup) return;
+        var now = Date.now();
+        if (now - typingSent < 4000) return;
+        typingSent = now;
+        var data = new FormData();
+        data.append('state', state);
+        data.append('_token', csrfToken());
+        fetch(chatPage + '/' + openChat + '/typing', {
+            method: 'POST',
+            body: data,
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
+        }).catch(function () {});
+    }
+    var typingBox = document.getElementById('chatBody');
+    if (typingBox) {
+        typingBox.addEventListener('input', function () {
+            if (typingBox.value.trim() === '') return;
+            notifyTyping('composing');
+        });
+    }
     function poll(extra) {
         if (polling || document.hidden) return;
         polling = true;
@@ -1657,6 +1701,7 @@
                     paintTicks(data.ticks || []);
                     if (data.list !== false) paintList(data.items || []);
                     if (data.stamp) listStamp = data.stamp;
+                    paintTyping(data.typing || '');
                 }
             })
             .catch(function () {

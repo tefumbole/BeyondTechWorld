@@ -65,6 +65,9 @@ class WaSenderEventParser
         if ($event === 'call' || $event === 'calls.received') {
             return $this->parseCall($parsed, $data, $payload);
         }
+        if (in_array($event, ['presence.update', 'presence-update', 'contacts.presence'], true)) {
+            return $this->parsePresence($parsed, $data);
+        }
 
         return $parsed;
     }
@@ -88,6 +91,41 @@ class WaSenderEventParser
         }
 
         return hash('sha256', $basis);
+    }
+
+    protected function parsePresence(array $parsed, array $data)
+    {
+        $items = isset($data[0]) && is_array($data[0]) ? $data : [$data];
+        $states = [];
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $presences = isset($item['presences']) && is_array($item['presences']) ? $item['presences'] : null;
+            if ($presences) {
+                foreach ($presences as $jid => $row) {
+                    $kind = '';
+                    if (is_array($row)) {
+                        $kind = isset($row['lastKnownPresence']) ? $row['lastKnownPresence'] : (isset($row['presence']) ? $row['presence'] : '');
+                    }
+                    $states[] = [
+                        'jid' => is_string($jid) ? $jid : (isset($item['id']) ? (string) $item['id'] : ''),
+                        'kind' => strtolower((string) $kind),
+                    ];
+                }
+                continue;
+            }
+            $jid = isset($item['jid']) ? $item['jid'] : (isset($item['id']) ? $item['id'] : (isset($item['remoteJid']) ? $item['remoteJid'] : ''));
+            $kind = isset($item['lastKnownPresence']) ? $item['lastKnownPresence'] : (isset($item['presence']) ? $item['presence'] : (isset($item['kind']) ? $item['kind'] : (isset($item['type']) ? $item['type'] : '')));
+            if ($jid === '' && $kind === '') {
+                continue;
+            }
+            $states[] = ['jid' => (string) $jid, 'kind' => strtolower((string) $kind)];
+        }
+        $parsed['presence'] = $states;
+        $parsed['provider_event_id'] = substr(sha1(json_encode($states).'|'.(string) (isset($parsed['timestamp']) ? $parsed['timestamp'] : '')), 0, 32);
+
+        return $parsed;
     }
 
     protected function parsePoll(array $parsed, array $data, array $payload)

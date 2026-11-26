@@ -115,11 +115,30 @@ class WhatsAppWebhookProcessor
         } elseif (in_array($type, ['call', 'calls.received'], true)) {
             $this->recordCall($parsed);
             $event->status = WhatsAppWebhookEvent::PROCESSED;
+        } elseif (in_array($type, ['presence.update', 'presence-update', 'contacts.presence'], true)) {
+            $this->rememberTyping($parsed);
+            $event->status = WhatsAppWebhookEvent::PROCESSED;
         } else {
             $event->status = WhatsAppWebhookEvent::IGNORED;
         }
 
         $event->save();
+    }
+
+    protected function rememberTyping(array $parsed)
+    {
+        $typing = app(WhatsAppTyping::class);
+        $rows = isset($parsed['presence']) && is_array($parsed['presence']) ? $parsed['presence'] : [];
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $phone = app(\App\Services\BeyondWasenderService::class)->phoneForChatId(isset($row['jid']) ? $row['jid'] : '');
+            if (! $phone && ! empty($parsed['phone'])) {
+                $phone = $parsed['phone'];
+            }
+            $typing->remember($phone, isset($row['kind']) ? $row['kind'] : '');
+        }
     }
 
     protected function recordCall(array $parsed)

@@ -427,7 +427,7 @@ class WhatsAppHubController extends Controller
         $chatId = (int) $request->get('chat');
         $after = (int) $request->get('after');
         $before = (int) $request->get('before');
-        $payload = ['items' => [], 'messages' => [], 'ticks' => [], 'earlier' => [], 'has_earlier' => false];
+        $payload = ['items' => [], 'messages' => [], 'ticks' => [], 'earlier' => [], 'has_earlier' => false, 'typing' => ''];
 
         if ($chatId > 0 && $before > 0) {
             $older = WhatsAppMessage::visible()->where('conversation_id', $chatId)
@@ -445,12 +445,15 @@ class WhatsAppHubController extends Controller
                 ? WhatsAppMessage::visible()->where('conversation_id', $chatId)->where('id', '<', $first->id)->exists()
                 : false;
         } elseif ($chatId > 0) {
-            $current = WhatsAppConversation::find($chatId);
+            $current = WhatsAppConversation::with('contact')->find($chatId);
             if ($current) {
                 $this->conversations->touchStaffView($current);
                 if ((int) $current->unread_count > 0) {
                     $this->conversations->readOnWeb($current);
                 }
+                $payload['typing'] = app(\App\Services\WhatsApp\WhatsAppTyping::class)->state(
+                    optional($current->contact)->normalized_phone
+                );
             }
             $fresh = WhatsAppMessage::visible()->where('conversation_id', $chatId)
                 ->where('id', '>', $after)
@@ -854,6 +857,27 @@ class WhatsAppHubController extends Controller
         $query = $chat > 0 ? ['chat' => $chat] : [];
 
         return redirect()->route('whatsapp.chats', $query)->with('message', $notice);
+    }
+
+    public function showTyping(Request $request, $id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage', 'whatsapp.conversations', 'whatsapp.view'])) {
+            return $deny;
+        }
+        $state = (string) $request->input('state');
+        if (! in_array($state, ['composing', 'recording'], true)) {
+            return response()->json(['ok' => true]);
+        }
+        if (! \Illuminate\Support\Facades\Cache::add('wa.out.typing.'.$id, 1, now()->addSeconds(4))) {
+            return response()->json(['ok' => true]);
+        }
+        $conversation = WhatsAppConversation::with('contact')->find($id);
+        $phone = $conversation && $conversation->contact ? $conversation->contact->normalized_phone : '';
+        if ($phone !== '' && ! $conversation->isWebsite()) {
+            app(\App\Services\BeyondWasenderService::class)->sendPresence($phone, $state);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function hearVoice(Request $request, $id)
