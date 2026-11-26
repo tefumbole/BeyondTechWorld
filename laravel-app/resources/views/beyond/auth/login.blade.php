@@ -13,6 +13,11 @@
     .entry-switch label.on { background: #0b3f90; color: #fff; }
     .mai-login select, .mai-login input { width: 100%; margin-top: 4px; }
     .mai-country { color: #0b3f90; font-weight: 800; margin: 6px 0 10px; text-align: left; }
+    .country-picker { position: relative; text-align: left; }
+    .country-dial { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .country-list { position: absolute; z-index: 30; left: 0; right: 0; max-height: 220px; overflow: auto; border-radius: 16px; background: #fff; margin-top: 6px; box-shadow: 0 16px 40px rgba(15, 31, 61, .22); border: 1px solid #d6deea; }
+    .country-item { display: block; width: 100%; text-align: left; background: #fff; color: #10233f; border: 0; border-bottom: 1px solid #e8eef6; padding: 0.65rem 0.9rem; cursor: pointer; font-weight: 700; }
+    .country-item:hover, .country-item.is-on { background: #e8f0ff; color: #0b3f90; }
     .mai-login .bad { background: #fdecec; color: #7f1d1d; border-radius: 10px; padding: 8px 10px; text-align: left; }
 </style>
 @if(session('not_permitted'))
@@ -80,16 +85,25 @@
 
 <form method="POST" action="{{ route('whatsapp.mai.session') }}" id="mai-login" class="mai-login" hidden>
     @csrf
-    <label for="mai-dial" style="display:block;text-align:left;font-weight:700;color:#0b3f90;">Country code</label>
-    <select id="mai-dial" name="dial" class="auth-input" style="padding-left:16px;">
-        @foreach(\App\Support\CountryDialCodes::all() as $label)
-            @php
-                $dialCode = preg_replace('/\D+/', '', $label);
-                $countryName = trim(preg_replace('/\(\+\d+\)/', '', $label));
-            @endphp
-            <option value="{{ $dialCode }}" data-name="{{ $countryName }}" {{ $dialCode === '237' ? 'selected' : '' }}>{{ $label }}</option>
-        @endforeach
-    </select>
+    <label for="country-search" style="display:block;text-align:left;font-weight:700;color:#0b3f90;">Country code</label>
+    <div class="country-picker">
+        <input id="country-search" type="search" class="auth-input" style="padding-left:16px;" placeholder="Search a country" autocomplete="off" value="Cameroon (+237)">
+        <select id="mai-dial" name="dial" class="country-dial" tabindex="-1" aria-hidden="true">
+            @foreach(\App\Support\CountryDialCodes::all() as $label)
+                @php
+                    $dialCode = preg_replace('/\D+/', '', $label);
+                    $countryName = trim(preg_replace('/\(\+\d+\)/', '', $label));
+                @endphp
+                <option value="{{ $dialCode }}" data-name="{{ $countryName }}" {{ $dialCode === '237' ? 'selected' : '' }}>{{ $label }}</option>
+            @endforeach
+        </select>
+        <div id="country-list" class="country-list" hidden>
+            @foreach(\App\Support\CountryDialCodes::all() as $label)
+                @php $dialCode = preg_replace('/\D+/', '', $label); @endphp
+                <button type="button" class="country-item{{ $dialCode === '237' ? ' is-on' : '' }}" data-dial="{{ $dialCode }}">{{ $label }}</button>
+            @endforeach
+        </div>
+    </div>
     <p class="mai-country" id="mai-country">Cameroon</p>
     <input id="mai-phone" name="phone" class="auth-input" style="padding-left:16px;" inputmode="tel" autocomplete="tel" placeholder="Phone number" required>
     <button type="button" class="auth-btn" id="mai-send" style="margin-top:10px;">Send WhatsApp code</button>
@@ -152,11 +166,52 @@
     if (window.location.search.indexOf('mai=1') !== -1) showEntry('mai');
     var dial = document.getElementById('mai-dial');
     var country = document.getElementById('mai-country');
-    if (dial && country) {
-        dial.onchange = function () {
+    var countrySearch = document.getElementById('country-search');
+    var countryList = document.getElementById('country-list');
+    function showCountry() {
+        if (!dial || !country) return;
+        var option = dial.options[dial.selectedIndex];
+        country.textContent = option ? option.getAttribute('data-name') : '';
+    }
+    if (dial) dial.addEventListener('change', showCountry);
+    if (countrySearch && countryList && dial) {
+        var countryItems = countryList.querySelectorAll('.country-item');
+        function chosenCountry() {
             var option = dial.options[dial.selectedIndex];
-            country.textContent = option ? option.getAttribute('data-name') : '';
-        };
+            return option ? option.text : '';
+        }
+        function filterCountries(query) {
+            var q = String(query || '').toLowerCase();
+            for (var i = 0; i < countryItems.length; i++) {
+                countryItems[i].hidden = countryItems[i].textContent.toLowerCase().indexOf(q) === -1;
+            }
+        }
+        countrySearch.addEventListener('focus', function () {
+            countrySearch.value = '';
+            filterCountries('');
+            countryList.hidden = false;
+        });
+        countrySearch.addEventListener('input', function () {
+            countryList.hidden = false;
+            filterCountries(countrySearch.value);
+        });
+        countryList.addEventListener('click', function (event) {
+            var button = event.target.closest('.country-item');
+            if (!button) return;
+            dial.value = button.getAttribute('data-dial');
+            for (var i = 0; i < countryItems.length; i++) {
+                countryItems[i].classList.toggle('is-on', countryItems[i] === button);
+            }
+            dial.dispatchEvent(new Event('change', { bubbles: true }));
+            countrySearch.value = chosenCountry();
+            countryList.hidden = true;
+        });
+        document.addEventListener('click', function (event) {
+            if (countrySearch.contains(event.target) || countryList.contains(event.target)) return;
+            countryList.hidden = true;
+            countrySearch.value = chosenCountry();
+        });
+        countrySearch.value = chosenCountry();
     }
     var send = document.getElementById('mai-send');
     if (send) {
