@@ -526,6 +526,8 @@ Route::post('/cloud/login/otp/verify', 'CloudPortalController@verifyLoginCode')-
 Route::get('/cloud/register', 'CloudPortalController@showRegister')->name('cloud.register');
 Route::get('/whatsapp-mai', 'CloudPortalController@whatsappMai')->name('whatsapp.mai');
 Route::get('/whatsapp-mai/open', 'CloudPortalController@whatsappMaiOpen')->name('whatsapp.mai.open');
+Route::get('/whatsapp-mai/enter/{user}', 'CloudPortalController@whatsappMaiEnter')->name('whatsapp.mai.enter');
+Route::get('/whatsapp-mai/home', 'CloudPortalController@whatsappMaiHome')->name('whatsapp.mai.home');
 Route::get('/whatsapp-mai/plan', 'CloudPortalController@whatsappMaiPlan')->name('whatsapp.mai.plan');
 Route::post('/whatsapp-mai/plan', 'CloudPortalController@whatsappMaiPlanStore')->middleware('throttle:10,10')->name('whatsapp.mai.plan.store');
 Route::get('/whatsapp-mai/pay/{payment}', 'CloudPortalController@whatsappMaiPay')->name('whatsapp.mai.pay');
@@ -537,8 +539,8 @@ Route::post('/whatsapp-mai/session', 'CloudPortalController@whatsappMaiSession')
 Route::get('/whatsapp-mai/sw.js', 'CloudPortalController@whatsappMaiWorker')->name('whatsapp.mai.worker');
 Route::post('/whatsapp-mai/join', 'CloudPortalController@whatsappMaiJoin')->middleware('throttle:10,10')->name('whatsapp.mai.join');
 Route::post('/cloud/register/identity', 'CloudSubscribeController@identity')->middleware('throttle:10,10')->name('cloud.register.identity');
-Route::post('/cloud/register/otp', 'CloudSubscribeController@sendSignupCode')->middleware('throttle:5,10')->name('cloud.register.otp');
-Route::post('/cloud/register/otp/verify', 'CloudSubscribeController@verifySignupCode')->middleware('throttle:10,10')->name('cloud.register.otp.verify');
+Route::post('/cloud/register/otp', 'CloudSubscribeController@sendSignupCode')->middleware('throttle:30,10')->name('cloud.register.otp');
+Route::post('/cloud/register/otp/verify', 'CloudSubscribeController@verifySignupCode')->middleware('throttle:30,10')->name('cloud.register.otp.verify');
 Route::post('/cloud/register', 'CloudPortalController@register')->middleware('throttle:30,10')->name('cloud.register.submit');
 Route::get('/cloud/hero/{uuid}', 'CloudPortalController@hero')->name('cloud.hero');
 Route::get('/cloud/logo/{uuid}', 'CloudPortalController@logo')->name('cloud.logo');

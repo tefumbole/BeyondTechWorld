@@ -80,7 +80,7 @@ class CloudSignupOtp
     }
 
     /**
-     * The signup code only proves the phone. This link opens the install page.
+     * Sent only after signup is finished. The link signs the person in.
      * It does not connect WhatsApp.
      */
     public function sendAppLink($phone)
@@ -92,7 +92,11 @@ class CloudSignupOtp
         if ($normalized === '') {
             return;
         }
-        $body = "Whats MAI\nOpen this link on your phone and add it to your home screen. Then enter your number and name:\n".url('/whatsapp-mai/open');
+        $user = app(\App\Services\Cloud\CloudOnboardingService::class)->accountForPhone($normalized);
+        $url = $user
+            ? \URL::temporarySignedRoute('whatsapp.mai.enter', now()->addDays(14), ['user' => $user->id])
+            : url('/whatsapp-mai');
+        $body = "Whats MAI\nOpen Whats MAI:\n".$url;
         try {
             app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppTextWithLink($normalized, $body);
         } catch (\Exception $e) {

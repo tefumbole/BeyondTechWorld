@@ -33,7 +33,7 @@
             @if(session('not_permitted'))<p class="bad">{{ session('not_permitted') }}</p>@endif
             @if($signedIn)
                 <p>You are signed in.</p>
-                <a class="gold" href="{{ route('cloud.messaging') }}">Open your subscription</a>
+                <a class="gold" href="{{ route('whatsapp.mai.home') }}">Open Whats MAI</a>
             @else
                 <form method="POST" action="{{ route('whatsapp.mai.join') }}" id="mai-join">
                     @csrf

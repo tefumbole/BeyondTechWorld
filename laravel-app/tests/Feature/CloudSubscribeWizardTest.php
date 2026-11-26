@@ -369,4 +369,55 @@ class CloudSubscribeWizardTest extends TestCase
             ->assertSee('Start free trial')
             ->assertDontSee('Admin setup required');
     }
+
+    public function test_a_three_day_trial_is_free_and_the_phone_link_opens_whats_mai()
+    {
+        $page = $this->get('/whatsapp-mai');
+        $page->assertOk()
+            ->assertSee('What should we call you?')
+            ->assertSee('Free')
+            ->assertDontSee('The app link was sent');
+        preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
+        $sent = $this->postJson('/cloud/register/otp', [
+            'phone' => '670000309',
+            'dial' => '237',
+            'account_kind' => 'personal',
+        ]);
+        $verified = $this->postJson('/cloud/register/otp/verify', [
+            'phone' => '670000309',
+            'dial' => '237',
+            'code' => $sent->json('testing_code'),
+            'mai' => '1',
+        ]);
+        $verified->assertOk();
+        $this->assertArrayNotHasKey('app_url', $verified->json());
+        $this->post('/cloud/register', [
+            'first_name' => 'Amina',
+            'last_name' => 'Ndi',
+            'phone' => '+237670000309',
+            'company_name' => 'Amina Ndi',
+            'account_kind' => 'personal',
+            'modules' => ['MESSAGING'],
+            'mai' => '1',
+            'mai_days' => 3,
+            'start_mode' => 'trial',
+            'onboard_token' => $match[1],
+        ])->assertRedirect('/whatsapp-mai/home');
+        $user = \App\User::where('phone', '237670000309')->first();
+        $this->assertNotNull($user);
+        $subscription = \App\Cloud\CloudSubscription::orderBy('id', 'desc')->first();
+        $this->assertSame('TRIALING', $subscription->status);
+        $this->assertTrue($subscription->trial_ends_at->gt(now()->addDays(2)));
+        $this->assertSame(0, \App\Cloud\CloudSubscriptionPayment::count());
+        auth()->logout();
+        $this->get('/whatsapp-mai/enter/'.$user->id)->assertRedirect('/whatsapp-mai');
+        $url = \URL::temporarySignedRoute('whatsapp.mai.enter', now()->addDay(), ['user' => $user->id]);
+        $parts = parse_url($url);
+        $this->get($parts['path'].'?'.$parts['query'])->assertRedirect('/whatsapp-mai/home');
+        $this->get('/whatsapp-mai/home')
+            ->assertOk()
+            ->assertSee('Whats MAI')
+            ->assertSee('Amina Ndi')
+            ->assertDontSee('Enter your phone number');
+    }
 }

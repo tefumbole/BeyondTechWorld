@@ -26,7 +26,7 @@
         <div class="mai-plan">
             <img src="{{ asset('branding/mbole-ai.png') }}" alt="" width="64" height="72" style="width:64px;height:72px;object-fit:contain">
             <h1>Choose a plan</h1>
-            <p>A link was sent to <strong>{{ $phone }}</strong>. Open it on your phone and add Whats MAI to the home screen. On iPhone, tap Share, then Add to Home Screen.</p>
+            <p>The 3-day trial is free. The WhatsApp link is sent after you start it, and that link opens Whats MAI.</p>
             <div class="note">
                 <strong>Your WhatsApp</strong>
                 <p>This phone has its own session. Company or individual does not change that. Approve the link on the phone, then use WhatsApp here.</p>
@@ -45,7 +45,7 @@
                         <label class="duration-card">
                             <input type="radio" name="mai_days" value="{{ $period['days'] }}" {{ (int) old('mai_days', 3) === (int) $period['days'] ? 'checked' : '' }}>
                             <strong>{{ $period['title'] }}</strong>
-                            <span>{{ number_format((float) $period['amount'], 0) }} XAF</span>
+                            <span>{{ (int) $period['days'] === 3 ? 'Free' : number_format((float) $period['amount'], 0).' XAF' }}</span>
                         </label>
                     @endforeach
                 </div>
@@ -59,7 +59,8 @@
                         </label>
                     @endforeach
                 </div>
-                <button type="submit" class="gold">Continue</button>
+                <button type="submit" name="start_mode" value="trial" class="gold">Start free trial</button>
+                <button type="submit" name="start_mode" value="pay" class="gold">Continue</button>
             </form>
             <p style="margin-top:0.8rem;"><a href="{{ route('whatsapp.mai.open') }}" style="color:#F5D76E;">Open the phone link</a></p>
             <button type="button" id="install-android" class="gold">Install on Android</button>

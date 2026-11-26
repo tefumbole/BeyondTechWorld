@@ -116,6 +116,9 @@ class CloudPortalController extends Controller
 
     public function whatsappMaiOpen()
     {
+        if (Auth::check()) {
+            return redirect()->route('whatsapp.mai.home');
+        }
         if (! session('cloud_onboard_token')) {
             session(['cloud_onboard_token' => Str::random(40)]);
         }
@@ -146,7 +149,6 @@ class CloudPortalController extends Controller
         } catch (\Exception $e) {
             return redirect()->route('whatsapp.mai.open')->with('not_permitted', $e->getMessage())->withInput();
         }
-        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($request->input('phone'));
         session(['cloud_account_kind' => 'personal']);
 
         return $this->register($request);
@@ -177,9 +179,8 @@ class CloudPortalController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         $this->openMaiWhatsApp($phone);
-        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($phone);
 
-        return redirect()->route('whatsapp.mai.plan')->with('message', 'A link was sent to this phone. Choose a 3-day trial or a subscription.');
+        return redirect()->route('whatsapp.mai.plan')->with('message', 'Choose the free 3-day trial or a longer plan. The phone link is sent after that.');
     }
 
     public function whatsappMaiPlan()
@@ -211,6 +212,9 @@ class CloudPortalController extends Controller
         $days = (int) $request->input('mai_days');
         if (! in_array($days, [3, 7, 15, 30], true)) {
             return redirect()->route('whatsapp.mai.plan')->with('not_permitted', 'Choose 3, 7, 15, or 30 days.');
+        }
+        if ($days === 3 || $request->input('start_mode') === 'trial') {
+            return $this->beginFreeMai($request);
         }
         $method = strtoupper((string) $request->input('payment_method'));
         if (! in_array($method, ['MTN', 'ORANGE', 'VISA', 'CRYPTO'], true)) {
@@ -327,8 +331,11 @@ class CloudPortalController extends Controller
             }
         }
 
+        if ($fromMai && ($request->input('start_mode') === 'trial' || (int) $request->input('mai_days') === 3)) {
+            return $this->finishFreeMai($request, $user, $tenant);
+        }
         if ($fromMai && $request->input('start_mode') !== 'pay') {
-            return redirect()->route('whatsapp.mai.open')->with('message', 'Whats MAI is ready. Add it to your home screen, then open your subscription.');
+            return redirect()->route('whatsapp.mai.plan')->with('message', 'Choose the free 3-day trial or a longer plan.');
         }
 
         return redirect()->route('cloud.home')->with('message', config('cloud.trial_welcome'));
@@ -363,7 +370,9 @@ class CloudPortalController extends Controller
             $request->session()->regenerate();
             session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
             $this->openMaiWhatsApp($data['phone']);
-            app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($data['phone']);
+            if ($request->input('start_mode') === 'trial' || (int) $request->input('mai_days') === 3) {
+                return $this->finishFreeMai($request, $user, $tenant);
+            }
             if ($request->input('start_mode') === 'pay') {
                 return $this->startMaiPayment($request, $tenant);
             }
@@ -373,9 +382,11 @@ class CloudPortalController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         $this->openMaiWhatsApp($data['phone']);
-        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($data['phone']);
+        if ($request->input('start_mode') === 'trial' || (int) $request->input('mai_days') === 3) {
+            return $this->finishFreeMai($request, $user, $membership->cloudTenant);
+        }
 
-        return redirect()->route('whatsapp.mai.plan')->with('message', 'A link was sent to this phone. Choose a 3-day trial or a subscription.');
+        return redirect()->route('whatsapp.mai.plan')->with('message', 'Choose the free 3-day trial or a longer plan. The phone link is sent after that.');
     }
 
     public function whatsappMaiPay(Request $request, $paymentId)
@@ -405,10 +416,121 @@ class CloudPortalController extends Controller
             $payment = $payment->fresh();
         }
         if ($payment && $payment->status === \App\Cloud\CloudSubscriptionPayment::PAID) {
-            return redirect()->route('whatsapp.mai.open')->with('message', 'Payment received. Whats MAI is active for this term.');
+            $tenant = $payment->cloudTenant;
+            $account = $tenant ? app(CloudOnboardingService::class)->accountForPhone($tenant->phone) : null;
+            if ($account) {
+                Auth::login($account);
+                $request->session()->regenerate();
+                app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($account->phone);
+            }
+
+            return redirect()->route('whatsapp.mai.home')->with('message', 'Payment received. Whats MAI is active for this term.');
         }
 
         return view('cloud.portal.mai_pay', ['payment' => $payment]);
+    }
+
+    public function whatsappMaiEnter(Request $request, $user)
+    {
+        if (! $request->hasValidSignature()) {
+            return redirect()->route('whatsapp.mai')->with('not_permitted', 'This link has expired. Sign in again from Whats MAI.');
+        }
+        $account = \App\User::find($user);
+        if (! $account) {
+            return redirect()->route('whatsapp.mai')->with('not_permitted', 'This link does not match an account.');
+        }
+        Auth::login($account);
+        $request->session()->regenerate();
+        $this->openMaiWhatsApp($account->phone);
+
+        return redirect()->route('whatsapp.mai.home');
+    }
+
+    public function whatsappMaiHome()
+    {
+        if (! Auth::check()) {
+            return redirect()->route('whatsapp.mai');
+        }
+        $user = Auth::user();
+        $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
+        $engine->open($user->phone);
+
+        return view('cloud.portal.mai_home', [
+            'user' => $user,
+            'session' => $engine->status($user->phone, true),
+        ]);
+    }
+
+    protected function beginFreeMai(Request $request)
+    {
+        $user = Auth::user();
+        $tenant = $this->maiCustomerTenant($user);
+        if (! $tenant) {
+            if (! session('cloud_onboard_token')) {
+                session(['cloud_onboard_token' => Str::random(40)]);
+            }
+            $name = trim((string) $user->name);
+            if ($name === '' || $name === 'Whats MAI') {
+                $name = 'Whats MAI';
+            }
+            try {
+                list($user, $tenant) = app(CloudOnboardingService::class)->addCompany($user, [
+                    'company_name' => $name,
+                    'first_name' => $name,
+                    'last_name' => $name,
+                    'phone' => $user->phone,
+                    'modules' => ['MESSAGING'],
+                    'onboard_token' => (string) session('cloud_onboard_token'),
+                    'account_kind' => 'personal',
+                    'start_mode' => 'trial',
+                    'mai_days' => 3,
+                ]);
+            } catch (\Exception $e) {
+                return redirect()->route('whatsapp.mai.plan')->with('not_permitted', $e->getMessage());
+            }
+        }
+        session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
+
+        return $this->finishFreeMai($request, $user, $tenant);
+    }
+
+    protected function finishFreeMai(Request $request, $user, $tenant)
+    {
+        $plan = \App\Cloud\CloudPlan::whereHas('module', function ($query) {
+            $query->where('code', \App\Cloud\CloudModuleCode::MESSAGING);
+        })->where('active', true)->first();
+        $subscription = CloudSubscription::where('cloud_tenant_id', $tenant->id)->orderBy('id', 'desc')->first();
+        if (! $subscription && $plan) {
+            try {
+                $subscription = app(\App\Services\Cloud\CloudSubscriptionService::class)->startTrial($tenant, $plan, $user->id);
+            } catch (\Exception $e) {
+                return redirect()->route('whatsapp.mai.plan')->with('not_permitted', $e->getMessage());
+            }
+        }
+        if ($subscription) {
+            $end = now()->addDays(3);
+            $subscription->status = \App\Cloud\CloudSubscriptionStatus::TRIALING;
+            if (! $subscription->trial_started_at) {
+                $subscription->trial_started_at = now();
+            }
+            $subscription->trial_ends_at = $end;
+            $subscription->current_period_start = now();
+            $subscription->current_period_end = $end;
+            $subscription->save();
+        }
+        if (Schema::hasTable('cloud_tenant_settings')) {
+            \App\Cloud\CloudTenantSetting::updateOrCreate(
+                ['cloud_tenant_id' => $tenant->id, 'key' => 'mai_days'],
+                ['value' => '3', 'type' => 'string']
+            );
+            \App\Cloud\CloudTenantSetting::updateOrCreate(
+                ['cloud_tenant_id' => $tenant->id, 'key' => 'mai_account'],
+                ['value' => '1', 'type' => 'string']
+            );
+        }
+        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($user->phone ?: $tenant->phone);
+
+        return redirect()->route('whatsapp.mai.home')->with('message', 'Your 3-day trial is free. The link on WhatsApp opens Whats MAI.');
     }
 
     protected function openMaiWhatsApp($phone)

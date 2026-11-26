@@ -226,7 +226,7 @@
     .mai-shell .field-row input,
     .mai-shell .field-row select { width: 100% !important; max-width: none !important; flex: none; border-radius: 999px; min-height: 48px; background: #fff; color: #10233f; }
     .mai-shell .field-row select.country-dial { width: 1px !important; min-height: 0 !important; height: 1px !important; padding: 0 !important; border: 0 !important; position: absolute; }
-    .mai-shell .step[data-step="2"] .back-step { display: none; }
+    .mai-shell .step[data-step="2"] .back-step, .mai-shell .step[data-step="4"] .back-step { display: none; }
     .mai-shell .step button.bg-brand-gold { width: 100%; border-radius: 999px; }
     .mai-shell .step h2 { font-size: 1.7rem; line-height: 1.2; }
     .country-name { color: #F5D76E; font-weight: 800; margin: 0.45rem 0 0; }
@@ -439,7 +439,7 @@
             <section class="step" data-step="4">
                 <button type="button" class="back-step" data-back="3">Back</button>
                 <h2 class="text-xl font-bold" id="name-title">{{ ($selected ?? '') === 'MESSAGING' ? 'What should we call you?' : 'Your name' }}</h2>
-                <p class="hint mt-2" id="name-note">{{ ($selected ?? '') === 'MESSAGING' ? 'Enter the name you would like to use on Whats MAI.' : '' }}</p>
+                <p class="hint mt-2" id="name-note">{{ ($selected ?? '') === 'MESSAGING' ? "Enter the name you'd like to use on Whats MAI." : '' }}</p>
                 <div class="field-row">
                     <label for="full-name">Name</label>
                     <input class="px-4 py-2" name="full_name" id="full-name" value="{{ old('full_name', trim(old('first_name').' '.old('last_name'))) }}" autocomplete="name">
@@ -492,14 +492,14 @@
                 <button type="button" class="back-step" data-back="services">Back</button>
                 @if(($selected ?? '') === 'MESSAGING')
                     <h2 class="text-xl font-bold">Choose a plan</h2>
-                    <p class="hint mt-1">A 3-day trial, or a longer subscription.</p>
+                    <p class="hint mt-1">The 3-day trial is free. Longer plans are paid.</p>
                     <input type="checkbox" name="modules[]" value="MESSAGING" checked hidden>
                     <div class="duration-grid">
                         @foreach(app(\App\Services\Cloud\CloudMbolePrice::class)->periods() as $period)
                             <label class="duration-card">
                                 <input type="radio" name="mai_days" value="{{ $period['days'] }}" {{ (int) old('mai_days', 3) === (int) $period['days'] ? 'checked' : '' }}>
                                 <strong>{{ $period['title'] }}</strong>
-                                <span>{{ number_format((float) $period['amount'], 0) }} XAF</span>
+                                <span>{{ (int) $period['days'] === 3 ? 'Free' : number_format((float) $period['amount'], 0).' XAF' }}</span>
                             </label>
                         @endforeach
                     </div>
@@ -567,9 +567,7 @@
                 </fieldset>
                 <p class="form-error mt-3 rounded-xl px-3 py-2" id="pay-method-error" hidden>Choose MTN, Orange, VISA, or crypto before paying.</p>
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
-                    @if(($selected ?? '') !== 'MESSAGING')
                     <button type="submit" name="start_mode" value="trial" class="bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Start free trial</button>
-                    @endif
                     <button type="submit" name="start_mode" value="pay" id="pay-now" class="bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">{{ ($selected ?? '') === 'MESSAGING' ? 'Continue' : 'Pay' }}</button>
                 </div>
             </section>
@@ -734,7 +732,9 @@
         }
         document.getElementById('pick-personal').onclick = function () {
             kind.value = 'personal';
-            document.getElementById('name-title').textContent = 'Your name';
+            if (form.getAttribute('data-mai') !== '1') {
+                document.getElementById('name-title').textContent = 'Your name';
+            }
             show(2);
         };
         document.getElementById('pick-company').onclick = function () {
@@ -767,7 +767,9 @@
                     document.getElementById('full-name').value = named ? (identity.name || '') : '';
                     writeName();
                     var note = document.getElementById('name-note');
-                    if (named && identity.source === 'campay') {
+                    if (form.getAttribute('data-mai') === '1') {
+                        note.textContent = "Enter the name you'd like to use on Whats MAI.";
+                    } else if (named && identity.source === 'campay') {
                         note.textContent = kind.value === 'company'
                             ? 'Campay returned this name for the contact person. Change it if it is not correct.'
                             : 'Campay returned this name for the phone number. Change it if it is not you.';
@@ -775,9 +777,6 @@
                         note.textContent = 'This name is the one saved on WhatsApp for this number. Change it if it is not you.';
                     } else {
                         note.textContent = 'Campay and WhatsApp did not return a name. Enter it.';
-                    }
-                    if (form.getAttribute('data-mai') === '1') {
-                        note.textContent = (note.textContent ? note.textContent + ' ' : '') + 'The app link was sent to this WhatsApp. Open it on your phone to add Whats MAI.';
                     }
                     show(4);
                 });
