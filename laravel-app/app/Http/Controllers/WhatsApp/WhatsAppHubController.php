@@ -214,7 +214,7 @@ class WhatsAppHubController extends Controller
         }
         if ($request->get('poll')) {
             if ($request->get('names')) {
-                $named = WhatsAppConversation::with('contact')->orderByDesc('last_activity_at')->orderByDesc('id')->limit(150)->get();
+                $named = $this->inboxConversations();
                 try {
                     $this->conversations->preferPhoneNames($named, true);
                 } catch (\Throwable $e) {
@@ -232,11 +232,7 @@ class WhatsAppHubController extends Controller
 
             return response()->json($this->chatsFeed($request))->header('Cache-Control', 'no-store');
         }
-        $conversations = WhatsAppConversation::with('contact')
-            ->orderByDesc('last_activity_at')
-            ->orderByDesc('id')
-            ->limit(150)
-            ->get();
+        $conversations = $this->inboxConversations();
         $groups = [];
         try {
             $groups = app(\App\Services\WhatsApp\GroupContactExportService::class)->namedGroups();
@@ -271,7 +267,7 @@ class WhatsAppHubController extends Controller
                 }
             }
         } elseif ($request->filled('chat')) {
-            $open = WhatsAppConversation::with('contact')->find($request->get('chat'));
+            $open = $this->inboxConversation($request->get('chat'));
             if ($open) {
                 $this->conversations->readOnWeb($open);
                 $messages = WhatsAppMessage::visible()->where('conversation_id', $open->id)
@@ -374,7 +370,7 @@ class WhatsAppHubController extends Controller
 
     protected function chatThread($chatId)
     {
-        $conversation = WhatsAppConversation::with('contact')->find($chatId);
+        $conversation = $this->inboxConversation($chatId);
         if (! $conversation) {
             return ['ok' => false];
         }
@@ -445,7 +441,7 @@ class WhatsAppHubController extends Controller
                 ? WhatsAppMessage::visible()->where('conversation_id', $chatId)->where('id', '<', $first->id)->exists()
                 : false;
         } elseif ($chatId > 0) {
-            $current = WhatsAppConversation::with('contact')->find($chatId);
+            $current = $this->inboxConversation($chatId);
             if ($current) {
                 $this->conversations->touchStaffView($current);
                 if ((int) $current->unread_count > 0) {
@@ -502,7 +498,7 @@ class WhatsAppHubController extends Controller
             }
         }
 
-        $stamp = (string) WhatsAppConversation::max('updated_at').'|'.(int) WhatsAppConversation::sum('unread_count');
+        list($conversations, $stamp) = $this->inboxSnapshot();
         $payload['stamp'] = $stamp;
         if ((string) $request->get('stamp') === $stamp) {
             $payload['list'] = false;
@@ -510,11 +506,6 @@ class WhatsAppHubController extends Controller
             return $payload;
         }
         $payload['list'] = true;
-        $conversations = WhatsAppConversation::with('contact')
-            ->orderByDesc('last_activity_at')
-            ->orderByDesc('id')
-            ->limit(150)
-            ->get();
         try {
             $this->conversations->preferPhoneNames($conversations, false);
         } catch (\Throwable $e) {
@@ -538,6 +529,49 @@ class WhatsAppHubController extends Controller
         })->values();
 
         return $payload;
+    }
+
+    /**
+     * The chat list is the linked WhatsApp line. A selected company must not
+     * hide those people while the group directory still shows.
+     */
+    protected function inboxConversations()
+    {
+        list($rows) = $this->inboxSnapshot();
+
+        return $rows;
+    }
+
+    protected function inboxSnapshot()
+    {
+        $load = function () {
+            $rows = WhatsAppConversation::with('contact')
+                ->orderByDesc('last_activity_at')
+                ->orderByDesc('id')
+                ->limit(150)
+                ->get();
+            $stamp = (string) WhatsAppConversation::max('updated_at').'|'.(int) WhatsAppConversation::sum('unread_count');
+
+            return [$rows, $stamp];
+        };
+        $loaded = $load();
+        if ($loaded[0]->isNotEmpty() || ! config('cloud.isolate_queries')) {
+            return $loaded;
+        }
+
+        return app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation($load);
+    }
+
+    protected function inboxConversation($id)
+    {
+        $row = WhatsAppConversation::with('contact')->find($id);
+        if ($row || ! $id || ! config('cloud.isolate_queries')) {
+            return $row;
+        }
+
+        return app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation(function () use ($id) {
+            return WhatsAppConversation::with('contact')->find($id);
+        });
     }
 
     protected function chatPreview($preview)
