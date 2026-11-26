@@ -25,7 +25,11 @@ class PaymentTransactionController extends Controller
 
         if (Schema::hasTable('deposits')) {
             $hasReference = Schema::hasColumn('deposits', 'campay_reference');
-            foreach (Deposit::with('customer')->orderByDesc('id')->get() as $deposit) {
+            $deposits = Deposit::with('customer')->orderByDesc('id');
+            if (Schema::hasColumn('deposits', 'payment_method')) {
+                $deposits->where('payment_method', 3);
+            }
+            foreach ($deposits->get() as $deposit) {
                 $ref = $hasReference ? trim((string) $deposit->campay_reference) : '';
                 if ($ref !== '') {
                     $seen[$ref] = true;
@@ -46,7 +50,11 @@ class PaymentTransactionController extends Controller
         }
 
         if (Schema::hasTable('public_donations')) {
-            foreach (PublicDonation::where('status', 'paid')->orderByDesc('id')->get() as $donation) {
+            $donations = PublicDonation::where('status', 'paid')->orderByDesc('id');
+            if (Schema::hasColumn('public_donations', 'method')) {
+                $donations->where('method', 'momo');
+            }
+            foreach ($donations->get() as $donation) {
                 $ref = trim((string) $donation->campay_reference);
                 if ($ref !== '' && isset($seen[$ref])) {
                     continue;
@@ -73,6 +81,9 @@ class PaymentTransactionController extends Controller
             $sales = Sale::with('customer')->whereIn('id', $payments->pluck('sale_id')->filter()->unique()->all())->get()->keyBy('id');
             $hasProvider = Schema::hasColumn('payments', 'provider_reference');
             foreach ($payments as $payment) {
+                if (! $this->isMobileMoney($payment->paying_method, $payment->payment_note)) {
+                    continue;
+                }
                 $ref = $hasProvider ? trim((string) $payment->provider_reference) : '';
                 if ($ref === '' && preg_match('/Campay\s+(\S+)/', (string) $payment->payment_note, $match)) {
                     $ref = $match[1];
@@ -130,6 +141,20 @@ class PaymentTransactionController extends Controller
         });
 
         return $rows;
+    }
+
+    protected function isMobileMoney($method, $note = '')
+    {
+        $method = strtolower(trim((string) $method));
+        $note = strtolower((string) $note);
+        if (in_array($method, ['momo/om', 'momo/orange', 'mobile money', 'momo', 'orange money', 'mtn momo', 'campay'], true)) {
+            return true;
+        }
+        if ($method !== '' && (strpos($method, 'momo') !== false || strpos($method, 'orange money') !== false || strpos($method, 'mobile money') !== false)) {
+            return true;
+        }
+
+        return strpos($note, 'campay') !== false || strpos($note, 'mobile money') !== false;
     }
 
     protected function line($at, $type, $direction, $person, $amount, $status, $tone, $note)
