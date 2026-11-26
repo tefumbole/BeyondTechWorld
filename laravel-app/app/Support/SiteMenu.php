@@ -20,13 +20,12 @@ class SiteMenu
             'events'       => 'Events',
             'rentals'      => 'Rentals',
             'subscriptions'=> 'Subscriptions',
-            'apply'        => 'Apply Now',
             'permissions'  => 'Permissions',
             'about'        => 'About Us',
             'gallery'      => 'Gallery',
             'reviews'      => 'Reviews',
             'payments'     => 'Payments',
-            // Register Now removed — Training already covers course signup
+            // Apply Now lives under Training. Register Now stays on the training page.
             // Shareholders hidden from public nav (routes remain available)
             // Contact is merged into About Us (#contact) — not a separate nav item
         ];

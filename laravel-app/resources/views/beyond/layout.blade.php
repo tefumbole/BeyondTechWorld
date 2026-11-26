@@ -226,8 +226,38 @@
             display: flex; flex-direction: column; overflow: hidden;
         }
         .mobile-nav-links { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 8px 12px; }
+        .site-header-bar { min-height: 3.5rem; height: auto; }
+        .site-nav { display: none; }
         .nav-mai { display: inline-flex; align-items: center; gap: 6px; }
-        .nav-mai-icon { width: 22px; height: 26px; object-fit: contain; flex-shrink: 0; }
+        .nav-mai-icon { width: 20px; height: 24px; object-fit: contain; flex-shrink: 0; }
+        .nav-drop { position: relative; display: flex; align-items: center; }
+        .nav-drop-menu {
+            display: none; position: absolute; top: calc(100% - 2px); left: 0; min-width: 180px;
+            background: #fff; border-radius: 12px; padding: 6px; z-index: 80;
+            box-shadow: 0 14px 36px rgba(7, 47, 107, .2);
+        }
+        .nav-drop:hover .nav-drop-menu, .nav-drop:focus-within .nav-drop-menu { display: block; }
+        .nav-drop-menu a {
+            display: block; padding: 9px 12px; border-radius: 8px; color: #0b3f90;
+            font-size: 14px; font-weight: 700; text-decoration: none; white-space: nowrap;
+        }
+        .nav-drop-menu a:hover { background: #f4f7fb; }
+        .mobile-nav-links a.nav-sub { padding-left: 28px; font-size: .95rem; color: #f5d76e; }
+        @media (min-width: 1024px) {
+            .site-header-bar { min-height: 4rem; }
+            .site-nav {
+                display: flex; flex: 1 1 auto; align-items: center; justify-content: center;
+                flex-wrap: wrap; gap: 4px 14px; min-width: 0; padding: 8px 6px;
+            }
+            .site-nav > a, .site-nav .nav-tab {
+                font-size: 14px; font-weight: 600; line-height: 1.2; white-space: nowrap;
+                text-decoration: none; padding: 6px 1px;
+            }
+        }
+        @media (min-width: 1024px) and (max-width: 1380px) {
+            .site-nav { gap: 4px 10px; }
+            .site-nav > a, .site-nav .nav-tab { font-size: 13px; }
+        }
         .mobile-nav-links a {
             display: flex; align-items: center; min-height: 48px; padding: 0 12px;
             border-bottom: 1px solid rgba(255,255,255,.08); font-size: 1.05rem; font-weight: 600;
@@ -295,11 +325,10 @@
     $navDefs = [
         'home'         => ['label' => 'Home', 'url' => url('/')],
         'whatsapp-mai' => ['label' => 'WhatsApp MAI', 'url' => url('/whatsapp-mai'), 'icon' => asset('branding/mbole-ai.png')],
-        'trainings'    => ['label' => 'Training', 'url' => url('/trainings')],
+        'trainings'    => ['label' => 'Training', 'url' => url('/trainings'), 'menu' => 'training'],
         'events'       => ['label' => 'Events', 'url' => url('/events')],
         'rentals'      => ['label' => 'Rentals', 'url' => url('/rentals')],
         'subscriptions'=> ['label' => 'Subscriptions', 'url' => url('/cloud/register')],
-        'apply'        => ['label' => 'Apply Now', 'url' => url('/apply-now'), 'special' => true],
         'permissions'  => ['label' => 'Permissions', 'url' => url('/permissions')],
         'about'        => ['label' => 'About Us', 'url' => url('/about')],
         'gallery'      => ['label' => 'Gallery', 'url' => url('/gallery')],
@@ -309,7 +338,7 @@
     $navLinks = [];
     foreach (\App\Support\SiteMenu::landingOrder() as $navKey) {
         // Legacy saved menus may still include removed/hidden keys
-        if (in_array($navKey, ['contact', 'register', 'shareholders'], true)) {
+        if (in_array($navKey, ['contact', 'register', 'shareholders', 'apply'], true)) {
             continue;
         }
         if (isset($navDefs[$navKey])) {
@@ -321,30 +350,48 @@
 
 <div x-data="{ open: false, userMenu: false }" @keydown.escape.window="open = false; userMenu = false" x-effect="document.documentElement.classList.toggle('nav-locked', open)">
 <header class="bg-brand-blue sticky top-0 shadow-lg">
-    <div class="w-full flex items-center justify-between h-14 sm:h-16 pl-1 pr-3 sm:pl-2 sm:pr-6 lg:pl-3 lg:pr-8">
+    <div class="site-header-bar w-full flex items-center justify-between pl-1 pr-3 sm:pl-2 sm:pr-6 lg:pl-3 lg:pr-8">
         <a href="{{ url('/') }}" class="nav-logo-link" aria-label="{{ $siteTitle }} home">
             <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}" class="nav-logo-spin">
         </a>
 
-        <nav class="hidden lg:flex items-center gap-x-3 xl:gap-x-4 flex-1 justify-center min-w-0">
+        <nav class="site-nav">
             @foreach ($navLinks as $link)
                 @php
                     $active = rtrim($currentUrl,'/') === rtrim($link['url'],'/');
+                    $path = request()->path();
                     if ($link['url'] === url('/payments')) {
-                        $payPath = request()->path();
-                        $active = $payPath === 'payments' || $payPath === 'donate' || $payPath === 'request-payment' || strpos($payPath, 'donate/') === 0;
+                        $active = $path === 'payments' || $path === 'donate' || $path === 'request-payment' || strpos($path, 'donate/') === 0;
+                    }
+                    if (!empty($link['menu']) && $link['menu'] === 'training') {
+                        $active = $path === 'trainings' || $path === 'register-now' || $path === 'apply-now' || strpos($path, 'apply-now/') === 0;
+                    }
+                    $tabClass = 'nav-tab';
+                    if (!empty($link['icon'])) {
+                        $tabClass .= ' nav-mai';
+                    }
+                    if ($active) {
+                        $tabClass .= ' text-brand-gold';
+                    } else {
+                        $tabClass .= ' text-white hover:text-brand-gold';
                     }
                 @endphp
-                <a href="{{ $link['url'] }}"
-                   class="text-sm xl:text-base font-medium transition-colors duration-300 whitespace-nowrap {{ !empty($link['icon']) ? 'nav-mai' : '' }}
-                      @if($active) text-brand-gold border-b-2 border-brand-gold pb-1
-                      @elseif(!empty($link['special'])) text-brand-gold hover:text-white font-bold
-                      @else text-white hover:text-brand-gold @endif">
-                    @if(!empty($link['icon']))
-                        <img src="{{ $link['icon'] }}" alt="" class="nav-mai-icon" width="26" height="30">
-                    @endif
-                    {{ $link['label'] }}
-                </a>
+                @if(!empty($link['menu']) && $link['menu'] === 'training')
+                    <div class="nav-drop">
+                        <a href="{{ $link['url'] }}" class="{{ $tabClass }}" style="{{ $active ? 'border-bottom:2px solid #c6ab47' : '' }}">{{ $link['label'] }}</a>
+                        <div class="nav-drop-menu">
+                            <a href="{{ url('/trainings') }}">Courses</a>
+                            <a href="{{ url('/apply-now') }}">Apply Now</a>
+                        </div>
+                    </div>
+                @else
+                    <a href="{{ $link['url'] }}" class="{{ $tabClass }}" style="{{ $active ? 'border-bottom:2px solid #c6ab47' : '' }}">
+                        @if(!empty($link['icon']))
+                            <img src="{{ $link['icon'] }}" alt="" class="nav-mai-icon" width="20" height="24">
+                        @endif
+                        {{ $link['label'] }}
+                    </a>
+                @endif
             @endforeach
         </nav>
 
@@ -418,12 +465,15 @@
     <div x-show="open" x-cloak x-transition.opacity class="mobile-nav-sheet lg:hidden">
         <nav class="mobile-nav-links">
             @foreach ($navLinks as $link)
-                <a href="{{ $link['url'] }}" class="{{ !empty($link['icon']) ? 'nav-mai ' : '' }}{{ !empty($link['special']) ? 'text-brand-gold' : 'text-white' }}">
+                <a href="{{ $link['url'] }}" class="{{ !empty($link['icon']) ? 'nav-mai ' : '' }}text-white">
                     @if(!empty($link['icon']))
-                        <img src="{{ $link['icon'] }}" alt="" class="nav-mai-icon" width="26" height="30">
+                        <img src="{{ $link['icon'] }}" alt="" class="nav-mai-icon" width="20" height="24">
                     @endif
                     {{ $link['label'] }}
                 </a>
+                @if(!empty($link['menu']) && $link['menu'] === 'training')
+                    <a href="{{ url('/apply-now') }}" class="nav-sub">Apply Now</a>
+                @endif
             @endforeach
         </nav>
         <div class="mobile-nav-actions">

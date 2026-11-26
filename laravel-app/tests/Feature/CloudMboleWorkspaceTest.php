@@ -37,6 +37,7 @@ class CloudMboleWorkspaceTest extends TestCase
     public function test_main_menu_opens_whatsapp_mai()
     {
         $this->assertSame('WhatsApp MAI', SiteMenu::landingItems()['whatsapp-mai']);
+        $this->assertArrayNotHasKey('apply', SiteMenu::landingItems());
         $order = SiteMenu::landingOrder();
         $reviews = array_search('reviews', $order, true);
         $mai = array_search('whatsapp-mai', $order, true);
