@@ -73,7 +73,7 @@
     function findCountrySelect(input) {
         var form = input.form || input.closest('form');
         if (!form) return null;
-        return form.querySelector('select[name="country_code"], select[name="countryCode"], select[name="phone_country"], select[name="dial_code"]');
+        return form.querySelector('select[name="country_code"], select[name="countryCode"], select[name="phone_country"], select[name="dial_code"], select[name="dial"]');
     }
 
     function isLocalField(input) {
@@ -137,11 +137,24 @@
         if (!raw || !String(raw).trim()) return;
 
         if (isLocalField(input)) {
-            var full = normalizeFull(raw);
-            var parts = splitInternational(full || raw);
+            var digits = digitsOnly(raw);
+            if (digits.charAt(0) === '0' && digits.length >= 9) {
+                digits = digits.replace(/^0+/, '');
+            }
             var select = findCountrySelect(input);
-            if (select) setCountrySelect(select, parts.cc);
-            applyValue(input, parts.local);
+            var selected = select ? digitsOnly(select.value) : '';
+            if (selected && selected !== DEFAULT_CC && digits.indexOf(DEFAULT_CC) === 0) {
+                var stripped = digits.slice(DEFAULT_CC.length);
+                if (stripped.length >= 7 && stripped.length <= 10) digits = stripped;
+            }
+            if (selected && digits.indexOf(selected) === 0 && digits.length >= selected.length + 7) {
+                digits = digits.slice(selected.length);
+            } else if (looksInternational(digits)) {
+                var parts = splitInternational('+' + digits);
+                if (select) setCountrySelect(select, parts.cc);
+                digits = parts.local;
+            }
+            applyValue(input, digits);
             return;
         }
 

@@ -194,9 +194,14 @@
     .stage-rail.is-track li.on,
     .stage-rail.is-track li.done { background: transparent; border: 0; color: #F5D76E; }
     .stage-rail.is-track li.on::before { background: #D4AF37; border-color: #D4AF37; color: #072f6b; }
-    .stage-rail.is-track li.done::before { background: #0b3f90; border-color: #F5D76E; color: #F5D76E; }
-    .mai-features { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 0.55rem; text-align: left; }
-    @media (min-width: 640px) { .mai-features { grid-template-columns: 1fr 1fr; } }
+    .stage-rail.is-track li.done::before { content: "✓"; background: #0b3f90; border-color: #F5D76E; color: #F5D76E; }
+    .mai-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
+    .mai-brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: #fff; }
+    .mai-signin { border: 1px solid rgba(255,255,255,.35); color: #fff; border-radius: 999px; padding: 0.35rem 0.8rem; font-size: 0.85rem; font-weight: 700; }
+    .mai-features { grid-template-columns: 1fr 1fr 1fr; }
+    .mai-features li { text-align: center; }
+    .install-android { display: inline-flex; margin-top: 0.6rem; background: #fff; color: #072f6b; border: 0; border-radius: 999px; font-weight: 800; padding: 0.65rem 1rem; cursor: pointer; }
+    .mai-features { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.55rem; text-align: center; }
     .mai-features li { background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 14px; padding: 0.7rem 0.8rem; }
     .mai-features li:nth-child(-n+3) { background: rgba(212,175,55,.16); }
     .mai-features strong { display: block; color: #F5D76E; }
@@ -314,6 +319,10 @@
             <input type="hidden" name="account_kind" id="account-kind" value="{{ old('account_kind', 'company') }}">
             @if(($selected ?? '') === 'MESSAGING')
                 <input type="hidden" name="mai" value="1">
+                <div class="mai-top">
+                    <span class="mai-brand"><img src="{{ asset('branding/mbole-ai.png') }}" alt="" width="28" height="32" style="width:28px;height:32px;object-fit:contain"> Whats MAI</span>
+                    <a class="mai-signin" href="{{ url('/login?mai=1') }}">Sign in</a>
+                </div>
             @endif
             @if(!empty($validationToken))
                 <input type="hidden" name="validation_token" value="{{ $validationToken }}">
@@ -349,12 +358,13 @@
                     <p class="hint mt-2">Build your own company. Choose Individual or Company.</p>
                 @endif
                 <div class="flex flex-col sm:flex-row items-stretch justify-center gap-3 mt-6">
-                    <button type="button" id="pick-personal" class="subscribe-choice bg-brand-gold hover:bg-[#b5952f] text-brand-blue px-7 shadow-[0_0_15px_rgba(212,175,55,0.45)]">{{ ($selected ?? '') === 'MESSAGING' ? 'Subscribe' : 'Individual' }}</button>
+                    <button type="button" id="pick-personal" class="subscribe-choice bg-brand-gold hover:bg-[#b5952f] text-brand-blue px-7 shadow-[0_0_15px_rgba(212,175,55,0.45)]">{{ ($selected ?? '') === 'MESSAGING' ? 'Start free trial' : 'Individual' }}</button>
                     <button type="button" id="pick-company" class="subscribe-choice bg-white/15 hover:bg-white/25 border border-brand-gold text-brand-gold px-7">Company</button>
                 </div>
                 @if(($selected ?? '') === 'MESSAGING')
-                    <p class="hint mt-4">Add Whats MAI to your phone so you can open it without the website. On iPhone, tap Share, then Add to Home Screen.</p>
-                    <button type="button" id="install-app" class="mt-3 bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5" hidden>Add Whats MAI to this phone</button>
+                    <p class="hint mt-4">On iPhone, tap Share, then Add to Home Screen. On Android, install it from Chrome.</p>
+                    <button type="button" id="install-app" class="install-android">Install on Android</button>
+                    <p class="hint" id="install-note" hidden></p>
                 @endif
             </section>
 
@@ -363,7 +373,7 @@
                 <h2 class="text-xl font-bold">{{ ($selected ?? '') === 'MESSAGING' ? 'Enter your phone number' : 'Phone number' }}</h2>
                 <p class="hint mt-1">A verification code is sent on WhatsApp before any service is shown. That code only signs you in. It does not connect WhatsApp.</p>
                 <div class="field-row">
-                    <label for="dial">Country code</label>
+                    <label for="dial">Country</label>
                     @if(($selected ?? '') === 'MESSAGING')
                         <select name="dial" id="dial">
                             @foreach(\App\Support\CountryDialCodes::all() as $label)
@@ -384,7 +394,7 @@
                 </div>
                 <div class="field-row">
                     <label for="phone">Phone number</label>
-                    <input class="px-4 py-2" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel" inputmode="tel">
+                    <input class="px-4 py-2" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel" inputmode="tel" data-wa-phone="local">
                 </div>
                 <button type="button" id="send-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Send WhatsApp code</button>
                 <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="send-error" hidden></p>
@@ -393,7 +403,7 @@
             <section class="step" data-step="3">
                 <button type="button" class="back-step" data-back="2">Back</button>
                 <h2 class="text-xl font-bold">{{ ($selected ?? '') === 'MESSAGING' ? 'Enter your verification code' : 'Verification code' }}</h2>
-                <p class="hint mt-1">Enter the code sent to this phone on WhatsApp.</p>
+                <p class="hint mt-1">Enter the 6-digit code sent to your WhatsApp. That code does not link WhatsApp.</p>
                 @if(($selected ?? '') === 'MESSAGING')
                     <div class="otp-boxes" id="otp-boxes">
                         @for($i = 0; $i < 6; $i++)
@@ -407,7 +417,7 @@
                     <input class="px-4 py-2" id="otp-code" inputmode="numeric" autocomplete="one-time-code">
                 </div>
                 @endif
-                <button type="button" id="check-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Verify and continue</button>
+                <button type="button" id="check-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">{{ ($selected ?? '') === 'MESSAGING' ? 'Verify code' : 'Verify and continue' }}</button>
                 <p class="hint mt-3" id="resend-wait">You can resend the code in 2:00</p>
                 <button type="button" id="resend-code" class="mt-2 bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5" disabled>Resend code</button>
                 <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="code-error" hidden></p>
@@ -416,7 +426,7 @@
             <section class="step" data-step="4">
                 <button type="button" class="back-step" data-back="3">Back</button>
                 <h2 class="text-xl font-bold" id="name-title">{{ ($selected ?? '') === 'MESSAGING' ? 'What should we call you?' : 'Your name' }}</h2>
-                <p class="hint mt-2" id="name-note"></p>
+                <p class="hint mt-2" id="name-note">{{ ($selected ?? '') === 'MESSAGING' ? 'Enter the name you would like to use on Whats MAI.' : '' }}</p>
                 <div class="field-row">
                     <label for="full-name">Name</label>
                     <input class="px-4 py-2" name="full_name" id="full-name" value="{{ old('full_name', trim(old('first_name').' '.old('last_name'))) }}" autocomplete="name">
@@ -531,7 +541,7 @@
                 <fieldset class="mt-4 text-left">
                     <legend class="font-semibold mb-2">Payment method, if you pay now</legend>
                     <div class="{{ ($selected ?? '') === 'MESSAGING' ? 'pay-grid' : 'flex flex-wrap gap-2' }}">
-                        @foreach(['MTN' => 'MTN MoMo', 'ORANGE' => 'Orange Money', 'VISA' => 'VISA', 'CRYPTO' => 'Crypto'] as $code => $label)
+                        @foreach(['MTN' => 'MTN MoMo', 'ORANGE' => 'Orange Money', 'VISA' => 'VISA'] + ((($selected ?? '') === 'MESSAGING') ? [] : ['CRYPTO' => 'Crypto']) as $code => $label)
                             <label class="{{ ($selected ?? '') === 'MESSAGING' ? 'pay-card' : 'rounded-full border border-brand-gold px-4 py-2 font-bold' }} {{ in_array($code, ['MTN', 'ORANGE'], true) ? 'pay-local' : '' }}">
                                 <input type="radio" name="payment_method" value="{{ $code }}" {{ old('payment_method') === $code ? 'checked' : '' }}>
                                 <strong>{{ $label }}</strong>
@@ -661,6 +671,10 @@
             var field = document.getElementById('phone');
             var code = dial ? String(dial.value || '237').replace(/\D+/g, '') : '237';
             var digits = (field && field.value ? field.value : '').replace(/\D+/g, '');
+            if (code && code !== '237' && digits.indexOf('237') === 0) {
+                var rest = digits.slice(3);
+                if (rest.length >= 7 && rest.length <= 10) digits = rest;
+            }
             if (code && digits.indexOf(code) === 0 && digits.length >= code.length + 7) return '+' + digits;
             digits = digits.replace(/^0+/, '');
             return '+' + code + digits;
@@ -916,15 +930,29 @@
                 if (note) note.hidden = false;
             });
         }
-        if (form && form.getAttribute('data-mai') === '1' && 'serviceWorker' in navigator) {
-            navigator.serviceWorker.register('{{ url('/whatsapp-mai/sw.js') }}', { scope: '/whatsapp-mai/' }).catch(function () {});
+        if (form && form.getAttribute('data-mai') === '1') {
+            var installPrompt = null;
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('{{ url('/whatsapp-mai/sw.js') }}', { scope: '/whatsapp-mai/' }).catch(function () {});
+            }
             window.addEventListener('beforeinstallprompt', function (event) {
                 event.preventDefault();
-                var button = document.getElementById('install-app');
-                if (!button) return;
-                button.hidden = false;
-                button.onclick = function () { event.prompt(); };
+                installPrompt = event;
             });
+            var installButton = document.getElementById('install-app');
+            if (installButton) {
+                installButton.onclick = function () {
+                    var note = document.getElementById('install-note');
+                    if (installPrompt) {
+                        installPrompt.prompt();
+                        return;
+                    }
+                    if (note) {
+                        note.hidden = false;
+                        note.textContent = 'On Android, open this page in Chrome, tap the menu, then Install app or Add to Home screen.';
+                    }
+                };
+            }
         }
     })();
 </script>

@@ -15,6 +15,7 @@ class CloudMboleWorkspaceTest extends TestCase
         $price = new CloudMbolePrice();
         $this->assertSame('+237670000000', $price->e164('670000000', '237'));
         $this->assertSame('+250780000000', $price->e164('0780000000', '250'));
+        $this->assertSame('+250794006160', $price->e164('237794006160', '250'));
         $this->assertSame('+33670000000', $price->e164('670000000', '33'));
 
         $cameroon = new CloudTenant();

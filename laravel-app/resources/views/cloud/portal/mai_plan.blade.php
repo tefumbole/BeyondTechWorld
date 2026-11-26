@@ -42,8 +42,9 @@
                     @endforeach
                 </div>
                 <p style="margin-top:1rem;font-weight:700;">Payment method</p>
+                <p>MoMo uses the same MTN and Orange approval as Payments. VISA opens the card page. A Cameroon number is required for MoMo.</p>
                 <div class="pay-grid">
-                    @foreach(['MTN' => 'MTN MoMo', 'ORANGE' => 'Orange Money', 'VISA' => 'VISA', 'CRYPTO' => 'Crypto'] as $code => $label)
+                    @foreach(['MTN' => 'MTN MoMo', 'ORANGE' => 'Orange Money', 'VISA' => 'VISA'] as $code => $label)
                         <label class="pay-card">
                             <input type="radio" name="payment_method" value="{{ $code }}" {{ old('payment_method') === $code ? 'checked' : '' }}>
                             <strong>{{ $label }}</strong>
@@ -53,7 +54,35 @@
                 <button type="submit" class="gold">Continue</button>
             </form>
             <p style="margin-top:0.8rem;"><a href="{{ route('whatsapp.mai.open') }}" style="color:#F5D76E;">Open the phone link</a></p>
+            <button type="button" id="install-android" class="gold">Install on Android</button>
+            <p id="install-note" hidden>On Android, open this page in Chrome, tap the menu, then Install app or Add to Home screen.</p>
         </div>
     </div>
 </section>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    var promptEvent = null;
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('{{ url('/whatsapp-mai/sw.js') }}', { scope: '/whatsapp-mai/' }).catch(function () {});
+    }
+    window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        promptEvent = event;
+    });
+    var button = document.getElementById('install-android');
+    if (!button) return;
+    button.onclick = function () {
+        if (promptEvent) {
+            promptEvent.prompt();
+            return;
+        }
+        var note = document.getElementById('install-note');
+        if (note) note.hidden = false;
+    };
+})();
+</script>
+@endpush
+

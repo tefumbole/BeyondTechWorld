@@ -313,6 +313,9 @@ class CloudPortalController extends Controller
         session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
 
         if ($request->input('start_mode') === 'pay') {
+            if ($fromMai) {
+                return $this->startMaiPayment($request, $tenant);
+            }
             $subscriptions = CloudSubscription::where('cloud_tenant_id', $tenant->id)->get()->all();
             try {
                 $url = app(\App\Services\Cloud\CloudCheckoutService::class)->startMany($tenant, $subscriptions, $payMethod);
@@ -372,17 +375,88 @@ class CloudPortalController extends Controller
         return redirect()->route('whatsapp.mai.plan')->with('message', 'A link was sent to this phone. Choose a 3-day trial or a subscription.');
     }
 
+    public function whatsappMaiPay(Request $request, $paymentId)
+    {
+        $payment = \App\Cloud\CloudSubscriptionPayment::find($paymentId);
+        if (! $payment) {
+            return redirect()->route('whatsapp.mai.plan')->with('not_permitted', 'That payment was not found.');
+        }
+        $paid = $payment->status === \App\Cloud\CloudSubscriptionPayment::PAID;
+        if (! $paid && $payment->provider === 'stripe') {
+            $sessionId = trim((string) $request->query('session_id', $payment->provider_reference));
+            $paid = $sessionId !== '' && app(\App\Services\StripeCheckoutService::class)->isPaid($sessionId);
+        } elseif (! $paid && $payment->provider_reference) {
+            $phone = $payment->cloudTenant ? preg_replace('/\D/', '', (string) $payment->cloudTenant->phone) : null;
+            $outcome = app(\App\Services\CampayPayoutService::class)->collectionOutcome(
+                $payment->provider_reference,
+                (int) round((float) $payment->amount),
+                $phone
+            );
+            $paid = ! empty($outcome['confirmed']);
+        }
+        if ($paid && $payment->status !== \App\Cloud\CloudSubscriptionPayment::PAID) {
+            try {
+                app(\App\Services\Cloud\CloudCheckoutService::class)->markPaidFromProvider($payment);
+            } catch (\Exception $e) {
+            }
+            $payment = $payment->fresh();
+        }
+        if ($payment && $payment->status === \App\Cloud\CloudSubscriptionPayment::PAID) {
+            return redirect()->route('whatsapp.mai.open')->with('message', 'Payment received. Whats MAI is active for this term.');
+        }
+
+        return view('cloud.portal.mai_pay', ['payment' => $payment]);
+    }
+
     protected function startMaiPayment(Request $request, $tenant)
     {
         $method = strtoupper((string) $request->input('payment_method'));
+        if (! in_array($method, ['MTN', 'ORANGE', 'VISA'], true)) {
+            return redirect()->route('whatsapp.mai.plan')->with('not_permitted', 'Choose MTN, Orange, or VISA.');
+        }
         $subscriptions = CloudSubscription::where('cloud_tenant_id', $tenant->id)->get()->all();
         try {
-            $url = app(\App\Services\Cloud\CloudCheckoutService::class)->startMany($tenant, $subscriptions, $method);
-
-            return redirect()->away($url);
+            $payment = app(\App\Services\Cloud\CloudBillingCheckout::class)->open($tenant, $subscriptions, $method);
         } catch (\Exception $e) {
             return redirect()->route('whatsapp.mai.plan')->with('not_permitted', $e->getMessage());
         }
+        $amount = (int) round((float) $payment->amount);
+        $phone = preg_replace('/\D/', '', (string) $tenant->phone);
+        if ($method === 'VISA') {
+            $card = app(\App\Services\StripeCheckoutService::class)->checkout(
+                'Whats MAI',
+                $amount,
+                route('whatsapp.mai.pay', ['payment' => $payment->id]).'?session_id={CHECKOUT_SESSION_ID}',
+                route('whatsapp.mai.plan'),
+                ['mai_payment' => (string) $payment->id]
+            );
+            if (empty($card['ok']) || empty($card['url'])) {
+                $error = isset($card['error']) ? (string) $card['error'] : 'VISA could not be opened.';
+
+                return redirect()->route('whatsapp.mai.plan')->with('not_permitted', $error);
+            }
+            $payment->provider = 'stripe';
+            $payment->provider_reference = (string) $card['id'];
+            $payment->status = \App\Cloud\CloudSubscriptionPayment::PENDING;
+            $payment->save();
+
+            return redirect()->away($card['url']);
+        }
+        $momo = app(\App\Services\CampayPayoutService::class)->momoNumber($phone);
+        if (! $momo) {
+            return redirect()->route('whatsapp.mai.plan')->with('not_permitted', 'MTN and Orange need a Cameroon number. Choose VISA for another country.');
+        }
+        $body = app(\App\Services\CampayPayoutService::class)->collect($momo, $amount, 'mai-'.$payment->id, 'Whats MAI');
+        $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
+        if (! is_array($body) || empty($body['reference']) || $status === 'FAILED') {
+            return redirect()->route('whatsapp.mai.plan')->with('not_permitted', 'Campay could not ask for the Mobile Money approval.');
+        }
+        $payment->provider = 'campay';
+        $payment->provider_reference = (string) $body['reference'];
+        $payment->status = \App\Cloud\CloudSubscriptionPayment::PENDING;
+        $payment->save();
+
+        return redirect()->route('whatsapp.mai.pay', ['payment' => $payment->id]);
     }
 
     protected function maiCustomerTenant($user)
