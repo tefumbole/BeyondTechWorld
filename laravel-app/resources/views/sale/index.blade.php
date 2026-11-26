@@ -5,55 +5,38 @@
     @if(session()->has('not_permitted'))
         <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
     @endif
-    <section>
-        <div class="container-fluid">
-            <div class="card">
-                <div class="card-header mt-2">
-                    <h3 class="text-center">{{trans('file.Sale List')}}</h3>
-                </div>
-                {!! Form::open(['route' => 'sales.index', 'method' => 'get']) !!}
-                <div class="row mb-3">
-                    <div class="col-md-4 offset-md-2 mt-3">
-                        <div class="d-flex">
-                            <label class="">{{trans('file.Date')}} &nbsp;</label>
-                            <div class="">
-                                <div class="input-group">
-                                    <input type="text" class="daterangepicker-field form-control" value="{{$starting_date}} To {{$ending_date}}" required />
-                                    <input type="hidden" name="starting_date" value="{{$starting_date}}" />
-                                    <input type="hidden" name="ending_date" value="{{$ending_date}}" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mt-3 @if(\Auth::user()->role_id > 2){{'d-none'}}@endif">
-                        <div class="d-flex">
-                            <label class="">{{trans('file.Warehouse')}} &nbsp;</label>
-                            <div class="">
-                                <select id="warehouse_id" name="warehouse_id" class="selectpicker form-control" data-live-search="true" >
-                                    <option value="0">{{trans('file.All Warehouse')}}</option>
-                                    @foreach($lims_warehouse_list as $warehouse)
-                                        @if($warehouse->id == $warehouse_id)
-                                            <option selected value="{{$warehouse->id}}">{{$warehouse->name}}</option>
-                                        @else
-                                            <option value="{{$warehouse->id}}">{{$warehouse->name}}</option>
-                                        @endif
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2 mt-3">
-                        <div class="form-group">
-                            <button class="btn btn-primary" id="filter-btn" type="submit">{{trans('file.submit')}}</button>
-                        </div>
-                    </div>
-                </div>
-                {!! Form::close() !!}
-            </div>
-            @if(in_array("sales-add", $all_permission))
-                <a href="{{route('sales.create')}}" class="btn btn-info"><i class="dripicons-plus"></i> {{trans('file.Add Sale')}}</a>&nbsp;
-                <a href="{{url('sales/sale_by_csv')}}" class="btn btn-primary"><i class="dripicons-copy"></i> {{trans('file.Import Sale')}}</a>
-            @endif
+    <section class="sale-page">
+        <style>
+            .sale-page { margin: 0; padding: 0; }
+            .sale-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 12px 8px; }
+            .sale-bar h3 { margin: 0; font-size: 18px; font-weight: 800; color: #10213d; white-space: nowrap; }
+            .sale-bar form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; }
+            .sale-bar label { margin: 0; font-weight: 700; white-space: nowrap; }
+            .sale-bar .form-group { margin: 0; }
+            .sale-bar .daterangepicker-field { width: 230px; min-height: 38px; }
+            .sale-bar .bootstrap-select { width: 180px !important; }
+            .sale-bar .btn { margin: 0; white-space: nowrap; }
+        </style>
+        <div class="sale-bar">
+            <h3>{{trans('file.Sale List')}}</h3>
+            {!! Form::open(['route' => 'sales.index', 'method' => 'get']) !!}
+                <label>{{trans('file.Date')}}</label>
+                <input type="text" class="daterangepicker-field form-control" value="{{$starting_date}} To {{$ending_date}}" required />
+                <input type="hidden" name="starting_date" value="{{$starting_date}}" />
+                <input type="hidden" name="ending_date" value="{{$ending_date}}" />
+                <label class="@if(\Auth::user()->role_id > 2){{'d-none'}}@endif">{{trans('file.Warehouse')}}</label>
+                <select id="warehouse_id" name="warehouse_id" class="selectpicker form-control @if(\Auth::user()->role_id > 2){{'d-none'}}@endif" data-live-search="true">
+                    <option value="0">{{trans('file.All Warehouse')}}</option>
+                    @foreach($lims_warehouse_list as $warehouse)
+                        <option value="{{$warehouse->id}}" {{ $warehouse->id == $warehouse_id ? 'selected' : '' }}>{{$warehouse->name}}</option>
+                    @endforeach
+                </select>
+                @if(in_array("sales-add", $all_permission))
+                    <a href="{{route('sales.create')}}" class="btn btn-info"><i class="dripicons-plus"></i> {{trans('file.Add Sale')}}</a>
+                    <a href="{{url('sales/sale_by_csv')}}" class="btn btn-primary"><i class="dripicons-copy"></i> {{trans('file.Import Sale')}}</a>
+                @endif
+                <button class="btn btn-primary" id="filter-btn" type="submit">{{trans('file.submit')}}</button>
+            {!! Form::close() !!}
         </div>
         <style>
             .sale-board { margin: 8px 12px 24px; background: #fff; border: 1px solid #eadcc4; border-radius: 18px; overflow: hidden; box-shadow: 0 1px 2px rgba(63,42,18,.04); }

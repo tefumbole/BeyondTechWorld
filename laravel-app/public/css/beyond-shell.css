@@ -201,19 +201,19 @@
             }
 
             .side-navbar .side-menu > li > a.menu-parent-active,
-            .side-navbar .side-menu > li > a[aria-expanded="true"],
-            .side-navbar .side-menu > li.active > a {
-                background: var(--beyond-accent) !important;
-                color: var(--beyond-primary-dark) !important;
+            .side-navbar .side-menu > li.active > a,
+            .side-navbar .side-menu li.active > a {
+                background: #0b3f90 !important;
+                color: #fff !important;
                 font-weight: 700;
             }
 
             .side-navbar .side-menu > li > a.menu-parent-active i,
-            .side-navbar .side-menu > li > a[aria-expanded="true"] i,
             .side-navbar .side-menu > li.active > a i,
+            .side-navbar .side-menu li.active > a i,
             .side-navbar .side-menu > li > a.menu-parent-active [class*="dripicons-"],
             .side-navbar .side-menu > li > a.menu-parent-active [class*="fa-"] {
-                color: var(--beyond-primary-dark) !important;
+                color: #fff !important;
             }
 
             #side-main-menu ul.collapse,
@@ -255,6 +255,11 @@
                 display: none !important;
             }
 
+            #content > .container-fluid {
+                padding-top: 4px;
+                padding-bottom: 0;
+            }
+
             .beyond-module-tabs {
                 display: none;
                 background: #fff;
@@ -262,7 +267,7 @@
                 border-bottom: 1px solid #e3e9f4;
                 border-radius: 0;
                 padding: 0;
-                margin-bottom: 18px;
+                margin-bottom: 4px;
                 box-shadow: none;
             }
 
@@ -326,7 +331,7 @@
                 letter-spacing: 0.08em;
                 text-transform: uppercase;
                 color: var(--beyond-muted);
-                padding: 14px 18px 0;
+                padding: 6px 12px 0;
                 margin-bottom: 0;
             }
 
@@ -336,7 +341,7 @@
                 flex-wrap: wrap;
                 gap: 8px;
                 overflow: visible;
-                padding: 12px 10px 10px;
+                padding: 6px 10px;
             }
 
             .beyond-module-tabs-sub {

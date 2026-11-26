@@ -777,14 +777,14 @@
                         @endif
                         @if(in_array('shops-index', $all_permission))
                             <li data-nav-key="shop">
-                                <a href="#shop" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-building"></i><span>Shops</span><span></a>
+                                <a href="#shop" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-building"></i><span>Shops</span></a>
                                 <ul id="shop" class="collapse list-unstyled ">
                                     <li id="shop-list-menu"><a href="{{route('shop.index')}}">Shop Listing</a></li>
                                 </ul>
                             </li>
                         @endif
                         @if(in_array('orders-index', $all_permission))
-                            <li data-nav-key="order"><a href="#order" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-document"></i><span>{{trans('file.order')}}</span><span></a>
+                            <li data-nav-key="order"><a href="#order" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-document"></i><span>{{trans('file.order')}}</span></a>
                                 <ul id="order" class="collapse list-unstyled ">
                                     <li id="order-list-menu"><a href="{{route('order.index')}}">{{trans('file.Order List')}}</a></li>
                                     @if(Auth::user()->role_id != 12 || Auth::user()->can_donation == 1)
@@ -1121,7 +1121,7 @@
                         ])->first();
                         ?>
                         @if($index_permission_active)
-                            <li data-nav-key="quotation"><a href="#quotation" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-document"></i><span>{{trans('file.Quotation')}}</span><span></a>
+                            <li data-nav-key="quotation"><a href="#quotation" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-document"></i><span>{{trans('file.Quotation')}}</span></a>
                                 <ul id="quotation" class="collapse list-unstyled ">
                                     <li id="quotation-list-menu"><a href="{{route('quotations.index')}}">{{trans('file.Quotation List')}}</a></li>
                                         <?php
@@ -2853,11 +2853,11 @@
               }
 
               function buildModuleTabs() {
-                  var $tabsWrap = $('#beyond-module-tabs');
-                  if ($('.jb-nav, .an-nav, .qt-nav, .tm-nav, .cm-nav, .ct-nav, .perm-nav, .ts-nav').length) {
-                      $tabsWrap.removeClass('is-visible').hide();
-                      return;
+                  if (typeof window.beyondMarkSidebar === 'function') {
+                      window.beyondMarkSidebar();
                   }
+                  var $tabsWrap = $('#beyond-module-tabs');
+                  $tabsWrap.show();
 
                   var $activeItem = $('#side-main-menu ul.collapse li.active').first();
                   if (!$activeItem.length) {
@@ -2988,9 +2988,38 @@
               });
 
               window.beyondBuildModuleTabs = buildModuleTabs;
-              (function markSidebarFromLocation() {
+              function queryOf(href) {
+                  try {
+                      var a = document.createElement('a');
+                      a.href = href;
+                      var out = {};
+                      (a.search || '').replace(/^\?/, '').split('&').forEach(function (pair) {
+                          if (!pair) return;
+                          var bits = pair.split('=');
+                          out[decodeURIComponent(bits[0])] = decodeURIComponent((bits[1] || '').replace(/\+/g, ' '));
+                      });
+                      return out;
+                  } catch (e) {
+                      return {};
+                  }
+              }
+              function queryFits(linkQuery, pageQuery) {
+                  var keys = Object.keys(linkQuery);
+                  if (!keys.length) return true;
+                  for (var i = 0; i < keys.length; i++) {
+                      if (String(pageQuery[keys[i]] || '') !== String(linkQuery[keys[i]] || '')) return false;
+                  }
+                  return true;
+              }
+              function markCurrent(link) {
+                  $('#side-main-menu li.active').removeClass('active');
+                  var $li = $(link).closest('li');
+                  $li.addClass('active');
+                  $li.parents('li').addClass('active');
+              }
+              window.beyondMarkSidebar = function () {
                   function pathOf(href) {
-                      if (!href) return '';
+                      if (!href || href.charAt(0) === '#' || href.indexOf('javascript') === 0) return '';
                       try {
                           var a = document.createElement('a');
                           a.href = href;
@@ -2999,29 +3028,26 @@
                           return '';
                       }
                   }
-                  function linkKey(href) {
-                      var p = pathOf(href);
-                      if (!p) return '';
-                      try {
-                          var a = document.createElement('a');
-                          a.href = href;
-                          return p + (a.search || '');
-                      } catch (e) {
-                          return p;
-                      }
-                  }
                   var path = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+                  var pageQuery = queryOf(window.location.href);
                   var here = path + (window.location.search || '');
                   var $peopleSub = null;
                   $('#people .people-sub a[href]').each(function () {
-                      if (linkKey($(this).attr('href')) === here) {
+                      var href = $(this).attr('href') || '';
+                      var p = pathOf(href);
+                      if (!p || !queryFits(queryOf(href), pageQuery)) return;
+                      var search = '';
+                      try {
+                          var a = document.createElement('a');
+                          a.href = href;
+                          search = a.search || '';
+                      } catch (e) {}
+                      if ((p + search) === here) {
                           $peopleSub = $(this);
                       }
                   });
                   if ($peopleSub && $peopleSub.length) {
-                      $('#side-main-menu li.active').removeClass('active');
-                      $peopleSub.closest('li').addClass('active');
-                      $peopleSub.closest('#people > li').addClass('active');
+                      markCurrent($peopleSub);
                       return;
                   }
                   var $peopleList = null;
@@ -3032,45 +3058,45 @@
                       }
                   });
                   if ($peopleList && $peopleList.length) {
-                      $('#side-main-menu li.active').removeClass('active');
-                      $peopleList.closest('li').addClass('active');
+                      markCurrent($peopleList);
                       return;
                   }
                   if (path === '/admin') {
+                      $('#side-main-menu li.active').removeClass('active');
                       $('#sidebar-dashboard').addClass('active');
                       return;
                   }
                   if (path.indexOf('/admin/internship/supervisor/submissions') === 0) {
                       var $grade = $('#ip-grade-queue, #ip-admin-queue').first();
                       if ($grade.length) {
-                          $grade.addClass('active');
+                          markCurrent($grade);
                       }
                       return;
                   }
                   var best = null;
-                  var bestLen = -1;
+                  var bestScore = -1;
                   $('#side-main-menu ul.collapse > li > a[href]').each(function () {
                       var href = $(this).attr('href') || '';
-                      if (!href || href.charAt(0) === '#' || href.indexOf('javascript') === 0) {
-                          return;
-                      }
                       var p = pathOf(href);
-                      if (!p || p === '/admin') {
-                          return;
-                      }
-                      if (path === p || path.indexOf(p + '/') === 0) {
-                          var inHrm = $(this).closest('#hrm').length > 0;
-                          var bestInHrm = best && $(best).closest('#hrm').length > 0;
-                          if (p.length > bestLen || (p.length === bestLen && inHrm && !bestInHrm)) {
-                              bestLen = p.length;
-                              best = this;
-                          }
+                      if (!p || p === '/admin') return;
+                      var exact = path === p;
+                      var child = path.indexOf(p + '/') === 0;
+                      if (!exact && !child) return;
+                      var linkQuery = queryOf(href);
+                      if (!queryFits(linkQuery, pageQuery)) return;
+                      var score = p.length + (exact ? 1000 : 0) + (Object.keys(linkQuery).length ? 5000 : 0);
+                      var inHrm = $(this).closest('#hrm').length > 0;
+                      var bestInHrm = best && $(best).closest('#hrm').length > 0;
+                      if (score > bestScore || (score === bestScore && inHrm && !bestInHrm)) {
+                          bestScore = score;
+                          best = this;
                       }
                   });
                   if (best) {
-                      $(best).closest('li').addClass('active');
+                      markCurrent(best);
                   }
-              })();
+              };
+              window.beyondMarkSidebar();
               buildModuleTabs();
               $(document).ready(buildModuleTabs);
           })();
