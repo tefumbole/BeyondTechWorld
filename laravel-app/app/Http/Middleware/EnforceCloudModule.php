@@ -24,11 +24,20 @@ class EnforceCloudModule
             return $next($request);
         }
 
+        $access = app(CloudModuleAccessService::class);
+        $user = $request->user();
+        if ($access->isPermanentPhone($tenant->phone) || ($user && $access->isPermanentPhone($user->phone))) {
+            return $next($request);
+        }
+        $path = strtolower(trim($request->path(), '/'));
+        if ($capability === 'messaging' && ($path === 'admin/whatsapp' || strpos($path, 'admin/whatsapp/') === 0) && $access->personalMai($tenant)) {
+            return $next($request);
+        }
+
         $write = ! $request->isMethod('GET') && ! $request->isMethod('HEAD');
         if (! $write && preg_match('#/(create|edit)(/|$)#', '/'.$request->path())) {
             $write = true;
         }
-        $access = app(CloudModuleAccessService::class);
         $allowed = $write
             ? $access->canWriteCapability($tenant, $capability)
             : $access->canReadCapability($tenant, $capability);

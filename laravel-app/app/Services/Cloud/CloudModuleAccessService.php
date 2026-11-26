@@ -123,9 +123,37 @@ class CloudModuleAccessService
         return null;
     }
 
+    /**
+     * The platform WhatsApp line. Its subscription does not expire.
+     */
+    public function isPermanentPhone($phone)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+
+        return $digits === '237675321739' || $digits === '675321739';
+    }
+
+    /**
+     * A personal Whats MAI company. It must not freeze the staff inbox.
+     */
+    public function personalMai(CloudTenant $tenant)
+    {
+        if (! Schema::hasTable('cloud_tenant_settings')) {
+            return false;
+        }
+
+        return \App\Cloud\CloudTenantSetting::where('cloud_tenant_id', $tenant->id)
+            ->where('key', 'mai_account')
+            ->where('value', '1')
+            ->exists();
+    }
+
     public function decision(CloudTenant $tenant, $moduleCode, $at = null)
     {
         $at = $at ?: now();
+        if ($this->isPermanentPhone($tenant->phone)) {
+            return $this->pack('full', CloudSubscriptionStatus::ACTIVE, 'permanent');
+        }
         if ($tenant->type !== CloudTenantType::INTERNAL && $tenant->status === \App\Cloud\CloudTenantStatus::SUSPENDED) {
             return $this->pack('read', 'SUSPENDED', 'company_suspended');
         }

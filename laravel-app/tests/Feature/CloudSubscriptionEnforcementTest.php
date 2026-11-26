@@ -212,6 +212,42 @@ class CloudSubscriptionEnforcementTest extends TestCase
         app(CloudTenantContext::class)->clear();
     }
 
+    public function test_the_owner_phone_keeps_a_permanent_subscription()
+    {
+        $company = $this->customer('owner-line', '+237675321739');
+        $plan = CloudPlan::where('code', 'MESSAGING_MONTHLY')->first();
+        $subscription = app(CloudSubscriptionService::class)->startTrial($company['tenant'], $plan);
+        $subscription->status = CloudSubscriptionStatus::PAST_DUE;
+        $subscription->current_period_end = now()->subMinute();
+        $subscription->save();
+        app(CloudTenantContext::class)->set($company['tenant']);
+        $access = app(CloudModuleAccessService::class);
+        $this->assertTrue($access->canWrite($company['tenant'], CloudModuleCode::MESSAGING));
+        $this->assertSame('permanent', $access->reason($company['tenant'], CloudModuleCode::MESSAGING));
+        $this->assertSame(200, $this->gate('POST', '/admin/whatsapp/chats/4/reply')->status());
+        app(CloudTenantContext::class)->clear();
+    }
+
+    public function test_a_whats_mai_company_does_not_lock_the_staff_line()
+    {
+        $company = $this->customer('mai-person', '237670009999');
+        $plan = CloudPlan::where('code', 'MESSAGING_MONTHLY')->first();
+        $subscription = app(CloudSubscriptionService::class)->startTrial($company['tenant'], $plan);
+        $subscription->status = CloudSubscriptionStatus::PAST_DUE;
+        $subscription->current_period_end = now()->subMinute();
+        $subscription->save();
+        \App\Cloud\CloudTenantSetting::create([
+            'cloud_tenant_id' => $company['tenant']->id,
+            'key' => 'mai_account',
+            'value' => '1',
+            'type' => 'string',
+        ]);
+        app(CloudTenantContext::class)->set($company['tenant']);
+        $this->assertSame(200, $this->gate('POST', '/admin/whatsapp/chats/4/reply')->status());
+        $this->assertSame(403, $this->gate('POST', '/sales')->status());
+        app(CloudTenantContext::class)->clear();
+    }
+
     public function test_mai_cannot_call_rental_tools_for_messaging_only()
     {
         $company = $this->customer('mai-co', '237600111003');
