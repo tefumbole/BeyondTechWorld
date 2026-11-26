@@ -1642,7 +1642,7 @@
                     if (note) note.textContent = payload.notice;
                 }
                 if (!payload || !payload.ok) {
-                    if (payload && payload.message) swapPending(payload.message);
+                    if (payload && payload.message && typeof payload.message === 'object') swapPending(payload.message);
                     else if (node) {
                         var tick = node.querySelector('.tick');
                         if (tick) { tick.className = 'tick failed'; tick.textContent = '! Not sent'; }

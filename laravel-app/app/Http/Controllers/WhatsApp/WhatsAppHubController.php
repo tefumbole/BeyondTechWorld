@@ -535,6 +535,24 @@ class WhatsAppHubController extends Controller
      * The chat list is the linked WhatsApp line. A selected company must not
      * hide those people while the group directory still shows.
      */
+    /**
+     * Staff chats are the platform WhatsApp line. A selected company must not
+     * hide the chat or refuse the send.
+     */
+    protected function onStaffLine(callable $callback)
+    {
+        $context = app(\App\Services\Cloud\CloudTenantContext::class);
+        $previous = $context->tenant();
+        $context->clear();
+        try {
+            return $context->withoutIsolation($callback);
+        } finally {
+            if ($previous) {
+                $context->set($previous);
+            }
+        }
+    }
+
     protected function inboxConversations()
     {
         list($rows) = $this->inboxSnapshot();
@@ -660,9 +678,15 @@ class WhatsAppHubController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage'])) {
             return $deny;
         }
-        $conversation = WhatsAppConversation::with('contact')->findOrFail($id);
-        $back = route('whatsapp.chats', ['chat' => $conversation->id]);
         $json = $request->ajax() || $request->wantsJson() || $request->filled('send_token');
+        $conversation = $this->inboxConversation($id);
+        if (! $conversation) {
+            if ($json) {
+                return response()->json(['ok' => false, 'error' => 'That chat is not open.'], 404);
+            }
+            abort(404);
+        }
+        $back = route('whatsapp.chats', ['chat' => $conversation->id]);
         $token = substr(preg_replace('/[^A-Za-z0-9]/', '', (string) $request->input('send_token')), 0, 40);
         $tokenKey = $token !== '' ? 'wa.send.'.$conversation->id.'.'.$token : '';
         if ($tokenKey !== '') {
@@ -692,13 +716,15 @@ class WhatsAppHubController extends Controller
                 return redirect()->to($back)->with('not_permitted', 'Record a voice note up to 8 MB.');
             }
             @set_time_limit(90);
-            $result = $this->conversations->replyVoice(
-                $conversation,
-                $voice->getRealPath(),
-                $voice->getClientOriginalName(),
-                (string) $voice->getMimeType(),
-                Auth::id()
-            );
+            $result = $this->onStaffLine(function () use ($conversation, $voice) {
+                return $this->conversations->replyVoice(
+                    $conversation,
+                    $voice->getRealPath(),
+                    $voice->getClientOriginalName(),
+                    (string) $voice->getMimeType(),
+                    Auth::id()
+                );
+            });
         } else {
         $file = $request->file('file');
         if ($file) {
@@ -714,21 +740,25 @@ class WhatsAppHubController extends Controller
 
                 return redirect()->to($back)->with('not_permitted', 'Send a photo or document up to 8 MB.');
             }
-            $result = $this->conversations->replyFile(
-                $conversation,
-                $file->getRealPath(),
-                $file->getClientOriginalName(),
-                (string) $file->getMimeType(),
-                $request->input('body'),
-                Auth::id()
-            );
+            $result = $this->onStaffLine(function () use ($conversation, $file, $request) {
+                return $this->conversations->replyFile(
+                    $conversation,
+                    $file->getRealPath(),
+                    $file->getClientOriginalName(),
+                    (string) $file->getMimeType(),
+                    $request->input('body'),
+                    Auth::id()
+                );
+            });
         } else {
             $quote = null;
             $quoteId = (int) $request->input('quote_id');
             if ($quoteId > 0) {
                 $quote = WhatsAppMessage::visible()->where('conversation_id', $conversation->id)->where('id', $quoteId)->first();
             }
-            $result = $this->conversations->reply($conversation, $request->input('body'), Auth::id(), $quote);
+            $result = $this->onStaffLine(function () use ($conversation, $request, $quote) {
+                return $this->conversations->reply($conversation, $request->input('body'), Auth::id(), $quote);
+            });
         }
         }
         if (empty($result['success'])) {
