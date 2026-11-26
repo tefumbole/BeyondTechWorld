@@ -207,8 +207,11 @@
     #mai-detail { margin-top: 0.7rem; background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 14px; padding: 0.75rem 0.85rem; text-align: left; }
     #mai-detail p { margin: 0 0 0.45rem; color: #fff; }
     #mai-detail-close { background: transparent; border: 0; color: #F5D76E; font-weight: 800; cursor: pointer; padding: 0; }
-    .country-list { max-height: 180px; overflow: auto; border-radius: 12px; background: #fff; text-align: left; }
-    .country-item { display: block; width: 100%; text-align: left; background: #fff; color: #10233f; border: 0; border-bottom: 1px solid #e8eef6; padding: 0.45rem 0.7rem; cursor: pointer; font-weight: 600; }
+    .country-picker { position: relative; }
+    .country-dial { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .country-list { position: absolute; z-index: 30; left: 0; right: 0; max-height: 220px; overflow: auto; border-radius: 16px; background: #fff; text-align: left; margin-top: 6px; box-shadow: 0 16px 40px rgba(0,0,0,.28); }
+    .country-item { display: block; width: 100%; text-align: left; background: #fff; color: #10233f; border: 0; border-bottom: 1px solid #e8eef6; padding: 0.65rem 0.9rem; cursor: pointer; font-weight: 700; }
+    .country-item:hover, .country-item.is-on { background: #e8f0ff; }
     .country-chosen { color: #F5D76E; font-weight: 700; margin: 0.35rem 0; }
     .pay-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .pay-card { display: flex; align-items: center; gap: 0.45rem; background: rgba(255,255,255,.08); color: #fff !important; border: 1px solid rgba(212,175,55,.75); border-radius: 14px; padding: 0.7rem 0.85rem; font-weight: 700; cursor: pointer; }
@@ -222,6 +225,7 @@
     .mai-shell .field-row label { display: block; margin: 0 0 0.35rem; }
     .mai-shell .field-row input,
     .mai-shell .field-row select { width: 100% !important; max-width: none !important; flex: none; border-radius: 999px; min-height: 48px; background: #fff; color: #10233f; }
+    .mai-shell .field-row select.country-dial { width: 1px !important; min-height: 0 !important; height: 1px !important; padding: 0 !important; border: 0 !important; position: absolute; }
     .mai-shell .step[data-step="2"] .back-step { display: none; }
     .mai-shell .step button.bg-brand-gold { width: 100%; border-radius: 999px; }
     .mai-shell .step h2 { font-size: 1.7rem; line-height: 1.2; }
@@ -374,17 +378,26 @@
                 <h2 class="text-xl font-bold">{{ ($selected ?? '') === 'MESSAGING' ? 'Enter your phone number' : 'Phone number' }}</h2>
                 <p class="hint mt-1">A verification code is sent on WhatsApp before any service is shown. That code only signs you in. It does not connect WhatsApp.</p>
                 <div class="field-row">
-                    <label for="dial">Country</label>
+                    <label for="country-search">Country</label>
                     @if(($selected ?? '') === 'MESSAGING')
-                        <select name="dial" id="dial">
-                            @foreach(\App\Support\CountryDialCodes::all() as $label)
-                                @php
-                                    $dialCode = preg_replace('/\D+/', '', $label);
-                                    $countryName = trim(preg_replace('/\(\+\d+\)/', '', $label));
-                                @endphp
-                                <option value="{{ $dialCode }}" data-name="{{ $countryName }}" {{ old('dial', '237') === $dialCode ? 'selected' : '' }}>{{ $label }}</option>
-                            @endforeach
-                        </select>
+                        <div class="country-picker">
+                            <input id="country-search" type="search" placeholder="Search a country" autocomplete="off" value="Cameroon (+237)">
+                            <select name="dial" id="dial" class="country-dial" tabindex="-1" aria-hidden="true">
+                                @foreach(\App\Support\CountryDialCodes::all() as $label)
+                                    @php
+                                        $dialCode = preg_replace('/\D+/', '', $label);
+                                        $countryName = trim(preg_replace('/\(\+\d+\)/', '', $label));
+                                    @endphp
+                                    <option value="{{ $dialCode }}" data-name="{{ $countryName }}" {{ old('dial', '237') === $dialCode ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <div id="country-list" class="country-list" hidden>
+                                @foreach(\App\Support\CountryDialCodes::all() as $label)
+                                    @php $dialCode = preg_replace('/\D+/', '', $label); @endphp
+                                    <button type="button" class="country-item{{ $dialCode === old('dial', '237') ? ' is-on' : '' }}" data-dial="{{ $dialCode }}">{{ $label }}</button>
+                                @endforeach
+                            </div>
+                        </div>
                     @else
                         <select name="dial" id="dial">
                             <option value="237" {{ old('dial', '237') === '237' ? 'selected' : '' }}>+237 Cameroon</option>
@@ -865,7 +878,51 @@
             }
             document.getElementById('signature').value = savedUrl;
         });
+        var countrySearch = document.getElementById('country-search');
+        var countryList = document.getElementById('country-list');
         var dial = document.getElementById('dial');
+        if (countrySearch && countryList && dial) {
+            var countryItems = countryList.querySelectorAll('.country-item');
+            function chosenCountry() {
+                var option = dial.options[dial.selectedIndex];
+                return option ? option.text : '';
+            }
+            function filterCountries(query) {
+                var q = String(query || '').toLowerCase();
+                for (var i = 0; i < countryItems.length; i++) {
+                    countryItems[i].hidden = countryItems[i].textContent.toLowerCase().indexOf(q) === -1;
+                }
+            }
+            countrySearch.addEventListener('focus', function () {
+                countrySearch.value = '';
+                filterCountries('');
+                countryList.hidden = false;
+            });
+            countrySearch.addEventListener('input', function () {
+                countryList.hidden = false;
+                filterCountries(countrySearch.value);
+            });
+            countryList.addEventListener('click', function (event) {
+                var button = event.target.closest('.country-item');
+                if (!button) return;
+                dial.value = button.getAttribute('data-dial');
+                for (var i = 0; i < countryItems.length; i++) {
+                    countryItems[i].classList.toggle('is-on', countryItems[i] === button);
+                }
+                dial.dispatchEvent(new Event('change', { bubbles: true }));
+                countrySearch.value = chosenCountry();
+                countryList.hidden = true;
+            });
+            document.addEventListener('click', function (event) {
+                if (countrySearch.contains(event.target) || countryList.contains(event.target)) return;
+                countryList.hidden = true;
+                countrySearch.value = chosenCountry();
+            });
+            dial.addEventListener('change', function () {
+                countrySearch.value = chosenCountry();
+            });
+            countrySearch.value = chosenCountry();
+        }
         var countryName = document.getElementById('country-name');
         if (dial) {
             var showCountry = function () {
