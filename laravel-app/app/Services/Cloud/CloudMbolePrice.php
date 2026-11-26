@@ -19,14 +19,8 @@ class CloudMbolePrice
         if ($digits === '') {
             return '';
         }
-        if ($dial !== '' && $dial !== '237' && strpos($digits, '237') === 0) {
-            $rest = substr($digits, 3);
-            if (strlen($rest) >= 7 && strlen($rest) <= 10) {
-                $digits = $rest;
-            }
-        }
-        if ($dial !== '' && strpos($digits, $dial) === 0 && strlen($digits) >= strlen($dial) + 7) {
-            return '+'.$digits;
+        if ($dial !== '') {
+            return \App\Support\CountryDialCodes::combine($dial, $digits);
         }
         if ($dial === '' && strlen($digits) >= 11) {
             return '+'.$digits;

@@ -33,6 +33,7 @@
     .subscribe-panel p,
     .subscribe-panel label,
     .subscribe-panel strong { color: #fff; }
+    .subscribe-panel .form-error { color: #7f1d1d !important; background: #fff1f2 !important; border: 1px solid #fecdd3; }
     .subscribe-panel .hint { color: rgba(255,255,255,.88); }
     .subscribe-panel input,
     .subscribe-panel select {
@@ -151,7 +152,6 @@
         flex-wrap: nowrap;
         justify-content: space-between;
         gap: 0;
-        counter-reset: mai-stage;
         margin-bottom: 1.4rem;
     }
     .stage-rail.is-track li {
@@ -166,8 +166,7 @@
         text-align: center;
     }
     .stage-rail.is-track li::before {
-        counter-increment: mai-stage;
-        content: counter(mai-stage);
+        content: attr(data-n);
         position: absolute;
         top: 0;
         left: 50%;
@@ -222,7 +221,10 @@
     .mai-shell .field-row { display: block; }
     .mai-shell .field-row label { display: block; margin: 0 0 0.35rem; }
     .mai-shell .field-row input,
-    .mai-shell .field-row select { width: 100% !important; max-width: none !important; flex: none; }
+    .mai-shell .field-row select { width: 100% !important; max-width: none !important; flex: none; border-radius: 999px; min-height: 48px; background: #fff; color: #10233f; }
+    .mai-shell .step[data-step="2"] .back-step { display: none; }
+    .mai-shell .step button.bg-brand-gold { width: 100%; border-radius: 999px; }
+    .mai-shell .step h2 { font-size: 1.7rem; line-height: 1.2; }
     .country-name { color: #F5D76E; font-weight: 800; margin: 0.45rem 0 0; }
     .duration-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 0.8rem; }
     .duration-card { display: block; text-align: left; background: rgba(255,255,255,.06); border: 1px solid rgba(212,175,55,.55); border-radius: 16px; padding: 0.75rem 0.8rem; cursor: pointer; }
@@ -303,7 +305,7 @@
 <section class="subscribe-hero py-10 sm:py-16" style="background-image:url('{{ \App\Support\SiteContent::image('home.hero_image', '/branding/beyond-hero.png') }}');">
     <div class="relative z-10 max-w-5xl mx-auto px-4">
         @if(session('not_permitted'))
-            <p class="mb-4 rounded-xl bg-red-50 text-red-800 px-4 py-3">{{ session('not_permitted') }}</p>
+            <p class="form-error mb-4 rounded-xl px-4 py-3">{{ session('not_permitted') }}</p>
         @endif
         @if(empty($onboardingOpen))
             <div class="subscribe-panel rounded-3xl p-6 text-center">
@@ -313,7 +315,7 @@
         @else
         <p class="text-center text-white drop-shadow mb-4">{{ $welcome }}</p>
         @if($errors->any())
-            <p class="mb-4 rounded-xl bg-red-50 text-red-800 px-4 py-3">{{ $errors->first() }}</p>
+            <p class="form-error mb-4 rounded-xl px-4 py-3">{{ $errors->first() }}</p>
         @endif
         <form method="POST" action="{{ route('cloud.register.submit') }}" id="build-company" class="subscribe-panel rounded-3xl p-5 sm:p-8 text-center {{ ($selected ?? '') === 'MESSAGING' ? 'mai-shell' : '' }}" @if(($selected ?? '') === 'MESSAGING') data-mai="1" @endif>
             @csrf
@@ -332,11 +334,11 @@
 
             <ol class="stage-rail {{ ($selected ?? '') === 'MESSAGING' ? 'is-track' : '' }}" id="stage-rail">
                 @if(($selected ?? '') === 'MESSAGING')
-                    <li data-stage="1" class="on">Subscribe</li>
-                    <li data-stage="2">Phone</li>
-                    <li data-stage="3">Code</li>
-                    <li data-stage="4">Name</li>
-                    <li data-stage="7">Plan</li>
+                    <li data-stage="1" data-n="1" class="on">Subscribe</li>
+                    <li data-stage="2" data-n="2">Phone</li>
+                    <li data-stage="3" data-n="3">Code</li>
+                    <li data-stage="4" data-n="4">Name</li>
+                    <li data-stage="7" data-n="5">Plan</li>
                 @else
                     <li data-stage="1" class="on">Type</li>
                     <li data-stage="2">Phone</li>
@@ -383,7 +385,6 @@
                                 <option value="{{ $dialCode }}" data-name="{{ $countryName }}" {{ old('dial', '237') === $dialCode ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
                         </select>
-                        <p class="country-name" id="country-name">Cameroon</p>
                     @else
                         <select name="dial" id="dial">
                             <option value="237" {{ old('dial', '237') === '237' ? 'selected' : '' }}>+237 Cameroon</option>
@@ -396,7 +397,7 @@
                     <input class="px-4 py-2" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel" inputmode="tel" data-wa-phone="local">
                 </div>
                 <button type="button" id="send-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Send WhatsApp code</button>
-                <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="send-error" hidden></p>
+                <p class="form-error mt-3 rounded-xl px-3 py-2" id="send-error" hidden></p>
             </section>
 
             <section class="step" data-step="3">
@@ -419,7 +420,7 @@
                 <button type="button" id="check-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">{{ ($selected ?? '') === 'MESSAGING' ? 'Verify code' : 'Verify and continue' }}</button>
                 <p class="hint mt-3" id="resend-wait">You can resend the code in 2:00</p>
                 <button type="button" id="resend-code" class="mt-2 bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5" disabled>Resend code</button>
-                <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="code-error" hidden></p>
+                <p class="form-error mt-3 rounded-xl px-3 py-2" id="code-error" hidden></p>
             </section>
 
             <section class="step" data-step="4">
@@ -535,7 +536,7 @@
                 </div>
                 <input type="hidden" name="signature" id="signature" value="">
                 @if(($selected ?? '') !== 'MESSAGING')
-                <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="signature-error" hidden>Add your signature before continuing.</p>
+                <p class="form-error mt-3 rounded-xl px-3 py-2" id="signature-error" hidden>Add your signature before continuing.</p>
                 @endif
                 <fieldset class="mt-4 text-left">
                     <legend class="font-semibold mb-2">Payment method, if you pay now</legend>
@@ -551,7 +552,7 @@
                         <p class="hint mt-2">Cameroon can pay with MTN or Orange. Every country can pay by card or crypto.</p>
                     @endif
                 </fieldset>
-                <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="pay-method-error" hidden>Choose MTN, Orange, VISA, or crypto before paying.</p>
+                <p class="form-error mt-3 rounded-xl px-3 py-2" id="pay-method-error" hidden>Choose MTN, Orange, VISA, or crypto before paying.</p>
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
                     @if(($selected ?? '') !== 'MESSAGING')
                     <button type="submit" name="start_mode" value="trial" class="bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Start free trial</button>
@@ -684,11 +685,21 @@
             var cards = document.querySelectorAll('.pay-local');
             for (var i = 0; i < cards.length; i++) cards[i].hidden = !local;
         }
+        function phoneFields() {
+            var dial = document.getElementById('dial');
+            var field = document.getElementById('phone');
+            return {
+                phone: field && field.value ? field.value : '',
+                dial: dial ? String(dial.value || '').replace(/\D+/g, '') : ''
+            };
+        }
         function sendCode(errorId) {
             var error = document.getElementById(errorId);
             error.hidden = true;
+            var fields = phoneFields();
             post('{{ route('cloud.register.otp') }}', {
-                phone: mbolePhone(),
+                phone: fields.phone,
+                dial: fields.dial,
                 account_kind: kind.value
             }, function (ok, json) {
                 if (!ok) {
@@ -723,9 +734,10 @@
         document.getElementById('check-code').onclick = function () {
             var error = document.getElementById('code-error');
             error.hidden = true;
+            var fields = phoneFields();
             post('{{ route('cloud.register.otp.verify') }}', {
-                phone: mbolePhone(),
-                dial: document.getElementById('dial') ? document.getElementById('dial').value : '237',
+                phone: fields.phone,
+                dial: fields.dial,
                 code: document.getElementById('otp-code').value,
                 mai: form.getAttribute('data-mai') === '1' ? '1' : ''
             }, function (ok, json) {
@@ -735,7 +747,8 @@
                     return;
                 }
                 post('{{ route('cloud.register.identity') }}', {
-                    phone: mbolePhone(),
+                    phone: fields.phone,
+                    dial: fields.dial,
                     account_kind: kind.value
                 }, function (named, identity) {
                     document.getElementById('full-name').value = named ? (identity.name || '') : '';
@@ -854,10 +867,12 @@
         });
         var dial = document.getElementById('dial');
         var countryName = document.getElementById('country-name');
-        if (dial && countryName) {
+        if (dial) {
             var showCountry = function () {
-                var option = dial.options[dial.selectedIndex];
-                countryName.textContent = option ? (option.getAttribute('data-name') || option.text) : '';
+                if (countryName) {
+                    var option = dial.options[dial.selectedIndex];
+                    countryName.textContent = option ? (option.getAttribute('data-name') || option.text) : '';
+                }
                 paintPay();
             };
             dial.onchange = showCountry;
