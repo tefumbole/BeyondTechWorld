@@ -86,6 +86,9 @@ class WhatsAppMessage extends Model
         $text = trim((string) $preview);
         $labels = [
             '[IMAGE]' => 'Photo',
+            '[STICKER]' => 'Sticker',
+            '[ALBUM]' => 'Album',
+            '[EDIT]' => 'Edited message',
             '[AUDIO]' => 'Voice message',
             '[VIDEO]' => 'Video',
             '[DOCUMENT]' => 'Document',

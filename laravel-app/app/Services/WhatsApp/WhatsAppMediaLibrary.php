@@ -7,6 +7,58 @@ use App\WhatsApp\WhatsAppWebhookEvent;
 
 class WhatsAppMediaLibrary
 {
+    public function hydrate(WhatsAppMessage $message)
+    {
+        $type = strtoupper((string) $message->type);
+        $media = $message->media();
+        $missing = empty($media['url']) && empty($media['stored']);
+        if (! $missing && ! in_array($type, ['UNKNOWN', ''], true)) {
+            return $message;
+        }
+        if (! $message->provider_message_id) {
+            return $message;
+        }
+        $events = WhatsAppWebhookEvent::where('provider_event_id', $message->provider_message_id)
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get();
+        $parser = app(WaSenderEventParser::class);
+        $best = null;
+        foreach ($events as $event) {
+            $parsed = $parser->parse($event->payloadArray());
+            if (! empty($parsed['media']['url'])) {
+                $best = $parsed;
+                break;
+            }
+            if (! $best && ! empty($parsed['message_type']) && $parsed['message_type'] !== 'UNKNOWN') {
+                $best = $parsed;
+            }
+        }
+        if (! $best) {
+            return $message;
+        }
+        $changed = false;
+        if ($missing && ! empty($best['media']) && is_array($best['media'])) {
+            $message->media_json = json_encode($best['media']);
+            $changed = true;
+        }
+        $newType = strtoupper((string) (isset($best['message_type']) ? $best['message_type'] : ''));
+        if ($newType !== '' && $newType !== 'UNKNOWN' && ($type === '' || $type === 'UNKNOWN')) {
+            $message->type = $newType;
+            $changed = true;
+        }
+        $body = isset($best['body']) ? trim((string) $best['body']) : '';
+        if ($body !== '' && trim((string) $message->body) === '') {
+            $message->body = $body;
+            $changed = true;
+        }
+        if ($changed) {
+            $message->save();
+        }
+
+        return $message->fresh() ?: $message;
+    }
+
     public function file(WhatsAppMessage $message)
     {
         $media = $message->media();
@@ -36,7 +88,7 @@ class WhatsAppMediaLibrary
 
         $remote = $this->decrypt($message);
         if ($remote === '') {
-            return null;
+            return $this->thumbFile($message);
         }
         $saved = $this->saveRemote($message, $remote, $media);
         if (! $saved) {
@@ -61,7 +113,7 @@ class WhatsAppMediaLibrary
         $keyName = $this->blockName($message->type);
         $block = ($keyName && isset($inner[$keyName]) && is_array($inner[$keyName])) ? $inner[$keyName] : [];
         if (! $block) {
-            foreach (['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage'] as $name) {
+            foreach (['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage'] as $name) {
                 if (isset($inner[$name]) && is_array($inner[$name]) && ! empty($inner[$name]['mediaKey'])) {
                     $keyName = $name;
                     $block = $inner[$name];
@@ -71,6 +123,14 @@ class WhatsAppMediaLibrary
         }
         if (! $keyName || empty($block['url']) || empty($block['mediaKey'])) {
             return '';
+        }
+        if (! empty($block['viewOnce'])) {
+            $media = $message->media();
+            if (empty($media['view_once'])) {
+                $media['view_once'] = true;
+                $message->media_json = json_encode($media);
+                $message->save();
+            }
         }
         $fields = array_intersect_key($block, array_flip(['url', 'mimetype', 'mediaKey', 'fileSha256', 'fileLength', 'fileName']));
         $id = isset($messages['key']['id']) ? (string) $messages['key']['id'] : (string) $message->provider_message_id;
@@ -149,10 +209,65 @@ class WhatsAppMediaLibrary
         ];
     }
 
+    protected function thumbFile(WhatsAppMessage $message)
+    {
+        if (! $message->provider_message_id) {
+            return null;
+        }
+        $events = WhatsAppWebhookEvent::where('provider_event_id', $message->provider_message_id)
+            ->orderByDesc('id')
+            ->limit(6)
+            ->get();
+        $thumb = '';
+        foreach ($events as $event) {
+            $thumb = $this->findThumb($event->payloadArray());
+            if ($thumb !== '') {
+                break;
+            }
+        }
+        $bin = base64_decode($thumb, true);
+        if ($bin === false || strlen($bin) < 32 || strlen($bin) > 200000) {
+            return null;
+        }
+        $dir = storage_path('app/whatsapp-media');
+        if (! is_dir($dir) && ! @mkdir($dir, 0755, true)) {
+            return null;
+        }
+        $relative = 'whatsapp-media/'.$message->id.'-thumb.jpg';
+        $path = storage_path('app/'.$relative);
+        if (file_put_contents($path, $bin) === false) {
+            return null;
+        }
+        $media = $message->media();
+        $media['thumb'] = $relative;
+        $message->media_json = json_encode($media);
+        $message->save();
+
+        return [
+            'path' => $path,
+            'mime' => 'image/jpeg',
+            'name' => 'preview-'.$message->id.'.jpg',
+        ];
+    }
+
+    protected function findThumb(array $payload)
+    {
+        $messages = isset($payload['data']['messages']) && is_array($payload['data']['messages']) ? $payload['data']['messages'] : [];
+        $inner = isset($messages['message']) && is_array($messages['message']) ? $messages['message'] : [];
+        foreach (['imageMessage', 'videoMessage', 'stickerMessage'] as $name) {
+            if (! empty($inner[$name]['jpegThumbnail']) && is_string($inner[$name]['jpegThumbnail'])) {
+                return $inner[$name]['jpegThumbnail'];
+            }
+        }
+
+        return '';
+    }
+
     protected function blockName($type)
     {
         $map = [
             'IMAGE' => 'imageMessage',
+            'STICKER' => 'stickerMessage',
             'VIDEO' => 'videoMessage',
             'AUDIO' => 'audioMessage',
             'DOCUMENT' => 'documentMessage',
@@ -168,8 +283,8 @@ class WhatsAppMediaLibrary
             return $media['mimetype'];
         }
         $type = strtoupper((string) $message->type);
-        if ($type === 'IMAGE') {
-            return 'image/jpeg';
+        if ($type === 'IMAGE' || $type === 'STICKER') {
+            return $type === 'STICKER' ? 'image/webp' : 'image/jpeg';
         }
         if ($type === 'VIDEO') {
             return 'video/mp4';

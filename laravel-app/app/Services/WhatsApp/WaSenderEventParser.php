@@ -397,6 +397,7 @@ class WaSenderEventParser
             'wa_name' => $wrapped ? $this->pushName($wrapped, $chat) : (isset($chat['name']) ? (string) $chat['name'] : null),
             'body' => $wrapped ? $this->messageBody($wrapped) : null,
             'message_type' => $wrapped ? $this->messageType($wrapped) : 'TEXT',
+            'media' => $wrapped ? $this->mediaMeta($wrapped) : [],
             'unread_count' => array_key_exists('unreadCount', $chat) ? (int) $chat['unreadCount'] : null,
             'timestamp' => $this->unixTime($stamp),
         ];
@@ -415,6 +416,7 @@ class WaSenderEventParser
         }
         $parsed['body'] = $this->messageBody($result);
         $parsed['message_type'] = $this->messageType($result);
+        $parsed['media'] = $this->mediaMeta($result);
         $parsed['timestamp'] = $this->unixTime(isset($result['messageTimestamp']) ? $result['messageTimestamp'] : (isset($payload['timestamp']) ? $payload['timestamp'] : null));
 
         return $parsed;
@@ -464,14 +466,14 @@ class WaSenderEventParser
         if (! empty($message['messageBody'])) {
             return (string) $message['messageBody'];
         }
-        $inner = isset($message['message']) && is_array($message['message']) ? $message['message'] : $message;
+        $inner = $this->contentMessage($message);
         if (! empty($inner['conversation'])) {
             return (string) $inner['conversation'];
         }
         if (! empty($inner['extendedTextMessage']['text'])) {
             return (string) $inner['extendedTextMessage']['text'];
         }
-        foreach (['imageMessage', 'documentMessage', 'videoMessage', 'audioMessage'] as $kind) {
+        foreach (['imageMessage', 'documentMessage', 'videoMessage', 'audioMessage', 'stickerMessage'] as $kind) {
             if (! empty($inner[$kind]['caption'])) {
                 return (string) $inner[$kind]['caption'];
             }
@@ -480,14 +482,41 @@ class WaSenderEventParser
         return null;
     }
 
-    protected function messageType(array $message)
+    protected function contentMessage(array $message)
     {
         $inner = isset($message['message']) && is_array($message['message']) ? $message['message'] : $message;
+        $wraps = ['viewOnceMessage', 'viewOnceMessageV2', 'ephemeralMessage', 'documentWithCaptionMessage', 'editedMessage', 'associatedChildMessage'];
+        foreach ($wraps as $wrap) {
+            if (isset($inner[$wrap]['message']) && is_array($inner[$wrap]['message'])) {
+                return $this->contentMessage(['message' => $inner[$wrap]['message']]);
+            }
+        }
+
+        return is_array($inner) ? $inner : [];
+    }
+
+    protected function messageType(array $message)
+    {
+        $inner = $this->contentMessage($message);
         if (! empty($inner['conversation']) || ! empty($inner['extendedTextMessage'])) {
             return 'TEXT';
         }
         if (! empty($inner['imageMessage'])) {
             return 'IMAGE';
+        }
+        if (! empty($inner['stickerMessage'])) {
+            return 'STICKER';
+        }
+        if (! empty($inner['albumMessage'])) {
+            return 'ALBUM';
+        }
+        if (! empty($inner['secretEncryptedMessage'])) {
+            $kind = isset($inner['secretEncryptedMessage']['secretEncType']) ? strtoupper((string) $inner['secretEncryptedMessage']['secretEncType']) : '';
+            if (strpos($kind, 'VIEW') !== false) {
+                return 'IMAGE';
+            }
+
+            return 'EDIT';
         }
         if (! empty($inner['documentMessage'])) {
             return 'DOCUMENT';
@@ -510,18 +539,22 @@ class WaSenderEventParser
 
     protected function mediaMeta(array $message)
     {
-        $inner = isset($message['message']) && is_array($message['message']) ? $message['message'] : $message;
-        foreach (['imageMessage' => 'IMAGE', 'documentMessage' => 'DOCUMENT', 'audioMessage' => 'AUDIO', 'videoMessage' => 'VIDEO'] as $key => $type) {
+        $inner = $this->contentMessage($message);
+        foreach (['imageMessage' => 'IMAGE', 'stickerMessage' => 'STICKER', 'documentMessage' => 'DOCUMENT', 'audioMessage' => 'AUDIO', 'videoMessage' => 'VIDEO'] as $key => $type) {
             if (! empty($inner[$key]) && is_array($inner[$key])) {
                 $block = $inner[$key];
-
-                return [
+                $meta = [
                     'type' => $type,
                     'mimetype' => isset($block['mimetype']) ? $block['mimetype'] : null,
                     'file_name' => isset($block['fileName']) ? $block['fileName'] : null,
                     'file_length' => isset($block['fileLength']) ? $block['fileLength'] : null,
                     'url' => isset($block['url']) ? $block['url'] : null,
                 ];
+                if (! empty($block['viewOnce'])) {
+                    $meta['view_once'] = true;
+                }
+
+                return $meta;
             }
         }
         if (! empty($inner['locationMessage']) && is_array($inner['locationMessage'])) {

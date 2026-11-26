@@ -101,6 +101,55 @@ class WhatsAppWebhookTest extends WhatsAppHubTestCase
         $this->assertSame('image/jpeg', $message->media()['mimetype']);
     }
 
+    public function test_view_once_photo_is_kept_as_an_image()
+    {
+        $payload = [
+            'event' => 'messages.received',
+            'timestamp' => 101,
+            'data' => [
+                'messages' => [
+                    'key' => ['id' => 'ONCE1', 'fromMe' => false, 'remoteJid' => '237675000013@s.whatsapp.net', 'cleanedSenderPn' => '237675000013'],
+                    'message' => ['imageMessage' => [
+                        'mimetype' => 'image/jpeg',
+                        'caption' => 'Once',
+                        'url' => 'https://mmg.whatsapp.net/once.jpg',
+                        'mediaKey' => 'abc',
+                        'viewOnce' => true,
+                    ]],
+                ],
+            ],
+        ];
+        $this->postWebhook($payload)->assertStatus(200);
+        $message = WhatsAppMessage::first();
+        $this->assertSame('IMAGE', $message->type);
+        $this->assertTrue(! empty($message->media()['view_once']));
+        $this->assertSame('https://mmg.whatsapp.net/once.jpg', $message->media()['url']);
+    }
+
+    public function test_a_photo_sent_from_the_phone_keeps_its_preview()
+    {
+        $payload = [
+            'event' => 'messages.upsert',
+            'timestamp' => 102,
+            'data' => [
+                'messages' => [
+                    'key' => ['id' => 'SENT1', 'fromMe' => true, 'remoteJid' => '237675000014@s.whatsapp.net', 'cleanedSenderPn' => '237675000014'],
+                    'message' => ['imageMessage' => [
+                        'mimetype' => 'image/jpeg',
+                        'url' => 'https://mmg.whatsapp.net/sent.jpg',
+                        'mediaKey' => 'def',
+                    ]],
+                ],
+            ],
+        ];
+        $this->postWebhook($payload)->assertStatus(200);
+        $message = WhatsAppMessage::where('provider_message_id', 'SENT1')->first();
+        $this->assertNotNull($message);
+        $this->assertSame('OUTGOING', $message->direction);
+        $this->assertSame('IMAGE', $message->type);
+        $this->assertSame('https://mmg.whatsapp.net/sent.jpg', $message->media()['url']);
+    }
+
     public function test_sent_delivered_read_failed_updates()
     {
         $this->postWebhook($this->incomingText('+237675000004', 'Hi', 'IN4'))->assertStatus(200);

@@ -1207,14 +1207,28 @@
     }
     function bubbleHtml(message) {
         var media = '';
-        if (message.type === 'IMAGE' && message.media) {
-            media = '<img class="chat-photo" alt="" loading="lazy" decoding="async" src="' + esc(message.media) + '">';
+        var photo = message.type === 'IMAGE' || message.type === 'STICKER';
+        if (photo && message.media) {
+            media = '<img class="chat-photo" alt="Photo" loading="lazy" decoding="async" src="' + esc(message.media) + '">';
         } else if (message.type === 'AUDIO' && message.media) {
             media = '<audio controls preload="none" src="' + esc(message.media) + '"></audio>';
         } else if (message.type === 'VIDEO' && message.media) {
             media = '<video controls preload="none" src="' + esc(message.media) + '"></video>';
         } else if (message.media && (message.type === 'DOCUMENT' || message.type === 'LOCATION')) {
             media = '<a class="chat-file" target="_blank" rel="noopener" href="' + esc(message.media) + '">' + esc(message.name || 'Document') + '</a>';
+        } else if (photo) {
+            media = '<span class="aside">Photo</span>';
+        } else if (message.type === 'VIDEO') {
+            media = '<span class="aside">Video</span>';
+        } else if (message.type === 'ALBUM') {
+            media = '<span class="aside">Album</span>';
+        } else if (message.type === 'EDIT') {
+            media = '<span class="aside">Edited message</span>';
+        } else if (!message.text) {
+            media = '<span class="aside">No preview</span>';
+        }
+        if (message.view_once) {
+            media += '<span class="aside">View once</span>';
         }
         var at = message.at || '';
         var dayKey = at && window.hubDayKey ? window.hubDayKey(at) : (message.day || '');

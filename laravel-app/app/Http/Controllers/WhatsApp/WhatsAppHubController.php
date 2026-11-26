@@ -599,7 +599,9 @@ class WhatsAppHubController extends Controller
 
     protected function chatFeedMessage(WhatsAppMessage $message)
     {
+        $message = app(\App\Services\WhatsApp\WhatsAppMediaLibrary::class)->hydrate($message);
         $when = $message->created_at;
+        $media = $message->media();
 
         return [
             'id' => (int) $message->id,
@@ -612,6 +614,7 @@ class WhatsAppHubController extends Controller
             'day_label' => $this->chatDayLabel($when),
             'tick' => $message->ticks(),
             'type' => (string) $message->type,
+            'view_once' => ! empty($media['view_once']),
             'media' => $message->chatMediaUrl(),
             'name' => $message->chatMediaName(),
             'needs_voice' => strtoupper((string) $message->type) === 'AUDIO'

@@ -259,7 +259,7 @@ class WhatsAppConversationService
             $changed = true;
         }
         if (! empty($parsed['media']) && is_array($parsed['media']) && empty($message->media()['url']) && empty($message->media()['stored'])) {
-            $message->media_json = json_encode($parsed['media']);
+            $message->media_json = json_encode(array_merge($message->media(), $parsed['media']));
             $changed = true;
         }
         if ($changed) {
@@ -409,8 +409,9 @@ class WhatsAppConversationService
                     $previewBody = $savedMessage->hubText();
                 }
             }
-            if (trim((string) $previewBody) !== '') {
-                $preview = $this->preview($previewBody, isset($parsed['message_type']) ? $parsed['message_type'] : 'TEXT');
+            $previewType = isset($parsed['message_type']) ? $parsed['message_type'] : 'TEXT';
+            if (trim((string) $previewBody) !== '' || ! in_array($previewType, ['TEXT', 'UNKNOWN', ''], true)) {
+                $preview = $this->preview($previewBody, $previewType);
                 $conversation->last_message = $preview;
                 if (! $conversation->first_message) {
                     $conversation->first_message = $preview;
@@ -430,9 +431,12 @@ class WhatsAppConversationService
 
     protected function storePhoneMessage(WhatsAppConversation $conversation, WhatsAppContact $contact, array $parsed, $at)
     {
+        $media = (! empty($parsed['media']) && is_array($parsed['media'])) ? $parsed['media'] : [];
         if (! empty($parsed['message_id'])) {
             $existing = WhatsAppMessage::where('provider_message_id', $parsed['message_id'])->first();
             if ($existing) {
+                $this->fillFromEvent($existing, $parsed);
+
                 return false;
             }
         }
@@ -449,6 +453,7 @@ class WhatsAppConversationService
             'type' => isset($parsed['message_type']) ? $parsed['message_type'] : 'TEXT',
             'provider_message_id' => isset($parsed['message_id']) ? $parsed['message_id'] : null,
             'body' => isset($parsed['body']) ? $parsed['body'] : null,
+            'media_json' => $media ? json_encode($media) : null,
             'status' => $outgoing ? WhatsAppMessage::STATUS_SENT : WhatsAppMessage::STATUS_DELIVERED,
             'sender_type' => $outgoing ? 'PHONE' : 'CONTACT',
         ]);
