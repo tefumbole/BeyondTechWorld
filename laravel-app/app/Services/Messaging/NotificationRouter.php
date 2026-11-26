@@ -235,7 +235,9 @@ class NotificationRouter
      */
     public function sendWhatsAppTextWithLink($phone, $body)
     {
-        return $this->sendWasenderText($phone, $body);
+        return $this->asPlatform(function () use ($phone, $body) {
+            return $this->sendWasenderText($phone, $body);
+        });
     }
 
     /**
@@ -253,7 +255,9 @@ class NotificationRouter
         }
 
         $message = WhatsAppMessage::otpMessage($otp, $purpose, $expiresMinutes);
-        $result = $this->wasender->sendTextRaw($phone, $message, true, false, 12, false);
+        $result = $this->asPlatform(function () use ($phone, $message) {
+            return $this->wasender->sendTextRaw($phone, $message, true, false, 25, true);
+        });
         $result['provider'] = 'wasender';
         if (! empty($result['success'])) {
             $this->rememberOtpForSameDevice($otp);
@@ -301,6 +305,24 @@ class NotificationRouter
         }
 
         return ['success' => false, 'error' => 'The login code could not be sent.'];
+    }
+
+    /**
+     * A signup code is sent by Beyond's WhatsApp.
+     * A signed-in company must not block that send.
+     */
+    protected function asPlatform(callable $callback)
+    {
+        $context = app(\App\Services\Cloud\CloudTenantContext::class);
+        $previous = $context->tenant();
+        $context->clear();
+        try {
+            return $callback();
+        } finally {
+            if ($previous) {
+                $context->set($previous);
+            }
+        }
     }
 
     /**

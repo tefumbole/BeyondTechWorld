@@ -41,6 +41,7 @@ class CloudSignupOtp
             if (empty($result['success'])) {
                 Cache::forget($this->key($normalized));
                 Cache::forget($sentKey);
+                Cache::put($countKey, $count, now()->addHour());
                 $shown = \App\Support\WhatsAppPhone::display($normalized);
                 throw new \RuntimeException('We could not send the verification code to '.($shown !== '' ? $shown : 'this number').'.');
             }
