@@ -41,7 +41,7 @@ class MaiWhatsAppEngine
             return $this->blank('ERROR');
         }
 
-        return $this->shape($this->request('POST', '/sessions/'.$id.'/pair', [], 20));
+        return $this->shape($this->request('POST', '/sessions/'.$id.'/pair', [], 25));
     }
 
     public function messages($phone)
@@ -171,10 +171,14 @@ class MaiWhatsAppEngine
         $raw = curl_exec($ch);
         $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
+        $decoded = json_decode((string) $raw, true);
         if ($raw === false || $http < 200 || $http >= 300) {
+            if (is_array($decoded) && ! empty($decoded['error'])) {
+                return $decoded;
+            }
+
             return null;
         }
-        $decoded = json_decode((string) $raw, true);
 
         return is_array($decoded) ? $decoded : null;
     }

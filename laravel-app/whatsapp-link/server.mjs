@@ -2,7 +2,8 @@ import fs from 'fs'
 import http from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import makeWASocket, {
+import {
+  makeWASocket,
   Browsers,
   DisconnectReason,
   fetchLatestBaileysVersion,
@@ -115,13 +116,15 @@ async function startSocket(id, expected) {
   if (expected) entry.expected = expected
   entry.status = entry.status === 'CONNECTED' ? 'CONNECTED' : 'AWAITING_QR'
   entry.error = null
+  entry.qr = null
+  entry.pairing = null
   sessions.set(id, entry)
   const sock = makeWASocket({
     version: version.version,
     auth: state,
     logger,
     printQRInTerminal: false,
-    browser: Browsers.macOS('Beyond Cloud'),
+    browser: Browsers.macOS('Whats MAI'),
     syncFullHistory: false,
     markOnlineOnConnect: false,
   })
@@ -176,18 +179,40 @@ async function startSocket(id, expected) {
   return entry
 }
 
+function waitForQr(entry, ms) {
+  if (!entry || entry.qr || entry.status === 'CONNECTED') {
+    return Promise.resolve()
+  }
+  return new Promise((resolve) => {
+    const started = Date.now()
+    const timer = setInterval(() => {
+      if (entry.qr || entry.status === 'CONNECTED' || entry.status === 'ERROR' || Date.now() - started >= ms) {
+        clearInterval(timer)
+        resolve()
+      }
+    }, 200)
+  })
+}
+
 async function pairingFor(id) {
   const entry = await startSocket(id, id.indexOf('p') === 0 ? id.slice(1) : '')
   if (!entry.sock || entry.status === 'CONNECTED') {
+    return publicState(entry, false)
+  }
+  if (entry.pairing) {
     return publicState(entry, false)
   }
   if (typeof entry.sock.requestPairingCode !== 'function') {
     entry.error = 'The link code is not available on this engine.'
     return publicState(entry, false)
   }
+  await waitForQr(entry, 8000)
   const phone = String(entry.expected || (id.indexOf('p') === 0 ? id.slice(1) : '')).replace(/\D/g, '')
   const code = await entry.sock.requestPairingCode(phone)
   entry.pairing = String(code || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 17)
+  if (!entry.pairing) {
+    entry.error = 'The link code could not be created.'
+  }
   return publicState(entry, false)
 }
 
@@ -321,9 +346,12 @@ const server = http.createServer((req, res) => {
       }
       const expected = body.phone ? id.slice(1) : ''
       startSocket(id, expected).then((entry) => {
-        send(res, 200, publicState(entry, false))
-      }).catch(() => {
-        send(res, 500, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: 'WhatsApp could not be started.' })
+        const ready = entry.qr || entry.status === 'CONNECTED' ? Promise.resolve() : waitForQr(entry, 8000)
+        ready.then(() => send(res, 200, publicState(entry, true)))
+      }).catch((error) => {
+        const message = error && error.message ? String(error.message).slice(0, 180) : 'WhatsApp could not be started.'
+        console.error('session start failed', message)
+        send(res, 500, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: message })
       })
     })
     return
@@ -335,8 +363,10 @@ const server = http.createServer((req, res) => {
       return
     }
     if (req.method === 'POST' && parts[2] === 'pair') {
-      pairingFor(id).then((payload) => send(res, 200, payload)).catch(() => {
-        send(res, 200, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: 'The link code could not be created.' })
+      pairingFor(id).then((payload) => send(res, 200, payload)).catch((error) => {
+        const message = error && error.message ? String(error.message).slice(0, 180) : 'The link code could not be created.'
+        console.error('pairing code failed', message)
+        send(res, 200, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: message })
       })
       return
     }

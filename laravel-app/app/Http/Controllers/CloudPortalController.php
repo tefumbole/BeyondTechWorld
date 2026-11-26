@@ -459,9 +459,12 @@ class CloudPortalController extends Controller
         $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
         $engine->open($user->phone);
 
+        $state = $engine->status($user->phone, true);
+
         return view('cloud.portal.mai_home', [
             'user' => $user,
-            'session' => $engine->status($user->phone, true),
+            'session' => $state,
+            'messages' => ($state['status'] ?? '') === 'CONNECTED' ? $engine->messages($user->phone) : [],
         ]);
     }
 

@@ -57,19 +57,14 @@
                 </div>
             </div>
             <div id="pane-code" class="{{ $linkTab === 'code' ? '' : 'is-off' }}">
-                <p>A code is sent to <strong>{{ $phone }}</strong>. Enter it here to open Whats MAI for this phone. The same link is then sent here so you can open it on this computer.</p>
-                @if($otpSent)
-                    <form method="POST" action="{{ route('whatsapp.mai.link.otp.verify') }}">
-                        @csrf
-                        <input class="field" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6-digit code" required>
-                        <button class="gold" type="submit">Open Whats MAI</button>
-                    </form>
-                @else
-                    <form method="POST" action="{{ route('whatsapp.mai.link.otp') }}">
-                        @csrf
-                        <button class="gold" type="submit">Link code</button>
-                    </form>
+                <p>A link code is created for <strong>{{ $phone }}</strong> and sent to that phone. On the phone, open WhatsApp, tap Linked devices, then Link with phone number, and enter the code.</p>
+                @if(session('link_code'))
+                    <p class="note" id="link-code" style="font-size:1.6rem;letter-spacing:.12em;text-align:center;">{{ session('link_code') }}</p>
                 @endif
+                <form method="POST" action="{{ route('whatsapp.mai.link.otp') }}">
+                    @csrf
+                    <button class="gold" type="submit">{{ session('link_code') ? 'Send the code again' : 'Link code' }}</button>
+                </form>
             </div>
             <p id="link-ready" class="note {{ ($session['status'] ?? '') === 'CONNECTED' ? '' : 'is-off' }}">WhatsApp is linked for this phone.</p>
             <a class="gold" href="{{ route('whatsapp.mai.home') }}">Open Whats MAI on this computer</a>
@@ -108,18 +103,23 @@
             window.location = @json(route('whatsapp.mai.home'));
             return;
         }
+        if (data.error && wait && !data.qr) {
+            wait.textContent = data.error;
+        }
         if (qr && data.qr) {
             qr.src = data.qr;
             qr.classList.remove('is-off');
             if (wait) wait.classList.add('is-off');
         }
     }
-    setInterval(function () {
+    function tick() {
         fetch(@json(route('whatsapp.mai.link.status')), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
             .then(function (response) { return response.json(); })
             .then(paint)
             .catch(function () {});
-    }, 4000);
+    }
+    tick();
+    setInterval(tick, 2000);
 })();
 </script>
 @endpush

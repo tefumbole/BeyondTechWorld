@@ -34,16 +34,29 @@ class MaiWhatsAppController extends Controller
         if (! $user) {
             return redirect()->to(url('/login?mai=1'));
         }
-        try {
-            app(\App\Services\Cloud\CloudSignupOtp::class)->send($user->phone);
-        } catch (\Exception $e) {
-            return redirect()->route('whatsapp.mai.link')->with('not_permitted', $e->getMessage())->with('link_tab', 'code');
+        $state = app(MaiWhatsAppEngine::class)->pair($user->phone);
+        $code = isset($state['pairing_code']) ? (string) $state['pairing_code'] : '';
+        if ($code === '') {
+            $error = ! empty($state['error']) ? $state['error'] : 'The link code could not be created.';
+
+            return redirect()->route('whatsapp.mai.link')->with('not_permitted', $error)->with('link_tab', 'code');
         }
+        $sent = false;
+        $body = "Whats MAI link code: ".$code."\nOn your phone, open WhatsApp, tap Linked devices, then Link with phone number, and enter this code.";
+        try {
+            $result = app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppTextWithLink($user->phone, $body);
+            $sent = is_array($result) && ! empty($result['success']) && empty($result['skipped']);
+        } catch (\Exception $e) {
+            $sent = false;
+        }
+        $notice = $sent
+            ? 'The link code was sent to this phone. Enter it in WhatsApp under Linked devices.'
+            : 'The link code is on this screen. It could not be delivered to the phone.';
 
         return redirect()->route('whatsapp.mai.link')
-            ->with('message', 'A code was sent to this phone. Enter it to open Whats MAI.')
+            ->with('message', $notice)
             ->with('link_tab', 'code')
-            ->with('link_otp_sent', 1);
+            ->with('link_code', $code);
     }
 
     public function verifyLinkOtp(Request $request)
@@ -105,20 +118,21 @@ class MaiWhatsAppController extends Controller
         }
         $engine = app(MaiWhatsAppEngine::class);
         $state = $engine->status($user->phone, false);
+        $back = $request->input('next') === 'home' ? 'whatsapp.mai.home' : 'whatsapp.mai.link';
         if ($state['status'] !== 'CONNECTED') {
-            return redirect()->route('whatsapp.mai.link')->with('not_permitted', 'Approve WhatsApp on your phone before sending.');
+            return redirect()->route($back)->with('not_permitted', 'Approve WhatsApp on your phone before sending.');
         }
         $to = preg_replace('/\D/', '', (string) $request->input('to'));
         $text = trim((string) $request->input('text'));
         if (! preg_match('/^[1-9][0-9]{7,14}$/', $to) || $text === '') {
-            return redirect()->route('whatsapp.mai.link')->with('not_permitted', 'Enter the other phone number and a message.');
+            return redirect()->route($back)->with('not_permitted', 'Enter the other phone number and a message.');
         }
         $result = $engine->send($user->phone, $to, $text);
         if (empty($result['success'])) {
-            return redirect()->route('whatsapp.mai.link')->with('not_permitted', isset($result['error']) ? $result['error'] : 'The message was not sent.');
+            return redirect()->route($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'The message was not sent.');
         }
 
-        return redirect()->route('whatsapp.mai.link')->with('message', 'Sent from your WhatsApp.');
+        return redirect()->route($back)->with('message', 'Sent from your WhatsApp.');
     }
 
     protected function person()
