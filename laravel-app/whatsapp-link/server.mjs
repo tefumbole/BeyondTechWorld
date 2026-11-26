@@ -81,19 +81,60 @@ function messageText(message) {
   return ''
 }
 
+function jidDigits(jid) {
+  return String(jid || '').split('@')[0].split(':')[0].replace(/\D/g, '')
+}
+
+function touchChat(entry, jid, patch) {
+  const id = String(jid || '')
+  if (!id || id.indexOf('@broadcast') !== -1) return
+  if (!entry.chats) entry.chats = {}
+  const current = entry.chats[id] || { jid: id, name: '', preview: '', at: 0, unread: 0 }
+  if (patch.name) current.name = String(patch.name).slice(0, 80)
+  if (patch.preview) current.preview = String(patch.preview).slice(0, 140)
+  if (patch.at) current.at = Number(patch.at) || current.at
+  if (typeof patch.unread === 'number') current.unread = patch.unread
+  if (!current.name) {
+    const digits = jidDigits(id)
+    if (digits) current.name = '+' + digits
+  }
+  entry.chats[id] = current
+}
+
+function chatRows(entry) {
+  const rows = Object.keys(entry.chats || {}).map((jid) => entry.chats[jid])
+  rows.sort((left, right) => (right.at || 0) - (left.at || 0))
+  return rows.slice(0, 80).map((row) => ({
+    jid: row.jid,
+    name: row.name || '',
+    phone: jidDigits(row.jid),
+    preview: row.preview || '',
+    at: row.at || 0,
+    unread: row.unread || 0,
+  }))
+}
+
 function rememberMessage(entry, msg) {
   if (!msg || !msg.key) return
   const text = messageText(msg.message).trim()
+  const jid = String(msg.key.remoteJid || '')
+  const at = Number(msg.messageTimestamp) || 0
+  if (jid) {
+    touchChat(entry, jid, {
+      preview: text || (msg.message && msg.message.imageMessage ? 'Photo' : ''),
+      at: at,
+    })
+  }
   if (!text) return
   if (!entry.inbox) entry.inbox = []
   entry.inbox.push({
     id: String(msg.key.id || ''),
-    from: String(msg.key.remoteJid || ''),
+    from: jid,
     from_me: !!msg.key.fromMe,
     text: text.slice(0, 1000),
     at: String(msg.messageTimestamp || ''),
   })
-  if (entry.inbox.length > 40) entry.inbox.splice(0, entry.inbox.length - 40)
+  if (entry.inbox.length > 200) entry.inbox.splice(0, entry.inbox.length - 200)
 }
 
 function sessionDir(id) {
@@ -112,7 +153,8 @@ async function startSocket(id, expected) {
   ensureDir(dir)
   const { state, saveCreds } = await useMultiFileAuthState(dir)
   const version = await fetchLatestBaileysVersion()
-  const entry = existing || { status: 'AWAITING_QR', phone: null, qr: null, sock: null, retries: 0, inbox: [] }
+  const entry = existing || { status: 'AWAITING_QR', phone: null, qr: null, sock: null, retries: 0, inbox: [], chats: {} }
+  if (!entry.chats) entry.chats = {}
   if (expected) entry.expected = expected
   entry.status = entry.status === 'CONNECTED' ? 'CONNECTED' : 'AWAITING_QR'
   entry.error = null
@@ -133,6 +175,28 @@ async function startSocket(id, expected) {
   sock.ev.on('messages.upsert', (packet) => {
     const list = packet && packet.messages ? packet.messages : []
     list.forEach((msg) => rememberMessage(entry, msg))
+  })
+  sock.ev.on('messaging-history.set', (payload) => {
+    const chats = payload && payload.chats ? payload.chats : []
+    const contacts = payload && payload.contacts ? payload.contacts : []
+    const messages = payload && payload.messages ? payload.messages : []
+    chats.forEach((chat) => touchChat(entry, chat.id, {
+      name: chat.name || '',
+      at: Number(chat.conversationTimestamp) || 0,
+      unread: Number(chat.unreadCount) || 0,
+    }))
+    contacts.forEach((person) => touchChat(entry, person.id, { name: person.name || person.notify || '' }))
+    messages.forEach((msg) => rememberMessage(entry, msg))
+  })
+  sock.ev.on('chats.upsert', (chats) => {
+    ;(chats || []).forEach((chat) => touchChat(entry, chat.id, {
+      name: chat.name || '',
+      at: Number(chat.conversationTimestamp) || 0,
+      unread: Number(chat.unreadCount) || 0,
+    }))
+  })
+  sock.ev.on('contacts.upsert', (people) => {
+    ;(people || []).forEach((person) => touchChat(entry, person.id, { name: person.name || person.notify || '' }))
   })
   sock.ev.on('connection.update', async (update) => {
     if (update.qr) {
@@ -368,6 +432,11 @@ const server = http.createServer((req, res) => {
         console.error('pairing code failed', message)
         send(res, 200, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: message })
       })
+      return
+    }
+    if (req.method === 'GET' && parts[2] === 'chats') {
+      const entry = sessions.get(id) || { chats: {} }
+      send(res, 200, { phone: entry.phone || null, chats: chatRows(entry) })
       return
     }
     if (req.method === 'GET' && parts[2] === 'messages') {

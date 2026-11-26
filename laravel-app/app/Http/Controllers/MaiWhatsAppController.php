@@ -122,21 +122,29 @@ class MaiWhatsAppController extends Controller
         }
         $engine = app(MaiWhatsAppEngine::class);
         $state = $engine->status($user->phone, false);
-        $back = $request->input('next') === 'home' ? 'whatsapp.mai.home' : 'whatsapp.mai.link';
+        $home = $request->input('next') === 'home';
+        $backTo = function ($extra = []) use ($home, $request) {
+            if (! $home) {
+                return redirect()->route('whatsapp.mai.link');
+            }
+            $chat = preg_replace('/\D/', '', (string) $request->input('to'));
+
+            return redirect()->route('whatsapp.mai.home', $chat !== '' ? ['chat' => $chat] : []);
+        };
         if ($state['status'] !== 'CONNECTED') {
-            return redirect()->route($back)->with('not_permitted', 'Approve WhatsApp on your phone before sending.');
+            return $backTo()->with('not_permitted', 'Approve WhatsApp on your phone before sending.');
         }
         $to = preg_replace('/\D/', '', (string) $request->input('to'));
         $text = trim((string) $request->input('text'));
         if (! preg_match('/^[1-9][0-9]{7,14}$/', $to) || $text === '') {
-            return redirect()->route($back)->with('not_permitted', 'Enter the other phone number and a message.');
+            return $backTo()->with('not_permitted', 'Enter the other phone number and a message.');
         }
         $result = $engine->send($user->phone, $to, $text);
         if (empty($result['success'])) {
-            return redirect()->route($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'The message was not sent.');
+            return $backTo()->with('not_permitted', isset($result['error']) ? $result['error'] : 'The message was not sent.');
         }
 
-        return redirect()->route($back)->with('message', 'Sent from your WhatsApp.');
+        return $backTo()->with('message', 'Sent from your WhatsApp.');
     }
 
     protected function person()

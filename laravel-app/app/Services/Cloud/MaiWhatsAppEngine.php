@@ -44,6 +44,33 @@ class MaiWhatsAppEngine
         return $this->shape($this->request('POST', '/sessions/'.$id.'/pair', [], 25));
     }
 
+    public function chats($phone)
+    {
+        $id = $this->id($phone);
+        if ($id === '') {
+            return [];
+        }
+        $payload = $this->request('GET', '/sessions/'.$id.'/chats', null, 8);
+        if (! is_array($payload) || empty($payload['chats']) || ! is_array($payload['chats'])) {
+            return [];
+        }
+        $rows = [];
+        foreach ($payload['chats'] as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $phoneDigits = isset($row['phone']) ? preg_replace('/\D/', '', (string) $row['phone']) : '';
+            $rows[] = [
+                'name' => isset($row['name']) ? (string) $row['name'] : '',
+                'phone' => $phoneDigits,
+                'preview' => isset($row['preview']) ? (string) $row['preview'] : '',
+                'unread' => isset($row['unread']) ? (int) $row['unread'] : 0,
+            ];
+        }
+
+        return $rows;
+    }
+
     public function messages($phone)
     {
         $id = $this->id($phone);
