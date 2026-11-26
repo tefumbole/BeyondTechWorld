@@ -77,6 +77,26 @@ class CloudSignupOtp
         return $normalized;
     }
 
+    /**
+     * The signup code only proves the phone. This link opens the install page.
+     * It does not connect WhatsApp.
+     */
+    public function sendAppLink($phone)
+    {
+        if (app()->environment('testing')) {
+            return;
+        }
+        $normalized = app(CloudTrialEligibility::class)->normalizePhone($phone);
+        if ($normalized === '') {
+            return;
+        }
+        $body = "Whats MAI\nOpen this link on your phone and add it to your home screen. Then enter your number and name:\n".url('/whatsapp-mai/open');
+        try {
+            app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppTextWithLink($normalized, $body);
+        } catch (\Exception $e) {
+        }
+    }
+
     public function matches($phone)
     {
         $verified = session('cloud_phone_verified');

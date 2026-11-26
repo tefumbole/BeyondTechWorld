@@ -22,11 +22,15 @@
     <p class="hint">Enter the code sent to your phone on WhatsApp. That code only signs you in. It does not link WhatsApp.</p>
     @if(session('not_permitted'))<p class="bad">{{ session('not_permitted') }}</p>@endif
     <div id="phone-step">
-        <label for="dial">Country</label>
-        <select id="dial">
-            <option value="237">+237 Cameroon</option>
-            <option value="250">+250 Rwanda</option>
-        </select>
+        <label for="country-search">Country</label>
+        <input id="country-search" placeholder="Search a country" autocomplete="off">
+        <input type="hidden" id="dial" value="237">
+        <p id="country-chosen" class="hint">Cameroon (+237)</p>
+        <div id="country-list" style="max-height:160px;overflow:auto;border:1px solid #d6deea;border-radius:8px;">
+            @foreach(\App\Support\CountryDialCodes::all() as $label)
+                <button type="button" class="country-item" data-dial="{{ preg_replace('/\D+/', '', $label) }}" style="display:block;width:100%;text-align:left;background:#fff;border:0;border-bottom:1px solid #e8eef6;padding:8px 10px;cursor:pointer;">{{ $label }}</button>
+            @endforeach
+        </div>
         <label for="phone">Phone number</label>
         <input id="phone" inputmode="tel" autocomplete="tel">
         <button type="button" id="send-code">Send WhatsApp code</button>
@@ -38,15 +42,33 @@
         <button type="button" id="check-code">Sign in</button>
         <p class="bad" id="code-error" hidden></p>
     </div>
-    <p><a href="{{ route('whatsapp.mai') }}">New here? Start WhatsApp MAI</a></p>
+    <p><a href="{{ route('whatsapp.mai') }}">New here? Start Whats MAI</a></p>
 </main>
 <script>
 (function () {
     var token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    var search = document.getElementById('country-search');
+    var items = document.querySelectorAll('.country-item');
+    if (search) {
+        search.oninput = function () {
+            var query = search.value.toLowerCase();
+            for (var i = 0; i < items.length; i++) {
+                items[i].hidden = items[i].textContent.toLowerCase().indexOf(query) === -1;
+            }
+        };
+    }
+    for (var c = 0; c < items.length; c++) {
+        items[c].onclick = function () {
+            document.getElementById('dial').value = this.getAttribute('data-dial');
+            document.getElementById('country-chosen').textContent = this.textContent;
+            if (search) search.value = '';
+        };
+    }
     function phone() {
+        var code = String(document.getElementById('dial').value || '237').replace(/\D+/g, '');
         var digits = (document.getElementById('phone').value || '').replace(/\D+/g, '');
-        if (digits.indexOf('237') === 0 || digits.indexOf('250') === 0) return '+' + digits;
-        return '+' + document.getElementById('dial').value + digits.replace(/^0+/, '');
+        if (code && digits.indexOf(code) === 0 && digits.length >= code.length + 7) return '+' + digits;
+        return '+' + code + digits.replace(/^0+/, '');
     }
     function post(url, body, done) {
         var data = new FormData();

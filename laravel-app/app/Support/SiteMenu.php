@@ -15,7 +15,7 @@ class SiteMenu
     {
         return [
             'home'         => 'Home',
-            'whatsapp-mai' => 'WhatsApp MAI',
+            'whatsapp-mai' => 'Whats MAI',
             'trainings'    => 'Training',
             'events'       => 'Events',
             'rentals'      => 'Rentals',

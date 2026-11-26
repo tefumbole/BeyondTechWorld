@@ -69,8 +69,11 @@ class CloudSubscribeController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+        if ((string) $request->input('mai') === '1') {
+            app(CloudSignupOtp::class)->sendAppLink($phone);
+        }
 
-        return response()->json(['verified' => true, 'phone' => $phone]);
+        return response()->json(['verified' => true, 'phone' => $phone, 'app_url' => url('/whatsapp-mai/open')]);
     }
 
     protected function applyDial(Request $request)

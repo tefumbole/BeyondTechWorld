@@ -1,0 +1,24 @@
+{
+  "id": "/whatsapp-mai/open",
+  "name": "Whats MAI",
+  "short_name": "Whats MAI",
+  "start_url": "/whatsapp-mai/open",
+  "scope": "/whatsapp-mai/",
+  "display": "standalone",
+  "background_color": "#072f6b",
+  "theme_color": "#072f6b",
+  "icons": [
+    {
+      "src": "/branding/mbole-ai.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/branding/mbole-ai.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ]
+}

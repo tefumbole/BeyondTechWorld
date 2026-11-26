@@ -15,6 +15,7 @@ class CloudMboleWorkspaceTest extends TestCase
         $price = new CloudMbolePrice();
         $this->assertSame('+237670000000', $price->e164('670000000', '237'));
         $this->assertSame('+250780000000', $price->e164('0780000000', '250'));
+        $this->assertSame('+33670000000', $price->e164('670000000', '33'));
 
         $cameroon = new CloudTenant();
         $cameroon->phone = '237670000000';
@@ -36,7 +37,7 @@ class CloudMboleWorkspaceTest extends TestCase
 
     public function test_main_menu_opens_whatsapp_mai()
     {
-        $this->assertSame('WhatsApp MAI', SiteMenu::landingItems()['whatsapp-mai']);
+        $this->assertSame('Whats MAI', SiteMenu::landingItems()['whatsapp-mai']);
         $this->assertArrayNotHasKey('apply', SiteMenu::landingItems());
         $order = SiteMenu::landingOrder();
         $reviews = array_search('reviews', $order, true);

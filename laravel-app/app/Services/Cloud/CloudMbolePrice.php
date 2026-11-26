@@ -13,14 +13,14 @@ class CloudMbolePrice
     public function e164($phone, $dial = null)
     {
         $dial = preg_replace('/\D+/', '', (string) $dial);
-        if (! in_array($dial, ['237', '250'], true)) {
-            $dial = '';
-        }
         $digits = preg_replace('/\D+/', '', (string) $phone);
         if ($digits === '') {
             return '';
         }
-        if (strpos($digits, '237') === 0 || strpos($digits, '250') === 0) {
+        if ($dial !== '' && strpos($digits, $dial) === 0 && strlen($digits) >= strlen($dial) + 7) {
+            return '+'.$digits;
+        }
+        if ($dial === '' && strlen($digits) >= 11) {
             return '+'.$digits;
         }
         $digits = ltrim($digits, '0');
@@ -35,7 +35,7 @@ class CloudMbolePrice
     {
         $digits = preg_replace('/\D+/', '', (string) $tenant->phone);
         $method = strtoupper((string) $methodCode);
-        if ($method === 'VISA') {
+        if ($method === 'VISA' || $method === 'CRYPTO') {
             return ['amount' => '10.00', 'currency' => 'USD'];
         }
         if (strpos($digits, '250') === 0) {

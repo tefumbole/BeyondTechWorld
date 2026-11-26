@@ -120,10 +120,63 @@ class CloudPortalController extends Controller
         return $this->showRegister();
     }
 
+    public function whatsappMaiOpen()
+    {
+        if (! session('cloud_onboard_token')) {
+            session(['cloud_onboard_token' => Str::random(40)]);
+        }
+        $membership = Auth::check() ? $this->portal->membershipFor(Auth::user()) : null;
+
+        return view('cloud.portal.mai_open', [
+            'onboardToken' => session('cloud_onboard_token'),
+            'signedIn' => (bool) ($membership && $membership->cloudTenant),
+            'countries' => \App\Support\CountryDialCodes::all(),
+        ]);
+    }
+
+    public function whatsappMaiJoin(Request $request)
+    {
+        $request->merge([
+            'mai' => '1',
+            'mai_join' => '1',
+            'modules' => ['MESSAGING'],
+            'account_kind' => 'personal',
+            'start_mode' => 'trial',
+            'phone' => app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial')),
+        ]);
+        if (trim((string) $request->input('onboard_token')) === '') {
+            $request->merge(['onboard_token' => (string) session('cloud_onboard_token')]);
+        }
+        try {
+            app(\App\Services\Cloud\CloudSignupOtp::class)->verify($request->input('phone'), $request->input('code'));
+        } catch (\Exception $e) {
+            return redirect()->route('whatsapp.mai.open')->with('not_permitted', $e->getMessage())->withInput();
+        }
+        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($request->input('phone'));
+        session(['cloud_account_kind' => 'personal']);
+
+        return $this->register($request);
+    }
+
+    public function whatsappMaiWorker()
+    {
+        $js = "self.addEventListener('install',function(){self.skipWaiting();});"
+            ."self.addEventListener('activate',function(event){event.waitUntil(self.clients.claim());});"
+            ."self.addEventListener('fetch',function(event){event.respondWith(fetch(event.request));});";
+
+        return response($js, 200, [
+            'Content-Type' => 'application/javascript; charset=UTF-8',
+            'Cache-Control' => 'no-cache',
+            'Service-Worker-Allowed' => '/whatsapp-mai/',
+        ]);
+    }
+
     public function register(Request $request)
     {
+        $fromMai = (string) $request->input('mai') === '1' || (string) $request->input('mai_join') === '1';
+        $back = (string) $request->input('mai_join') === '1' ? 'whatsapp.mai.open' : ($fromMai ? 'whatsapp.mai' : 'cloud.register');
         if (! $this->registrationOpen($request)) {
-            return redirect()->route('cloud.register')->with('not_permitted', 'Company signup is not open yet.');
+            return redirect()->route($back)->with('not_permitted', 'Company signup is not open yet.');
         }
         if (trim((string) $request->input('full_name')) !== '' && trim((string) $request->input('first_name')) === '') {
             $parts = app(\App\Services\Cloud\CloudPhoneNameResolver::class)->split($request->input('full_name'));
@@ -140,18 +193,31 @@ class CloudPortalController extends Controller
         $data = $this->companyInput($request, true);
         $payMethod = strtoupper((string) $request->input('payment_method'));
         if ($request->input('start_mode') === 'pay' && ! in_array($payMethod, ['MTN', 'ORANGE', 'VISA', 'CRYPTO'], true)) {
-            return redirect()->route('cloud.register')->with('not_permitted', 'Choose MTN, Orange, VISA, or crypto before paying.')->withInput();
+            return redirect()->route($back)->with('not_permitted', 'Choose MTN, Orange, VISA, or crypto before paying.')->withInput();
         }
         if (! app(\App\Services\Cloud\CloudSignupOtp::class)->matches($data['phone'])) {
-            return redirect()->route('cloud.register')->with('not_permitted', 'Verify the phone number before continuing.')->withInput();
+            return redirect()->route($back)->with('not_permitted', 'Verify the phone number before continuing.')->withInput();
         }
         $data['account_kind'] = session('cloud_account_kind') === 'personal' ? 'personal' : (isset($data['account_kind']) ? $data['account_kind'] : 'company');
+        if ($fromMai) {
+            $continued = $this->continueExistingMai($request, $data);
+            if ($continued) {
+                return $continued;
+            }
+        }
         try {
             list($user, $tenant) = app(CloudOnboardingService::class)->register($data);
         } catch (CloudExistingAccountException $e) {
-            return redirect()->route('cloud.register')->with('not_permitted', $e->getMessage())->withInput();
+            if ($fromMai) {
+                $continued = $this->continueExistingMai($request, $data);
+                if ($continued) {
+                    return $continued;
+                }
+            }
+
+            return redirect()->route($back)->with('not_permitted', $e->getMessage())->withInput();
         } catch (\Exception $e) {
-            return redirect()->route('cloud.register')->with('not_permitted', $e->getMessage())->withInput();
+            return redirect()->route($back)->with('not_permitted', $e->getMessage())->withInput();
         }
         Auth::login($user);
         $request->session()->regenerate();
@@ -168,7 +234,51 @@ class CloudPortalController extends Controller
             }
         }
 
+        if ($fromMai && $request->input('start_mode') !== 'pay') {
+            return redirect()->route('whatsapp.mai.open')->with('message', 'Whats MAI is ready. Add it to your home screen, then open your subscription.');
+        }
+
         return redirect()->route('cloud.home')->with('message', config('cloud.trial_welcome'));
+    }
+
+    /**
+     * A phone already stored in Beyond continues into Whats MAI.
+     * The signup code still does not connect WhatsApp.
+     */
+    protected function continueExistingMai(Request $request, array $data)
+    {
+        $user = app(CloudOnboardingService::class)->accountForPhone($data['phone']);
+        if (! $user) {
+            return null;
+        }
+        $full = trim((string) $request->input('full_name'));
+        if ($full === '') {
+            $full = trim((isset($data['first_name']) ? $data['first_name'] : '').' '.(isset($data['last_name']) ? $data['last_name'] : ''));
+        }
+        if ($full !== '' && $user->name !== $full) {
+            $user->name = $full;
+            $user->save();
+        }
+        $membership = $this->portal->membershipFor($user);
+        if (! $membership || ! $membership->cloudTenant) {
+            try {
+                list($user, $tenant) = app(CloudOnboardingService::class)->addCompany($user, $data);
+            } catch (\Exception $e) {
+                return redirect()->route('whatsapp.mai.open')->with('not_permitted', $e->getMessage())->withInput();
+            }
+            Auth::login($user);
+            $request->session()->regenerate();
+            session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
+            app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($data['phone']);
+
+            return redirect()->route('whatsapp.mai.open')->with('message', 'Whats MAI is ready on this number. Add the app, then open your subscription.');
+        }
+        Auth::login($user);
+        $request->session()->regenerate();
+        session([CloudTenantResolver::SESSION_KEY => $membership->cloudTenant->id]);
+        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($data['phone']);
+
+        return redirect()->route('cloud.messaging')->with('message', 'This number is already in Whats MAI. You are signed in.');
     }
 
     protected function registrationOpen(Request $request)

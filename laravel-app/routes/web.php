@@ -525,6 +525,9 @@ Route::post('/cloud/login/otp', 'CloudPortalController@sendLoginCode')->middlewa
 Route::post('/cloud/login/otp/verify', 'CloudPortalController@verifyLoginCode')->middleware('throttle:10,10')->name('cloud.login.otp.verify');
 Route::get('/cloud/register', 'CloudPortalController@showRegister')->name('cloud.register');
 Route::get('/whatsapp-mai', 'CloudPortalController@whatsappMai')->name('whatsapp.mai');
+Route::get('/whatsapp-mai/open', 'CloudPortalController@whatsappMaiOpen')->name('whatsapp.mai.open');
+Route::get('/whatsapp-mai/sw.js', 'CloudPortalController@whatsappMaiWorker')->name('whatsapp.mai.worker');
+Route::post('/whatsapp-mai/join', 'CloudPortalController@whatsappMaiJoin')->middleware('throttle:10,10')->name('whatsapp.mai.join');
 Route::post('/cloud/register/identity', 'CloudSubscribeController@identity')->middleware('throttle:10,10')->name('cloud.register.identity');
 Route::post('/cloud/register/otp', 'CloudSubscribeController@sendSignupCode')->middleware('throttle:5,10')->name('cloud.register.otp');
 Route::post('/cloud/register/otp/verify', 'CloudSubscribeController@verifySignupCode')->middleware('throttle:10,10')->name('cloud.register.otp.verify');

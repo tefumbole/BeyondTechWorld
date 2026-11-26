@@ -146,6 +146,67 @@
     }
     .stage-rail li.done { border-color: #F5D76E; color: #F5D76E; }
     .stage-rail li.skip { opacity: .35; }
+    .stage-rail.is-track {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        gap: 0;
+        counter-reset: mai-stage;
+        margin-bottom: 1.4rem;
+    }
+    .stage-rail.is-track li {
+        flex: 1 1 0;
+        position: relative;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: rgba(255,255,255,.72);
+        font-size: 0.68rem;
+        padding: 1.7rem 0.1rem 0;
+        text-align: center;
+    }
+    .stage-rail.is-track li::before {
+        counter-increment: mai-stage;
+        content: counter(mai-stage);
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 1.35rem;
+        height: 1.35rem;
+        margin-left: -0.68rem;
+        line-height: 1.2rem;
+        border-radius: 999px;
+        border: 2px solid rgba(255,255,255,.45);
+        background: #072f6b;
+        color: #fff;
+        font-size: 0.72rem;
+    }
+    .stage-rail.is-track li::after {
+        content: "";
+        position: absolute;
+        top: 0.62rem;
+        left: calc(50% + 0.8rem);
+        width: calc(100% - 1.6rem);
+        height: 2px;
+        background: rgba(255,255,255,.28);
+    }
+    .stage-rail.is-track li:last-child::after { display: none; }
+    .stage-rail.is-track li.on,
+    .stage-rail.is-track li.done { background: transparent; border: 0; color: #F5D76E; }
+    .stage-rail.is-track li.on::before { background: #D4AF37; border-color: #D4AF37; color: #072f6b; }
+    .stage-rail.is-track li.done::before { background: #0b3f90; border-color: #F5D76E; color: #F5D76E; }
+    .mai-features { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 0.55rem; text-align: left; }
+    @media (min-width: 640px) { .mai-features { grid-template-columns: 1fr 1fr; } }
+    .mai-features li { background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 14px; padding: 0.7rem 0.8rem; }
+    .mai-features li:nth-child(-n+3) { background: rgba(212,175,55,.16); }
+    .mai-features strong { display: block; color: #F5D76E; }
+    .mai-features span { display: block; color: rgba(255,255,255,.88); font-size: 0.86rem; margin-top: 0.15rem; }
+    .country-list { max-height: 180px; overflow: auto; border-radius: 12px; background: #fff; text-align: left; }
+    .country-item { display: block; width: 100%; text-align: left; background: #fff; color: #10233f; border: 0; border-bottom: 1px solid #e8eef6; padding: 0.45rem 0.7rem; cursor: pointer; font-weight: 600; }
+    .country-chosen { color: #F5D76E; font-weight: 700; margin: 0.35rem 0; }
+    .pay-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .pay-card { display: flex; align-items: center; gap: 0.4rem; background: #fff; color: #10233f; border: 2px solid #d6deea; border-radius: 14px; padding: 0.65rem 0.85rem; font-weight: 700; cursor: pointer; }
+    .pay-card:has(input:checked) { border-color: #c6ab47; box-shadow: 0 0 0 3px rgba(198,171,71,.25); }
     .signature-prompt,
     .signature-done {
         text-align: left;
@@ -205,6 +266,13 @@
 </style>
 @endpush
 
+@if(($selected ?? '') === 'MESSAGING')
+@push('head')
+<link rel="manifest" href="{{ asset('whats-mai.webmanifest') }}">
+<meta name="theme-color" content="#072f6b">
+@endpush
+@endif
+
 @section('content')
 <section class="subscribe-hero py-10 sm:py-16" style="background-image:url('{{ \App\Support\SiteContent::image('home.hero_image', '/branding/beyond-hero.png') }}');">
     <div class="relative z-10 max-w-5xl mx-auto px-4">
@@ -221,37 +289,54 @@
         @if($errors->any())
             <p class="mb-4 rounded-xl bg-red-50 text-red-800 px-4 py-3">{{ $errors->first() }}</p>
         @endif
-        <form method="POST" action="{{ route('cloud.register.submit') }}" id="build-company" class="subscribe-panel rounded-3xl p-5 sm:p-8 text-center">
+        <form method="POST" action="{{ route('cloud.register.submit') }}" id="build-company" class="subscribe-panel rounded-3xl p-5 sm:p-8 text-center" @if(($selected ?? '') === 'MESSAGING') data-mai="1" @endif>
             @csrf
             <input type="hidden" name="onboard_token" value="{{ $onboardToken }}">
             <input type="hidden" name="account_kind" id="account-kind" value="{{ old('account_kind', 'company') }}">
+            @if(($selected ?? '') === 'MESSAGING')
+                <input type="hidden" name="mai" value="1">
+            @endif
             @if(!empty($validationToken))
                 <input type="hidden" name="validation_token" value="{{ $validationToken }}">
             @endif
 
-            <ol class="stage-rail" id="stage-rail">
-                <li data-stage="1" class="on">Type</li>
-                <li data-stage="2">Phone</li>
-                <li data-stage="3">Code</li>
-                <li data-stage="4">Name</li>
-                <li data-stage="6">Company</li>
-                <li data-stage="7">Services</li>
+            <ol class="stage-rail {{ ($selected ?? '') === 'MESSAGING' ? 'is-track' : '' }}" id="stage-rail">
+                @if(($selected ?? '') === 'MESSAGING')
+                    <li data-stage="1" class="on">Subscribe</li>
+                    <li data-stage="2">Phone</li>
+                    <li data-stage="3">Code</li>
+                    <li data-stage="4">Name</li>
+                    <li data-stage="7">Plan</li>
+                @else
+                    <li data-stage="1" class="on">Type</li>
+                    <li data-stage="2">Phone</li>
+                    <li data-stage="3">Code</li>
+                    <li data-stage="4">Name</li>
+                    <li data-stage="6">Company</li>
+                    <li data-stage="7">Services</li>
+                @endif
             </ol>
 
             <section class="step on" data-step="1">
                 @if(($selected ?? '') === 'MESSAGING')
                     <img src="{{ asset('branding/mbole-ai.png') }}" alt="" width="92" height="104" class="mx-auto" style="width:92px;height:104px;object-fit:contain">
-                    <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">WhatsApp MAI</h1>
-                    <p class="hint mt-2">Sign in with the code sent to your phone. That code does not link WhatsApp. Linking is a separate QR code or link code.</p>
+                    <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">Whats MAI</h1>
+                    <p class="hint mt-2">WhatsApp with translation, voice transcription, assisted replies, chat summaries, group messages, and automated posts.</p>
+                    @include('cloud.portal.mai_features')
+                    <p class="hint mt-2">The code sent to your phone only signs you in. That code does not link WhatsApp. Linking is a separate QR code or link code.</p>
                     <p class="hint mt-2"><a href="{{ route('cloud.login') }}">Already registered? Sign in with your phone code.</a></p>
                 @else
                     <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">Subscribe</h1>
                     <p class="hint mt-2">Build your own company. Choose Individual or Company.</p>
                 @endif
                 <div class="flex flex-col sm:flex-row items-stretch justify-center gap-3 mt-6">
-                    <button type="button" id="pick-personal" class="subscribe-choice bg-brand-gold hover:bg-[#b5952f] text-brand-blue px-7 shadow-[0_0_15px_rgba(212,175,55,0.45)]">Individual</button>
+                    <button type="button" id="pick-personal" class="subscribe-choice bg-brand-gold hover:bg-[#b5952f] text-brand-blue px-7 shadow-[0_0_15px_rgba(212,175,55,0.45)]">{{ ($selected ?? '') === 'MESSAGING' ? 'Subscribe' : 'Individual' }}</button>
                     <button type="button" id="pick-company" class="subscribe-choice bg-white/15 hover:bg-white/25 border border-brand-gold text-brand-gold px-7">Company</button>
                 </div>
+                @if(($selected ?? '') === 'MESSAGING')
+                    <p class="hint mt-4">Add Whats MAI to your phone so you can open it without the website. On iPhone, tap Share, then Add to Home Screen.</p>
+                    <button type="button" id="install-app" class="mt-3 bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5" hidden>Add Whats MAI to this phone</button>
+                @endif
             </section>
 
             <section class="step" data-step="2">
@@ -259,11 +344,23 @@
                 <h2 class="text-xl font-bold">Phone number</h2>
                 <p class="hint mt-1">A verification code is sent on WhatsApp before any service is shown. That code only signs you in. It does not connect WhatsApp.</p>
                 <div class="field-row">
-                    <label for="dial">Country</label>
-                    <select name="dial" id="dial">
-                        <option value="237" {{ old('dial', '237') === '237' ? 'selected' : '' }}>+237 Cameroon</option>
-                        <option value="250" {{ old('dial') === '250' ? 'selected' : '' }}>+250 Rwanda</option>
-                    </select>
+                    <label for="{{ ($selected ?? '') === 'MESSAGING' ? 'country-search' : 'dial' }}">Country</label>
+                    @if(($selected ?? '') === 'MESSAGING')
+                        <input class="px-4 py-2" id="country-search" placeholder="Search a country" autocomplete="off">
+                        <input type="hidden" name="dial" id="dial" value="{{ old('dial', '237') }}">
+                        <p class="country-chosen" id="country-chosen">Cameroon (+237)</p>
+                        <div id="country-list" class="country-list">
+                            @foreach(\App\Support\CountryDialCodes::all() as $label)
+                                @php $dialCode = preg_replace('/\D+/', '', $label); @endphp
+                                <button type="button" class="country-item" data-dial="{{ $dialCode }}">{{ $label }}</button>
+                            @endforeach
+                        </div>
+                    @else
+                        <select name="dial" id="dial">
+                            <option value="237" {{ old('dial', '237') === '237' ? 'selected' : '' }}>+237 Cameroon</option>
+                            <option value="250" {{ old('dial') === '250' ? 'selected' : '' }}>+250 Rwanda</option>
+                        </select>
+                    @endif
                 </div>
                 <div class="field-row">
                     <label for="phone">Phone number</label>
@@ -367,6 +464,7 @@
                     <div class="flex justify-between"><span>Free trial</span><span>{{ $quote['trial'] }}</span></div>
                     <p class="text-sm mt-2">Pay now with MTN, Orange, VISA, or crypto. The free trial does not charge you.</p>
                 </div>
+                @if(($selected ?? '') !== 'MESSAGING')
                 <div>
                     <h3 class="text-left font-semibold mb-2">Digital Signature</h3>
                     <div id="signature-prompt" class="signature-prompt">
@@ -380,20 +478,29 @@
                         <button type="button" id="resign-signature" class="signature-add mt-3">Re-sign</button>
                     </div>
                 </div>
+                @endif
                 </div>
                 <input type="hidden" name="signature" id="signature" value="">
+                @if(($selected ?? '') !== 'MESSAGING')
                 <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="signature-error" hidden>Add your signature before continuing.</p>
+                @endif
                 <fieldset class="mt-4 text-left">
                     <legend class="font-semibold mb-2">Payment method, if you pay now</legend>
-                    <div class="flex flex-wrap gap-2">
-                        @foreach(['MTN' => 'MTN', 'ORANGE' => 'Orange', 'VISA' => 'VISA', 'CRYPTO' => 'Crypto'] as $code => $label)
-                            <label class="rounded-full border border-brand-gold px-4 py-2 font-bold">
+                    <div class="{{ ($selected ?? '') === 'MESSAGING' ? 'pay-grid' : 'flex flex-wrap gap-2' }}">
+                        @foreach(['MTN' => 'MTN MoMo', 'ORANGE' => 'Orange Money', 'VISA' => 'VISA', 'CRYPTO' => 'Crypto'] as $code => $label)
+                            <label class="{{ ($selected ?? '') === 'MESSAGING' ? 'pay-card' : 'rounded-full border border-brand-gold px-4 py-2 font-bold' }} {{ in_array($code, ['MTN', 'ORANGE'], true) ? 'pay-local' : '' }}">
                                 <input type="radio" name="payment_method" value="{{ $code }}" {{ old('payment_method') === $code ? 'checked' : '' }}>
                                 {{ $label }}
                             </label>
                         @endforeach
                     </div>
+                    @if(($selected ?? '') === 'MESSAGING')
+                        <p class="hint mt-2">Cameroon can pay with MTN or Orange. Every country can pay by card or crypto.</p>
+                    @endif
                 </fieldset>
+                @if(($selected ?? '') === 'MESSAGING')
+                    @include('cloud.portal.mai_features')
+                @endif
                 <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="pay-method-error" hidden>Choose MTN, Orange, VISA, or crypto before paying.</p>
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
                     <button type="submit" name="start_mode" value="trial" class="bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Start free trial</button>
@@ -401,6 +508,7 @@
                 </div>
             </section>
         </form>
+        @if(($selected ?? '') !== 'MESSAGING')
         <div id="signature-modal" hidden>
             <div class="signature-dialog" role="dialog" aria-labelledby="signature-title">
                 <h3 id="signature-title">Add your signature</h3>
@@ -412,6 +520,7 @@
                 </div>
             </div>
         </div>
+        @endif
         @endif
     </div>
 </section>
@@ -507,11 +616,17 @@
         function mbolePhone() {
             var dial = document.getElementById('dial');
             var field = document.getElementById('phone');
-            var code = dial ? dial.value : '237';
+            var code = dial ? String(dial.value || '237').replace(/\D+/g, '') : '237';
             var digits = (field && field.value ? field.value : '').replace(/\D+/g, '');
-            if (digits.indexOf('237') === 0 || digits.indexOf('250') === 0) return '+' + digits;
+            if (code && digits.indexOf(code) === 0 && digits.length >= code.length + 7) return '+' + digits;
             digits = digits.replace(/^0+/, '');
             return '+' + code + digits;
+        }
+        function paintPay() {
+            var dial = document.getElementById('dial');
+            var local = dial && String(dial.value) === '237';
+            var cards = document.querySelectorAll('.pay-local');
+            for (var i = 0; i < cards.length; i++) cards[i].hidden = !local;
         }
         function sendCode(errorId) {
             var error = document.getElementById(errorId);
@@ -554,7 +669,9 @@
             error.hidden = true;
             post('{{ route('cloud.register.otp.verify') }}', {
                 phone: mbolePhone(),
-                code: document.getElementById('otp-code').value
+                dial: document.getElementById('dial') ? document.getElementById('dial').value : '237',
+                code: document.getElementById('otp-code').value,
+                mai: form.getAttribute('data-mai') === '1' ? '1' : ''
             }, function (ok, json) {
                 if (!ok) {
                     error.hidden = false;
@@ -577,6 +694,9 @@
                     } else {
                         note.textContent = 'Campay and WhatsApp did not return a name. Enter it.';
                     }
+                    if (form.getAttribute('data-mai') === '1') {
+                        note.textContent = (note.textContent ? note.textContent + ' ' : '') + 'The app link was sent to this WhatsApp. Open it on your phone to add Whats MAI.';
+                    }
                     show(4);
                 });
             });
@@ -595,7 +715,8 @@
         var savedUrl = '';
         var pad = document.getElementById('signature-pad');
         var modal = document.getElementById('signature-modal');
-        var padCtx = pad.getContext('2d');
+        var padCtx = pad ? pad.getContext('2d') : null;
+        if (pad && padCtx) {
         padCtx.lineWidth = 2.2;
         padCtx.lineCap = 'round';
         padCtx.strokeStyle = '#0b3f90';
@@ -650,6 +771,7 @@
             document.getElementById('signature-error').hidden = true;
             modal.hidden = true;
         };
+        }
         var backs = form.querySelectorAll('.back-step');
         for (var b = 0; b < backs.length; b++) {
             backs[b].onclick = function () {
@@ -664,7 +786,9 @@
         form.addEventListener('change', paint);
         form.addEventListener('submit', function (event) {
             applyKnownCompany();
+            if (form.getAttribute('data-mai') === '1') return;
             var error = document.getElementById('signature-error');
+            if (!error) return;
             if (!savedUrl) {
                 event.preventDefault();
                 error.hidden = false;
@@ -672,6 +796,25 @@
             }
             document.getElementById('signature').value = savedUrl;
         });
+        var search = document.getElementById('country-search');
+        if (search) {
+            var items = document.querySelectorAll('.country-item');
+            search.oninput = function () {
+                var query = search.value.toLowerCase();
+                for (var i = 0; i < items.length; i++) {
+                    items[i].hidden = items[i].textContent.toLowerCase().indexOf(query) === -1;
+                }
+            };
+            for (var c = 0; c < items.length; c++) {
+                items[c].onclick = function () {
+                    document.getElementById('dial').value = this.getAttribute('data-dial');
+                    document.getElementById('country-chosen').textContent = this.textContent;
+                    search.value = '';
+                    paintPay();
+                };
+            }
+        }
+        paintPay();
         paint();
         @php
             $resume = 1;
@@ -709,6 +852,16 @@
                 }
                 event.preventDefault();
                 if (note) note.hidden = false;
+            });
+        }
+        if (form && form.getAttribute('data-mai') === '1' && 'serviceWorker' in navigator) {
+            navigator.serviceWorker.register('{{ url('/whatsapp-mai/sw.js') }}', { scope: '/whatsapp-mai/' }).catch(function () {});
+            window.addEventListener('beforeinstallprompt', function (event) {
+                event.preventDefault();
+                var button = document.getElementById('install-app');
+                if (!button) return;
+                button.hidden = false;
+                button.onclick = function () { event.prompt(); };
             });
         }
     })();
