@@ -884,6 +884,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/mai-voice/switch', 'MaiVoiceController@switchVoice')->name('mai.voice.switch');
     Route::post('/admin/whatsapp/contacts/{id}/voice', 'WhatsApp\WhatsAppHubController@saveContactVoice')->name('whatsapp.contact.voice');
     Route::get('/admin/whatsapp/chats', 'WhatsApp\WhatsAppHubController@chats')->name('whatsapp.chats');
+    Route::post('/admin/whatsapp/chats/linked-send', 'WhatsApp\WhatsAppHubController@linkedSend')->middleware('throttle:20,1')->name('whatsapp.chats.linked_send');
     Route::get('/admin/whatsapp/chats/media/{id}', 'WhatsApp\WhatsAppHubController@chatMedia')->where('id', '[0-9]+')->name('whatsapp.chats.media');
     Route::post('/admin/whatsapp/chats/group/reply', 'WhatsApp\WhatsAppHubController@chatsGroupReply')->name('whatsapp.chats.group');
     Route::post('/admin/whatsapp/chats/{id}/reply', 'WhatsApp\WhatsAppHubController@chatsReply')->name('whatsapp.chats.reply');

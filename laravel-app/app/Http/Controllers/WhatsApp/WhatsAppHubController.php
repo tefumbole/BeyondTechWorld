@@ -203,12 +203,81 @@ class WhatsAppHubController extends Controller
         ));
     }
 
+    public function linkedSend(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.view', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $phone = $this->linkedMaiPhone();
+        $to = trim((string) $request->input('to'));
+        $text = trim((string) $request->input('text'));
+        $back = route('whatsapp.chats', ['jid' => $to]);
+        if ($text === '' || ! preg_match('/^([1-9][0-9]{6,16}@s\.whatsapp\.net|[0-9]+(-[0-9]+)?@g\.us|[1-9][0-9]{7,14})$/', $to)) {
+            return redirect()->to($back)->with('not_permitted', 'Enter a message.');
+        }
+        $result = app(\App\Services\Cloud\MaiWhatsAppEngine::class)->send($phone, $to, $text);
+        if (empty($result['success'])) {
+            return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'The message was not sent.');
+        }
+
+        return redirect()->to($back)->with('message', 'Sent from +'.$phone.'.');
+    }
+
+    protected function linkedMaiPhone()
+    {
+        return '250794006160';
+    }
+
+    protected function linkedPhoneInbox(Request $request)
+    {
+        $phone = $this->linkedMaiPhone();
+        $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
+        $engine->open($phone);
+        $state = $engine->status($phone, false);
+        $chats = ($state['status'] ?? '') === 'CONNECTED' ? $engine->chats($phone) : [];
+        $jid = trim((string) $request->get('jid'));
+        if (! preg_match('/^([1-9][0-9]{6,16}@s\.whatsapp\.net|[0-9]+(-[0-9]+)?@g\.us)$/', $jid)) {
+            $jid = '';
+        }
+        $messages = [];
+        $open = null;
+        if ($jid !== '') {
+            foreach ($chats as $chat) {
+                if ($chat['jid'] === $jid) {
+                    $open = $chat;
+                    break;
+                }
+            }
+            if (! $open) {
+                $open = ['jid' => $jid, 'name' => '+'.preg_replace('/\D/', '', strtok($jid, '@')), 'phone' => '', 'preview' => '', 'unread' => 0];
+            }
+            foreach ($engine->messages($phone) as $row) {
+                if ((string) ($row['from'] ?? '') === $jid) {
+                    $messages[] = $row;
+                }
+            }
+        }
+
+        return response()
+            ->view('whatsapp_hub.linked_phone', [
+                'phone' => $phone,
+                'session' => $state,
+                'chats' => $chats,
+                'open' => $open,
+                'messages' => $messages,
+            ])
+            ->header('Cache-Control', 'no-store');
+    }
+
     public function chats(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
             return $deny;
         }
         $this->keepSignedIn();
+        if ((string) $request->get('line') !== 'main' && ! $request->get('poll') && ! $request->get('open')) {
+            return $this->linkedPhoneInbox($request);
+        }
         if ($request->get('open')) {
             return response()->json($this->chatThread((int) $request->get('chat')))->header('Cache-Control', 'no-store');
         }

@@ -60,7 +60,12 @@ class MaiWhatsAppEngine
                 continue;
             }
             $phoneDigits = isset($row['phone']) ? preg_replace('/\D/', '', (string) $row['phone']) : '';
+            $jid = isset($row['jid']) ? (string) $row['jid'] : '';
+            if (! preg_match('/^([1-9][0-9]{6,16}@s\.whatsapp\.net|[0-9]+(-[0-9]+)?@g\.us)$/', $jid)) {
+                continue;
+            }
             $rows[] = [
+                'jid' => $jid,
                 'name' => isset($row['name']) ? (string) $row['name'] : '',
                 'phone' => $phoneDigits,
                 'preview' => isset($row['preview']) ? (string) $row['preview'] : '',
@@ -109,8 +114,12 @@ class MaiWhatsAppEngine
             return ['success' => false, 'error' => 'Enter a phone number.'];
         }
         $body = function_exists('mb_substr') ? mb_substr(trim((string) $text), 0, 1000) : substr(trim((string) $text), 0, 1000);
+        $target = trim((string) $to);
+        if (substr($target, -5) !== '@g.us') {
+            $target = preg_replace('/\D/', '', $target);
+        }
         $payload = $this->request('POST', '/sessions/'.$id.'/send', [
-            'to' => preg_replace('/\D/', '', (string) $to),
+            'to' => $target,
             'text' => $body,
         ], 20);
         if (! is_array($payload) || empty($payload['success'])) {

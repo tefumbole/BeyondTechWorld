@@ -85,6 +85,30 @@ function jidDigits(jid) {
   return String(jid || '').split('@')[0].split(':')[0].replace(/\D/g, '')
 }
 
+function scheduleSave(entry) {
+  if (!entry || !entry.id) return
+  clearTimeout(entry.saveTimer)
+  entry.saveTimer = setTimeout(() => {
+    try {
+      fs.writeFileSync(path.join(sessionDir(entry.id), 'chats.json'), JSON.stringify({
+        chats: entry.chats || {},
+        inbox: (entry.inbox || []).slice(-200),
+      }))
+    } catch (e) {}
+  }, 400)
+}
+
+function loadSavedChats(entry) {
+  try {
+    const saved = JSON.parse(fs.readFileSync(path.join(sessionDir(entry.id), 'chats.json'), 'utf8'))
+    entry.chats = saved && saved.chats ? saved.chats : {}
+    entry.inbox = saved && Array.isArray(saved.inbox) ? saved.inbox : []
+  } catch (e) {
+    if (!entry.chats) entry.chats = {}
+    if (!entry.inbox) entry.inbox = []
+  }
+}
+
 function touchChat(entry, jid, patch) {
   const id = String(jid || '')
   if (!id || id.indexOf('@broadcast') !== -1) return
@@ -99,6 +123,7 @@ function touchChat(entry, jid, patch) {
     if (digits) current.name = '+' + digits
   }
   entry.chats[id] = current
+  scheduleSave(entry)
 }
 
 function chatRows(entry) {
@@ -121,6 +146,7 @@ function rememberMessage(entry, msg) {
   const at = Number(msg.messageTimestamp) || 0
   if (jid) {
     touchChat(entry, jid, {
+      name: !msg.key.fromMe && msg.pushName ? msg.pushName : '',
       preview: text || (msg.message && msg.message.imageMessage ? 'Photo' : ''),
       at: at,
     })
@@ -135,6 +161,7 @@ function rememberMessage(entry, msg) {
     at: String(msg.messageTimestamp || ''),
   })
   if (entry.inbox.length > 200) entry.inbox.splice(0, entry.inbox.length - 200)
+  scheduleSave(entry)
 }
 
 function sessionDir(id) {
@@ -152,8 +179,15 @@ async function startSocket(id, expected) {
   const dir = sessionDir(id)
   ensureDir(dir)
   const { state, saveCreds } = await useMultiFileAuthState(dir)
-  const version = await fetchLatestBaileysVersion()
   const entry = existing || { status: 'AWAITING_QR', phone: null, qr: null, sock: null, retries: 0, inbox: [], chats: {} }
+  entry.id = id
+  loadSavedChats(entry)
+  const savedChats = Object.keys(entry.chats || {}).length
+  if (!savedChats && state.creds && Array.isArray(state.creds.processedHistoryMessages) && state.creds.processedHistoryMessages.length) {
+    state.creds.processedHistoryMessages = []
+    await saveCreds()
+  }
+  const version = await fetchLatestBaileysVersion()
   if (!entry.chats) entry.chats = {}
   if (expected) entry.expected = expected
   entry.status = entry.status === 'CONNECTED' ? 'CONNECTED' : 'AWAITING_QR'
