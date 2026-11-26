@@ -332,4 +332,41 @@ class CloudSubscribeWizardTest extends TestCase
         $this->assertContains('/sessions/p250794006160?qr=1', $paths);
         $this->assertNotContains('/sessions/p250794006160/send', $paths);
     }
+
+    public function test_whats_mai_stays_on_its_page_for_a_company_member()
+    {
+        $user = \App\User::create([
+            'name' => 'Bridge Owner',
+            'username' => 'bridgeowner',
+            'email' => 'bridge-owner@demo.test',
+            'password' => bcrypt('secret'),
+            'phone' => '237670000031',
+            'role_id' => 5,
+            'is_active' => 1,
+        ]);
+        $tenantId = DB::table('cloud_tenants')->insertGetId([
+            'uuid' => '11111111-1111-1111-1111-111111111111',
+            'name' => 'Alpha Bridge',
+            'slug' => 'alpha-bridge',
+            'system_name' => 'Alpha Bridge',
+            'type' => 'CUSTOMER',
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('cloud_tenant_memberships')->insert([
+            'cloud_tenant_id' => $tenantId,
+            'user_id' => $user->id,
+            'membership_role' => 'OWNER',
+            'is_owner' => 1,
+            'status' => 'ACTIVE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->actingAs($user)->get('/whatsapp-mai')
+            ->assertOk()
+            ->assertSee('Whats MAI')
+            ->assertSee('Start free trial')
+            ->assertDontSee('Admin setup required');
+    }
 }

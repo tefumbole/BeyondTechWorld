@@ -109,12 +109,6 @@ class CloudPortalController extends Controller
 
     public function whatsappMai(Request $request)
     {
-        if (Auth::check()) {
-            $membership = app(\App\Services\Cloud\CloudPortalService::class)->membershipFor(Auth::user());
-            if ($membership && $membership->cloudTenant) {
-                return redirect()->route('cloud.messaging');
-            }
-        }
         $request->merge(['service' => 'MESSAGING']);
 
         return $this->showRegister();
