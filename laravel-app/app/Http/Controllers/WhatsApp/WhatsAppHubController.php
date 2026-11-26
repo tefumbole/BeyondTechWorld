@@ -285,9 +285,6 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $this->keepSignedIn();
-        if ((string) $request->get('line') !== 'main' && ! $request->get('poll') && ! $request->get('open')) {
-            return $this->linkedPhoneInbox($request);
-        }
         if ($request->get('open')) {
             return response()->json($this->chatThread((int) $request->get('chat')))->header('Cache-Control', 'no-store');
         }
@@ -408,10 +405,19 @@ class WhatsAppHubController extends Controller
         $staffLanguage = $translator->staffLanguage();
         $defaultReply = $translator->defaultReply();
         $enterSends = $translator->enterSends();
+        $sessionPhone = '';
+        try {
+            $sessionPhone = app(\App\Services\BeyondWasenderService::class)->sessionPhone();
+        } catch (\Throwable $e) {
+            $sessionPhone = '';
+        }
+        if ($sessionPhone === '') {
+            $sessionPhone = '+237 675 321 739';
+        }
 
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
-            'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn',
+            'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
             'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends'
         ));
     }
