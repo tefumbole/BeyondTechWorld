@@ -8,7 +8,7 @@
 <section class="container-fluid pay-app">
     <div class="pay-card">
         <div class="pay-card-head">
-            <h2>Transactions</h2>
+            <h2>Transactions <span class="pay-muted">All MoMo transactions</span></h2>
             <span class="pay-muted">{{ count($rows) }}</span>
         </div>
         <div class="table-responsive">

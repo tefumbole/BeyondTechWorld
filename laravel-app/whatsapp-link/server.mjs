@@ -164,6 +164,27 @@ function rememberMessage(entry, msg) {
   scheduleSave(entry)
 }
 
+async function attachLids(entry) {
+  if (!entry || !entry.sock || entry.lidScan || typeof entry.sock.onWhatsApp !== 'function') return
+  entry.lidScan = true
+  const phones = Object.keys(entry.chats || {}).filter((jid) => jid.indexOf('@s.whatsapp.net') !== -1).slice(0, 40)
+  if (!phones.length) return
+  try {
+    const rows = await entry.sock.onWhatsApp.apply(entry.sock, phones)
+    const lids = entry.lids || {}
+    ;(rows || []).forEach((row) => {
+      if (!row || !row.lid || !row.jid) return
+      const lid = String(row.lid).indexOf('@') === -1 ? String(row.lid) + '@lid' : String(row.lid)
+      lids[lid] = String(row.jid)
+    })
+    entry.lids = lids
+    ;(entry.inbox || []).forEach((msg) => {
+      if (lids[msg.from]) msg.from = lids[msg.from]
+    })
+    scheduleSave(entry)
+  } catch (e) {}
+}
+
 function sessionDir(id) {
   return path.join(sessionRoot, id)
 }
@@ -500,12 +521,14 @@ const server = http.createServer((req, res) => {
     }
     if (req.method === 'GET' && parts[2] === 'chats') {
       const entry = sessions.get(id) || { chats: {} }
+      attachLids(entry).catch(() => {})
       send(res, 200, { phone: entry.phone || null, chats: chatRows(entry) })
       return
     }
     if (req.method === 'GET' && parts[2] === 'messages') {
       const entry = sessions.get(id) || { inbox: [] }
-      send(res, 200, { messages: entry.inbox || [] })
+      const ready = entry.lidScan ? Promise.resolve() : attachLids(entry).catch(() => {})
+      ready.then(() => send(res, 200, { messages: entry.inbox || [] }))
       return
     }
     if (req.method === 'POST' && parts[2] === 'send') {

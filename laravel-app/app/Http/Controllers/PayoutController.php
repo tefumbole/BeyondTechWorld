@@ -77,6 +77,12 @@ class PayoutController extends Controller
         $batch = new CampayPayoutRequest();
         $batch->cloud_tenant_id = $this->tenantId();
         $batch->requester_name = Auth::user() ? (string) Auth::user()->name : 'Payout';
+        if (Auth::user() && method_exists(Auth::user(), 'whatsappPhone') && \Illuminate\Support\Facades\Schema::hasColumn('campay_payout_requests', 'requester_phone')) {
+            $own = preg_replace('/\D/', '', (string) Auth::user()->whatsappPhone());
+            if ($own !== '') {
+                $batch->requester_phone = $own;
+            }
+        }
         $batch->note = substr($note, 0, 180);
         $batch->status = 'pending';
         $batch->save();
@@ -97,6 +103,12 @@ class PayoutController extends Controller
                 'status' => 'pending',
             ]);
         }
+        $noticeLines = [];
+        foreach ($rows as $line) {
+            $noticeLines[] = ['person_name' => $line->person_name, 'amount' => $line->amount];
+            $this->sendSubmitted($line->phone, $line->person_name, $line->amount, $batch->note, $this->reviewUrl($batch->id), (string) $batch->requester_name);
+        }
+        $this->tellRequesterSubmitted((string) $batch->requester_phone, (string) $batch->requester_name, $batch->note, $noticeLines, $this->reviewUrl($batch->id));
 
         return $this->sendRows($batch, $rows);
     }
@@ -693,15 +705,13 @@ class PayoutController extends Controller
             return false;
         }
         $status = strtoupper((string) (isset($body['status']) ? $body['status'] : ''));
-        if ($status === 'SUCCESSFUL' && $service->payoutDelivered($body, (int) $row->amount)) {
+            if ($status === 'SUCCESSFUL' && $service->payoutDelivered($body, (int) $row->amount)) {
             $alreadyPaid = $row->status === 'paid';
             $row->status = 'paid';
             $row->error = null;
             $row->save();
-            if (! $alreadyPaid && $notify && $row->created_at && $row->created_at->gt(now()->subMinutes(20))) {
+            if (! $alreadyPaid) {
                 $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note, $this->requesterName($row), $row);
-            } elseif (! $alreadyPaid) {
-                $this->tellRequesterPaid($row);
             }
 
             return 'paid';
@@ -1208,7 +1218,22 @@ class PayoutController extends Controller
         if ($name === '' || strcasecmp($name, 'Payout') === 0) {
             $name = 'Requestor';
         }
-        app(\App\Services\ClientNoticeService::class)->send($phone, $this->requesterSubmittedText($name, $reason, $lines, $url), false);
+        $text = $this->requesterSubmittedText($name, $reason, $lines, $url);
+        app(\App\Services\ClientNoticeService::class)->send($phone, $text, false);
+        $this->copyToSignedInPhone($phone, $text);
+    }
+
+    protected function copyToSignedInPhone($already, $text)
+    {
+        if (! Auth::check() || ! method_exists(Auth::user(), 'whatsappPhone')) {
+            return;
+        }
+        $own = preg_replace('/\D/', '', (string) Auth::user()->whatsappPhone());
+        $already = preg_replace('/\D/', '', (string) $already);
+        if ($own === '' || $own === $already) {
+            return;
+        }
+        app(\App\Services\ClientNoticeService::class)->send($own, $text, false);
     }
 
     protected function requesterSubmittedText($name, $reason, array $lines, $url = '')
@@ -1251,7 +1276,9 @@ class PayoutController extends Controller
         if ($name === '' || strcasecmp($name, 'Payout') === 0) {
             $name = 'Requestor';
         }
-        app(\App\Services\ClientNoticeService::class)->send($phone, $this->requesterPaidText($name, $this->systemName($line), $line->amount, $line->note, $this->reviewUrl($batch->id)), false);
+        $text = $this->requesterPaidText($name, $this->systemName($line), $line->amount, $line->note, $this->reviewUrl($batch->id));
+        app(\App\Services\ClientNoticeService::class)->send($phone, $text, false);
+        $this->copyToSignedInPhone($phone, $text);
     }
 
     protected function requesterPaidText($name, $paidTo, $amount, $reason, $url = '')

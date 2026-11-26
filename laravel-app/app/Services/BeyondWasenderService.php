@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\WhatsAppPhone;
+use Illuminate\Support\Facades\Cache;
 
 class BeyondWasenderService
 {
@@ -303,6 +304,10 @@ class BeyondWasenderService
             if (! $to) {
                 return ['success' => false, 'error' => 'Invalid WhatsApp number'];
             }
+            $digits = preg_replace('/\D/', '', $to);
+            if ($digits !== '' && Cache::has('wa-jid-missing:'.$digits)) {
+                return ['success' => false, 'error' => 'This number is not on WhatsApp.'];
+            }
 
             if ($stampReference) {
                 $message = \App\Support\LetterReference::applyToMessage((string) $message, 'whatsapp');
@@ -315,6 +320,10 @@ class BeyondWasenderService
             $decoded = $posted['decoded'];
             $http = (int) ($posted['http'] ?? 0);
             if (empty($posted['success'])) {
+                $failed = isset($posted['error']) ? (string) $posted['error'] : '';
+                if ($digits !== '' && stripos($failed, 'does not exist') !== false) {
+                    Cache::put('wa-jid-missing:'.$digits, 1, now()->addHours(12));
+                }
                 \Log::warning('[beyond-whatsapp] send failed', [
                     'error' => $posted['error'] ?? 'unknown',
                     'to' => $to,

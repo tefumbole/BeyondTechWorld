@@ -813,13 +813,12 @@
                             <li data-nav-key="payments">
                                 <a href="#payments" data-nav-key="payments" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-dollar"></i><span>Payments</span></a>
                                 <ul id="payments" class="collapse list-unstyled ">
-                                    <li id="payment-index-menu"><a href="{{route('payment.index')}}">Awaiting Payment</a></li>
-                                    <li id="momo-payments-menu"><a href="{{ route('momo.payments') }}">Momo Payments</a></li>
+                                    <li id="payment-index-menu"><a href="{{route('payment.index')}}">Awaiting Payments</a></li>
+                                    <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">Deposits: All pay ins</a></li>
                                     @if(Auth::check() && in_array((int) Auth::user()->role_id, [1, 2], true))
-                                        <li id="payout-index-menu"><a href="{{ route('payout.index') }}">Withdrawals</a></li>
+                                        <li id="payout-index-menu"><a href="{{ route('payout.index') }}">Withdrawal: All payout</a></li>
                                     @endif
-                                    <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">Deposits</a></li>
-                                    <li id="payment-transactions-menu"><a href="{{ route('payment.transactions') }}">Transactions</a></li>
+                                    <li id="payment-transactions-menu"><a href="{{ route('payment.transactions') }}">Transactions: All MoMo transactions</a></li>
                                 </ul>
                             </li>
                         @endif

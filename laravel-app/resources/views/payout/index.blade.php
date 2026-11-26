@@ -32,7 +32,7 @@
         <form method="POST" action="{{ route('payout.pending.delete') }}" id="pendingDeleteForm">@csrf</form>
         <form method="POST" action="{{ route('payout.approve_many') }}" id="pendingApproveForm">@csrf</form>
         <div class="pay-card-head">
-            <h2>Withdrawals</h2>
+            <h2>Withdrawal <span class="pay-muted">All payout</span></h2>
             @php
                 $canBulkPay = $deletablePayouts->count() > 0;
                 if (! $canBulkPay) {

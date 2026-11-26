@@ -251,8 +251,18 @@ class WhatsAppHubController extends Controller
             if (! $open) {
                 $open = ['jid' => $jid, 'name' => '+'.preg_replace('/\D/', '', strtok($jid, '@')), 'phone' => '', 'preview' => '', 'unread' => 0];
             }
+            $openDigits = preg_replace('/\D/', '', (string) strtok($jid, '@'));
             foreach ($engine->messages($phone) as $row) {
-                if ((string) ($row['from'] ?? '') === $jid) {
+                $from = (string) ($row['from'] ?? '');
+                if ($from === $jid) {
+                    $messages[] = $row;
+                    continue;
+                }
+                if (strpos($from, '@s.whatsapp.net') === false && strpos($from, '@g.us') === false) {
+                    continue;
+                }
+                $fromDigits = preg_replace('/\D/', '', (string) strtok($from, '@'));
+                if ($openDigits !== '' && $fromDigits !== '' && substr($fromDigits, -9) === substr($openDigits, -9)) {
                     $messages[] = $row;
                 }
             }

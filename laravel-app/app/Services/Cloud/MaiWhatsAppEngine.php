@@ -70,6 +70,7 @@ class MaiWhatsAppEngine
                 'phone' => $phoneDigits,
                 'preview' => isset($row['preview']) ? (string) $row['preview'] : '',
                 'unread' => isset($row['unread']) ? (int) $row['unread'] : 0,
+                'at' => isset($row['at']) ? (int) $row['at'] : 0,
             ];
         }
 

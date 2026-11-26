@@ -84,7 +84,7 @@
     @endif
 
     <div class="pay-card">
-        <div class="pay-card-head"><h2>Deposits</h2></div>
+        <div class="pay-card-head"><h2>Deposits <span class="pay-muted">All pay ins</span></h2></div>
         <form method="POST" action="{{ route('deposit.delete_selection') }}" id="depositsListForm">
             @csrf
             <div class="table-responsive">
