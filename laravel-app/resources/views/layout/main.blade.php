@@ -107,9 +107,12 @@
         <!-- Custom stylesheet - for your changes-->
         <link rel="stylesheet" href="<?php echo asset('public/css/custom-'.$general_setting->theme) ?>" type="text/css" id="custom-style">
         <link rel="stylesheet" href="<?php echo asset('public/css/beyond-shell.css') ?>?v={{ \App\Support\AppVersion::erp() }}" type="text/css">
+        @if(Route::is('asset.*', 'assetCategory.*', 'region.*', 'station.*', 'donor.*', 'expense_asset.*', 'activity_asset.*'))
+        <link rel="stylesheet" href="<?php echo asset('public/css/fixed-assets.css') ?>?v={{ \App\Support\AppVersion::erp() }}" type="text/css">
+        @endif
       </head>
 
-      <body onload="myFunction()" class="{{ Route::is('whatsapp.chats') ? 'whatsapp-hub-app' : '' }}">
+      <body onload="myFunction()" class="{{ trim((Route::is('whatsapp.chats') ? 'whatsapp-hub-app' : '').' '.(Route::is('asset.*', 'assetCategory.*', 'region.*', 'station.*', 'donor.*', 'expense_asset.*', 'activity_asset.*') ? 'fixed-assets-app' : '')) }}">
         <div id="loader" style="display:none"></div>
           <!-- Side Navbar -->
           <nav class="side-navbar">
@@ -1137,85 +1140,32 @@
                         @endif
                         {{--                    fixed assets--}}
                         <?php
-                        $index_permission = DB::table('permissions')->where('name', 'fixed_assets')->first();
-                        $index_permission_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $index_permission->id],
-                            ['role_id', $role->id]
-                        ])->first();
-                        $index_permission_report = DB::table('permissions')->where('name', 'fixed_assets_report')->first();
-                        $index_permission_report_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $index_permission_report->id],
-                            ['role_id', $role->id]
-                        ])->first();
-
-                        $asset_index = DB::table('permissions')->where('name', 'asset-index')->first();
-                        $asset_index_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $asset_index->id],
-                            ['role_id', $role->id]
-                        ])->first();
-
-                        $asset_add = DB::table('permissions')->where('name', 'asset-add')->first();
-                        $asset_add_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $asset_add->id],
-                            ['role_id', $role->id]
-                        ])->first();
-
-                        $donor_index = DB::table('permissions')->where('name', 'donor-index')->first();
-                        $donor_index_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $donor_index->id],
-                            ['role_id', $role->id]
-                        ])->first();
-
-                        $station_index = DB::table('permissions')->where('name', 'station-index')->first();
-                        $station_index_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $station_index->id],
-                            ['role_id', $role->id]
-                        ])->first();
-
-                        $region_index = DB::table('permissions')->where('name', 'region-index')->first();
-                        $region_index_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $region_index->id],
-                            ['role_id', $role->id]
-                        ])->first();
-
-                        $asset_type_index = DB::table('permissions')->where('name', 'asset-type-index')->first();
-                        $asset_type_index_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $asset_type_index->id],
-                            ['role_id', $role->id]
-                        ])->first();
-
-                        $activity_index = DB::table('permissions')->where('name', 'activity-index')->first();
-                        $activity_index_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $activity_index->id],
-                            ['role_id', $role->id]
-                        ])->first();
-
-                        $asset_expense_index = DB::table('permissions')->where('name', 'asset-expense-index')->first();
-                        $asset_expense_index_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $asset_expense_index->id],
-                            ['role_id', $role->id]
-                        ])->first();
-
-                        $asset_sale = DB::table('permissions')->where('name', 'asset-sale')->first();
-                        $asset_sale_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $asset_sale->id],
-                            ['role_id', $role->id]
-                        ])->first();
-
-                        $asset_transfer = DB::table('permissions')->where('name', 'asset-transfer')->first();
-                        $asset_transfer_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $asset_transfer->id],
-                            ['role_id', $role->id]
-                        ])->first();
-
-                        $asset_disppose = DB::table('permissions')->where('name', 'asset-disppose')->first();
-                        $asset_disppose_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $asset_disppose->id],
-                            ['role_id', $role->id]
-                        ])->first();
+                        $assetPerm = function ($name) use ($role) {
+                            $permission = DB::table('permissions')->where('name', $name)->first();
+                            if (!$permission) {
+                                return null;
+                            }
+                            return DB::table('role_has_permissions')->where([
+                                ['permission_id', $permission->id],
+                                ['role_id', $role->id]
+                            ])->first();
+                        };
+                        $index_permission_active = $assetPerm('fixed_assets');
+                        $index_permission_report_active = $assetPerm('fixed_assets_report');
+                        $asset_index_active = $assetPerm('asset-index');
+                        $asset_add_active = $assetPerm('asset-add');
+                        $donor_index_active = $assetPerm('donor-index');
+                        $station_index_active = $assetPerm('station-index');
+                        $region_index_active = $assetPerm('region-index');
+                        $asset_type_index_active = $assetPerm('asset-type-index');
+                        $activity_index_active = $assetPerm('activity-index');
+                        $asset_expense_index_active = $assetPerm('asset-expense-index');
+                        $asset_sale_active = $assetPerm('asset-sale');
+                        $asset_transfer_active = $assetPerm('asset-transfer');
+                        $asset_disppose_active = $assetPerm('asset-disppose');
                         ?>
-                        @if($index_permission_active || in_array((int) Auth::user()->role_id, [1, 2, 7, 19], true))
-                            <li data-nav-key="assets"><a href="{{ route('asset.dashboard') }}" data-nav-key="assets"> <i class="dripicons-home"></i><span>{{trans('file.Fixed Assets')}}</span></a>
+                        @if($index_permission_active || in_array((int) Auth::user()->role_id, [1, 2, 7, 17, 19], true))
+                            <li data-nav-key="assets"><a href="#assets" data-nav-key="assets" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-archive"></i><span>{{trans('file.Fixed Assets')}}</span></a>
                                 <ul id="assets" class="collapse list-unstyled ">
                                     @if($asset_index_active)<li id="assets-dashboard-menu"><a href="{{route('asset.dashboard')}}">{{trans('file.Assets Dashboard')}}</a></li>@endif
                                     @if($region_index_active)<li id="region-menu"><a href="{{route('region.index')}}">{{trans('file.Assets Region')}}</a></li>@endif
@@ -2866,7 +2816,22 @@
                   'jobs-apps-menu': 'dripicons-user-group',
                   'jobs-awaiting-menu': 'dripicons-clock',
                   'jobs-selected-menu': 'dripicons-checkmark',
-                  'jobs-rejected-menu': 'dripicons-wrong'
+                  'jobs-rejected-menu': 'dripicons-wrong',
+                  'assets-dashboard-menu': 'dripicons-meter',
+                  'region-menu': 'dripicons-location',
+                  'station-menu': 'dripicons-store',
+                  'donor-menu': 'dripicons-user',
+                  'assets-category-menu': 'dripicons-tags',
+                  'assets-add-menu': 'dripicons-plus',
+                  'assets-list-menu': 'dripicons-view-list',
+                  'assets-activity-menu-repair': 'fa fa-wrench',
+                  'assets-activity-menu': 'dripicons-document',
+                  'assets-expense-menu': 'dripicons-card',
+                  'assets-dispose-menu': 'dripicons-trash',
+                  'assets-transfer-menu': 'dripicons-swap',
+                  'assets-sale-menu': 'dripicons-cart',
+                  'assets-report-menu': 'dripicons-graph-bar',
+                  'assets-report-menu-refined': 'dripicons-graph-pie'
               };
 
               function resolveTabIcon($link, $parentLink) {

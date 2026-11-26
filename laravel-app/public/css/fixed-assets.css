@@ -1,0 +1,181 @@
+body.fixed-assets-app {
+    color: #1f2a44;
+}
+
+body.fixed-assets-app .brand-text h3 {
+    color: #072f6b;
+    font-weight: 750;
+}
+
+body.fixed-assets-app .brand-text h3 span {
+    color: #0b3f90;
+}
+
+body.fixed-assets-app .card,
+body.fixed-assets-app .count-title,
+body.fixed-assets-app .modal-content {
+    border: 1px solid #d5deee;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(11, 63, 144, .04);
+}
+
+body.fixed-assets-app .card-header {
+    background: #f3f6fb;
+    border-bottom: 1px solid #e8eef8;
+    border-radius: 16px 16px 0 0;
+    color: #0b3f90;
+}
+
+body.fixed-assets-app .card-header h4,
+body.fixed-assets-app h1,
+body.fixed-assets-app h2,
+body.fixed-assets-app h3,
+body.fixed-assets-app h4 {
+    color: #072f6b;
+}
+
+body.fixed-assets-app .count-title {
+    margin-bottom: 16px;
+    padding: 18px 12px;
+}
+
+body.fixed-assets-app .count-title i,
+body.fixed-assets-app .count-title strong,
+body.fixed-assets-app .count-title a {
+    color: #0b3f90 !important;
+}
+
+body.fixed-assets-app .count-title .count-number {
+    color: #072f6b;
+    font-weight: 800;
+}
+
+body.fixed-assets-app [style*="lightgrey"],
+body.fixed-assets-app [style*="lightgray"] {
+    background: #fff !important;
+    border: 1px solid #d5deee !important;
+    border-radius: 16px !important;
+    box-shadow: 0 1px 2px rgba(11, 63, 144, .04);
+}
+
+body.fixed-assets-app .table thead th,
+body.fixed-assets-app table.dataTable thead th,
+body.fixed-assets-app table.dataTable thead td {
+    background: #f3f6fb !important;
+    color: #0b3f90 !important;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    border-bottom: 1px solid #d5deee !important;
+}
+
+body.fixed-assets-app .table td,
+body.fixed-assets-app .table th {
+    border-color: #e8eef8;
+    vertical-align: middle;
+}
+
+body.fixed-assets-app .table-responsive {
+    overflow: hidden;
+    border: 1px solid #d5deee;
+    border-radius: 16px;
+    background: #fff;
+}
+
+body.fixed-assets-app .btn {
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+body.fixed-assets-app .btn-primary,
+body.fixed-assets-app .btn-info {
+    background: #0b3f90 !important;
+    border-color: #0b3f90 !important;
+    color: #fff !important;
+}
+
+body.fixed-assets-app .btn-primary:hover,
+body.fixed-assets-app .btn-info:hover,
+body.fixed-assets-app .btn-primary:focus,
+body.fixed-assets-app .btn-info:focus {
+    background: #072f6b !important;
+    border-color: #072f6b !important;
+}
+
+body.fixed-assets-app .btn-warning {
+    background: #c6ab47 !important;
+    border-color: #c6ab47 !important;
+    color: #072f6b !important;
+}
+
+body.fixed-assets-app .btn-danger {
+    background: #fdecec !important;
+    border-color: #fdecec !important;
+    color: #9b1c1c !important;
+}
+
+body.fixed-assets-app .btn-danger:hover {
+    background: #9b1c1c !important;
+    border-color: #9b1c1c !important;
+    color: #fff !important;
+}
+
+body.fixed-assets-app .filter-toggle .btn-secondary {
+    border-radius: 999px;
+    border-color: #d5deee;
+    background: #fff;
+    color: #0b3f90;
+    font-weight: 700;
+}
+
+body.fixed-assets-app .filter-toggle .btn-secondary.active,
+body.fixed-assets-app .filter-toggle .date-btn.active {
+    background: #0b3f90 !important;
+    border-color: #0b3f90 !important;
+    color: #fff !important;
+}
+
+body.fixed-assets-app .form-control,
+body.fixed-assets-app .bootstrap-select > .dropdown-toggle {
+    min-height: 42px;
+    border-color: #d5deee;
+    border-radius: 10px;
+    color: #1f2a44;
+}
+
+body.fixed-assets-app .form-control:focus {
+    border-color: #0b3f90;
+    box-shadow: 0 0 0 3px rgba(11, 63, 144, .12);
+}
+
+body.fixed-assets-app a {
+    color: #0b3f90;
+}
+
+body.fixed-assets-app .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+body.fixed-assets-app .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+    background: #0b3f90 !important;
+    border-color: #0b3f90 !important;
+    color: #fff !important;
+}
+
+body.fixed-assets-app .dt-buttons .btn {
+    margin-right: 6px;
+    background: #f3f6fb;
+    border: 1px solid #c6ab47;
+    color: #0b3f90 !important;
+}
+
+body.fixed-assets-app .alert-success {
+    background: #e7f6ee;
+    border-color: #e7f6ee;
+    color: #146c43;
+}
+
+body.fixed-assets-app .alert-danger {
+    background: #fdecec;
+    border-color: #fdecec;
+    color: #9b1c1c;
+}
