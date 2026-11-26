@@ -19,10 +19,14 @@ class MaiWhatsAppController extends Controller
         }
         $engine = app(MaiWhatsAppEngine::class);
         $engine->open($user->phone);
+        $session = $engine->status($user->phone, true);
+        if (($session['status'] ?? '') === 'CONNECTED') {
+            return redirect()->route('whatsapp.mai.home');
+        }
 
         return view('cloud.portal.mai_link', [
             'phone' => $user->phone,
-            'session' => $engine->status($user->phone, true),
+            'session' => $session,
             'linkTab' => session('link_tab') === 'code' ? 'code' : 'qr',
             'otpSent' => (bool) session('link_otp_sent'),
         ]);

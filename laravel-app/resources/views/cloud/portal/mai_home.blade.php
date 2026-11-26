@@ -41,11 +41,11 @@
             @else
                 <p>This computer is open for {{ $user->phone }}. WhatsApp is not linked yet, so there is nothing to open until the phone approves the QR code or the link code.</p>
                 @if(!empty($session['error']))<p class="note">{{ $session['error'] }}</p>@endif
+                <p><a href="{{ route('whatsapp.mai.link') }}" style="color:#F5D76E;">Link WhatsApp</a></p>
+                <p><a class="gold" href="{{ route('whatsapp.mai.plan') }}">Choose a longer plan</a></p>
+                <button type="button" id="install-android" class="gold">Install on Android</button>
+                <p id="install-note" hidden>On Android, open this page in Chrome, tap the menu, then Install app or Add to Home screen.</p>
             @endif
-            <p><a href="{{ route('whatsapp.mai.link') }}" style="color:#F5D76E;">Link WhatsApp</a></p>
-            <p><a class="gold" href="{{ route('whatsapp.mai.plan') }}">Choose a longer plan</a></p>
-            <button type="button" id="install-android" class="gold">Install on Android</button>
-            <p id="install-note" hidden>On Android, open this page in Chrome, tap the menu, then Install app or Add to Home screen.</p>
         </div>
     </div>
 </section>

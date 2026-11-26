@@ -460,12 +460,37 @@ class CloudPortalController extends Controller
         $engine->open($user->phone);
 
         $state = $engine->status($user->phone, true);
+        if (($state['status'] ?? '') === 'CONNECTED' && $this->opensStaffChats()) {
+            return redirect()->route('whatsapp.chats');
+        }
 
         return view('cloud.portal.mai_home', [
             'user' => $user,
             'session' => $state,
             'messages' => ($state['status'] ?? '') === 'CONNECTED' ? $engine->messages($user->phone) : [],
         ]);
+    }
+
+    protected function opensStaffChats()
+    {
+        $user = Auth::user();
+        if (! $user || ! $user->role_id) {
+            return false;
+        }
+        $role = \Spatie\Permission\Models\Role::find($user->role_id);
+        if (! $role) {
+            return false;
+        }
+        foreach (['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage', 'whatsapp.reply'] as $name) {
+            try {
+                if ($role->hasPermissionTo($name)) {
+                    return true;
+                }
+            } catch (\Exception $e) {
+            }
+        }
+
+        return false;
     }
 
     protected function beginFreeMai(Request $request)
