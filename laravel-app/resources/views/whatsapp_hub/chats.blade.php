@@ -127,7 +127,24 @@
     .bubble .tick.failed { color: #e5484d; }
     .bubble img.chat-photo { display: block; max-width: 280px; width: 100%; border-radius: 10px; margin-bottom: 5px; }
     .bubble audio, .bubble video { display: block; max-width: 280px; width: 100%; margin-bottom: 5px; border-radius: 10px; }
-    .bubble a.chat-file { color: #1565c0; font-weight: 700; }
+    .bubble a.chat-file, .bubble a.chat-link { color: #0b3f90; font-weight: 700; text-decoration: underline; word-break: break-all; }
+    .bubble .quote { display: block; margin: 0 0 4px; padding: 4px 8px; border-left: 3px solid #c6ab47; border-radius: 8px; background: rgba(11, 63, 144, .06); color: #3b4a68; font-size: 12px; }
+    .bubble .forwarded, .bubble .edited { font-size: 11px; font-weight: 800; color: #8b93a3; }
+    .bubble .forwarded { display: block; margin-bottom: 2px; }
+    .bubble.is-deleted { font-style: italic; color: #8b93a3; }
+    .bubble.is-star span.star { color: #c6ab47; }
+    .quote-bar { display: flex; align-items: center; gap: 8px; margin: 0 14px; padding: 8px 12px; border-left: 3px solid #c6ab47; border-radius: 12px; background: #f4f7ff; color: #16315c; font-size: 13px; font-weight: 700; }
+    .quote-bar[hidden] { display: none !important; }
+    .quote-bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .quote-bar button { border: 0; background: transparent; color: #6b7a99; font-size: 20px; cursor: pointer; }
+    .msg-actions { display: flex; flex-direction: column; gap: 8px; }
+    .msg-edit[hidden], .msg-actions[hidden], .msg-actions button[hidden] { display: none !important; }
+    .msg-actions button, .msg-edit button { min-height: 44px; border: 0; border-radius: 14px; background: #f3f6fb; color: #0b3f90; font-weight: 800; cursor: pointer; }
+    .msg-actions button.danger { background: #fde8e8; color: #9b1c1c; }
+    .msg-edit textarea { width: 100%; min-height: 90px; border: 1px solid #d5deee; border-radius: 14px; padding: 10px; font: inherit; }
+    .msg-edit { display: flex; flex-direction: column; gap: 8px; }
+    .forward-list { max-height: 320px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+    .forward-list button { text-align: left; min-height: 42px; border: 0; border-radius: 12px; background: #f3f6fb; color: #16315c; font-weight: 700; padding: 0 12px; cursor: pointer; }
     .bubble .who { display: block; font-size: 12px; font-weight: 800; color: #7c5cff; margin-bottom: 2px; }
     .bubble .choices { clear: both; display: flex; flex-direction: column; gap: 5px; margin-top: 7px; }
     .bubble .choice { display: block; background: rgba(255,255,255,.8); border: 1px solid #d8e2f2; border-radius: 10px; padding: 7px 10px; font-size: 13px; line-height: 1.3; color: #1565c0; font-weight: 600; }
@@ -410,8 +427,17 @@
                     </form>
                 </div>
             </header>
-            @if(session('message'))<div class="chat-note">{{ session('message') }}</div>@endif
-            @if(session('not_permitted'))<div class="chat-note">{{ session('not_permitted') }}</div>@endif
+            @php
+                $liveNote = session('message') ?: session('not_permitted');
+                if (! $liveNote && ! empty($destination['enabled']) && empty($destination['off']) && ! empty($destination['locked']) && ! empty($destination['name'])) {
+                    $staffWrite = ! empty($staffLanguage['name']) ? $staffLanguage['name'] : 'your language';
+                    $liveNote = 'Everything you send in this chat goes out in '.$destination['name'].', until you change it. If they write in '.$staffWrite.', you still see it that way.';
+                } elseif (! $liveNote && ! empty($destination['enabled']) && empty($destination['off']) && empty($destination['code'])) {
+                    $staffWrite = ! empty($staffLanguage['name']) ? $staffLanguage['name'] : 'your language';
+                    $liveNote = 'This chat detects their language. If they write in '.$staffWrite.', you still see it that way.';
+                }
+            @endphp
+            @if($liveNote)<div class="chat-note" id="chatNote">{{ $liveNote }}</div>@endif
             <div class="chat-live" id="chatLive">Reconnecting…</div>
             <div class="chats-stream" id="chatStream">
                 @if(!empty($hasEarlier) && $messages->first())
@@ -448,6 +474,13 @@
                         'who' => null,
                         'choices' => app(\App\Services\Event\EventOptionPresentation::class)->displayChoices($message->body, $message->media_json),
                         'voicePending' => $message->direction === \App\WhatsApp\WhatsAppMessage::DIR_IN && strtoupper((string) $message->type) === 'AUDIO' && trim((string) (isset($message->translationMeta()['english']) ? $message->translationMeta()['english'] : '')) === '',
+                        'quote' => $message->quoteText(),
+                        'starred' => $message->isStarred(),
+                        'edited' => $message->wasEdited(),
+                        'deleted' => $message->wasDeleted(),
+                        'forwarded' => $message->isForwarded(),
+                        'canEdit' => $message->canEditOnWhatsApp(),
+                        'canDrop' => $message->canDeleteForEveryone(),
                     ])
                 @empty
                     <div class="chats-empty"><strong>No messages yet</strong>Send the first message below.</div>
@@ -482,6 +515,7 @@
                         @if($replyHint !== '')<em>{{ $replyHint }}</em>@endif
                     </button>
                 </div>
+                <div class="quote-bar" id="quoteBar" hidden><span id="quoteText"></span><button type="button" id="quoteClear" aria-label="Cancel reply">×</button></div>
                 <form id="replyLangForm" method="POST" action="{{ route('whatsapp.chats.language', $open->id) }}" hidden>
                     @csrf
                     <input type="hidden" name="language" id="replyLangValue" value="{{ $replyCode }}">
@@ -647,6 +681,7 @@
     <div class="chats-stream" id="chatStream"></div>
     @if($canReply)
     <div class="reply-bar"><button type="button" class="reply-pick" id="openReplyLang"><span>Reply in</span><strong id="threadReplyName">Off</strong></button></div>
+    <div class="quote-bar" id="quoteBar" hidden><span id="quoteText"></span><button type="button" id="quoteClear" aria-label="Cancel reply">×</button></div>
     <form id="replyLangForm" method="POST" action="" hidden>@csrf<input type="hidden" name="language" id="replyLangValue" value="off"></form>
     <form class="chats-compose" id="chatCompose" method="POST" action="" enctype="multipart/form-data">
         @csrf
@@ -733,6 +768,42 @@
 </div>
 @endif
 @include('whatsapp_hub.partials.local_time')
+<div class="lang-sheet" id="msgSheet">
+    <div class="lang-card">
+        <header>
+            <h3 id="msgSheetText">Message</h3>
+            <button type="button" class="lang-close" data-close="msgSheet" aria-label="Close">×</button>
+        </header>
+        <div class="msg-actions" id="msgActions">
+            <button type="button" data-act="reply">Reply</button>
+            <button type="button" data-act="copy">Copy</button>
+            <button type="button" data-act="forward">Forward</button>
+            <button type="button" data-act="star">Star</button>
+            <button type="button" data-act="edit">Edit</button>
+            <button type="button" data-act="delete" class="danger">Delete</button>
+        </div>
+        <form class="msg-edit" id="msgEdit" hidden>
+            <textarea id="msgEditBody" maxlength="4000"></textarea>
+            <button type="submit">Save</button>
+            <button type="button" data-act="cancel-edit">Cancel</button>
+        </form>
+        <div class="msg-actions" id="msgDelete" hidden>
+            <button type="button" data-act="delete-me" class="danger">Delete for me</button>
+            <button type="button" data-act="delete-all" class="danger">Delete for everyone</button>
+            <button type="button" data-act="cancel-delete">Cancel</button>
+        </div>
+    </div>
+</div>
+<div class="lang-sheet" id="forwardSheet">
+    <div class="lang-card">
+        <header>
+            <h3>Forward to</h3>
+            <button type="button" class="lang-close" data-close="forwardSheet" aria-label="Close">×</button>
+        </header>
+        <input class="lang-filter" id="forwardSearch" type="search" placeholder="Search a name" autocomplete="off">
+        <div class="forward-list" id="forwardList"></div>
+    </div>
+</div>
 <div class="emoji-box" id="emojiBox" hidden></div>
 <script>
 (function () {
@@ -932,6 +1003,17 @@
         }
     });
     document.addEventListener('submit', function (event) {
+        if (event.target && event.target.id === 'msgEdit') {
+            event.preventDefault();
+            if (!activeMessage) return;
+            var box = document.getElementById('msgEditBody');
+            messagePost(activeMessage.getAttribute('data-id'), 'edit', { text: box ? box.value : '' }).then(function (payload) {
+                if (!payload || !payload._ok) { window.alert((payload && payload.error) || 'Edit failed.'); return; }
+                if (payload.message) replaceBubble(payload.message);
+                closeSheet('msgSheet');
+            });
+            return;
+        }
         var form = event.target;
         if (!form || !form.classList || !form.classList.contains('chats-compose')) return;
         var action = form.getAttribute('action') || '';
@@ -989,6 +1071,8 @@
     });
     var chatPage = @json(route('whatsapp.chats'));
     var openChat = {{ $open ? (int) $open->id : 0 }};
+    var quoteId = 0;
+    var activeMessage = null;
     var openGroup = @json($group ? $group['jid'] : '');
     var listStamp = '';
     var seen = {{ ($open && $messages->last()) ? (int) $messages->last()->id : 0 }};
@@ -998,6 +1082,15 @@
     function esc(value) {
         return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
             return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+        });
+    }
+    function linkify(value) {
+        var text = esc(value);
+        return text.replace(/(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi, function (raw) {
+            var display = raw.replace(/[.,);]+$/, '');
+            var tail = raw.slice(display.length);
+            var href = /^www\./i.test(display) ? 'https://' + display : display;
+            return '<a class="chat-link" href="' + href + '" target="_blank" rel="noopener">' + display + '</a>' + tail;
         });
     }
     function tickHtml(tick) {
@@ -1023,12 +1116,24 @@
         var at = message.at || '';
         var dayKey = at && window.hubDayKey ? window.hubDayKey(at) : (message.day || '');
         var clock = at && window.hubClock ? window.hubClock(at) : (message.time || '');
-        return '<div class="bubble ' + (message.out ? 'out' : 'in') + '" data-id="' + message.id + '"' + (message.needs_voice ? ' data-voice="' + message.id + '"' : '') + ' data-day="' + esc(dayKey) + '"' + (at ? ' data-at="' + esc(at) + '"' : '') + '>'
+        return '<div class="bubble ' + (message.out ? 'out' : 'in') + (message.deleted ? ' is-deleted' : '') + (message.starred ? ' is-star' : '') + '" data-id="' + message.id + '"'
+            + (message.out ? ' data-out="1"' : '')
+            + (message.can_edit ? ' data-edit="1"' : '')
+            + (message.can_drop ? ' data-drop="1"' : '')
+            + (message.starred ? ' data-star="1"' : '')
+            + (message.deleted ? ' data-deleted="1"' : '')
+            + (message.needs_voice ? ' data-voice="' + message.id + '"' : '')
+            + ' data-day="' + esc(dayKey) + '"' + (at ? ' data-at="' + esc(at) + '"' : '') + '>'
             + (message.who ? '<span class="who">' + esc(message.who) + '</span>' : '')
+            + (message.forwarded ? '<span class="forwarded">Forwarded</span>' : '')
+            + (message.quote ? '<span class="quote">' + linkify(message.quote) + '</span>' : '')
             + media
-            + (message.text ? '<span class="body">' + esc(message.text) + '</span>' : '')
-            + (message.aside ? '<span class="aside">' + esc(message.aside) + '</span>' : '')
-            + '<time' + (at ? ' data-at="' + esc(at) + '"' : '') + '><span class="clock">' + esc(clock) + '</span>' + (message.out ? tickHtml(message.tick) : '') + '</time></div>';
+            + (message.text ? '<span class="body">' + linkify(message.text) + '</span>' : '')
+            + (message.aside ? '<span class="aside">' + linkify(message.aside) + '</span>' : '')
+            + '<time' + (at ? ' data-at="' + esc(at) + '"' : '') + '><span class="clock">' + esc(clock) + '</span>'
+            + (message.edited ? '<span class="edited">Edited</span>' : '')
+            + (message.starred ? '<span class="star">★</span>' : '')
+            + (message.out ? tickHtml(message.tick) : '') + '</time></div>';
     }
     function nearBottom(node) {
         return node.scrollHeight - node.scrollTop - node.clientHeight < 140;
@@ -1189,6 +1294,37 @@
             });
         }
     }
+    function chatWarning(chat) {
+        var dest = chat.destination || {};
+        var staff = (chat.staff && chat.staff.name) ? chat.staff.name : 'your language';
+        if (dest.off || (dest.code && !dest.enabled)) return '';
+        if (dest.locked && dest.name) {
+            return 'Everything you send in this chat goes out in ' + dest.name + ', until you change it. If they write in ' + staff + ', you still see it that way.';
+        }
+        if (dest.enabled && !dest.code) {
+            return 'This chat detects their language. If they write in ' + staff + ', you still see it that way.';
+        }
+        return '';
+    }
+    function showChatNote(text) {
+        var thread = document.querySelector('.chats-thread');
+        if (!thread) return;
+        var note = document.getElementById('chatNote');
+        if (!text) {
+            thread.querySelectorAll('.chat-note').forEach(function (node) { node.remove(); });
+            return;
+        }
+        if (!note || !thread.contains(note)) {
+            thread.querySelectorAll('.chat-note').forEach(function (node) { node.remove(); });
+            note = document.createElement('div');
+            note.className = 'chat-note';
+            note.id = 'chatNote';
+            var head = thread.querySelector('.chats-head');
+            if (head) head.insertAdjacentElement('afterend', note);
+            else thread.insertAdjacentElement('afterbegin', note);
+        }
+        note.textContent = text;
+    }
     function applyChat(data) {
         var chat = data.chat || {};
         openChat = chat.id || 0;
@@ -1263,6 +1399,7 @@
                 kept.hidden = true;
             }
         }
+        showChatNote(chatWarning(chat));
         var replyValue = document.getElementById('replyLangValue');
         if (replyValue) replyValue.value = replyCode;
         document.querySelectorAll('#replyList .lang-option').forEach(function (option) {
@@ -1348,12 +1485,14 @@
         var data = new FormData(form);
         if (!picked && held) data.append('file', held, held.name || 'pasted-file');
         data.append('send_token', token);
+        if (quoteId) data.append('quote_id', quoteId);
         if (typed) {
             placeMessages([{ id: pendingId, out: true, text: typed, time: '', at: new Date().toISOString(), tick: 'queued', type: 'TEXT', media: '', name: '', aside: '', day: '' }], false);
         }
         if (field) field.value = '';
         if (picker) picker.value = '';
         showPicked(null);
+        clearQuote();
         fetch(form.getAttribute('action'), {
             method: 'POST',
             body: data,
@@ -1442,7 +1581,7 @@
                             var time = bubble.querySelector('time');
                             bubble.insertBefore(body, time || null);
                         }
-                        body.textContent = message.text;
+                        body.innerHTML = linkify(message.text);
                         var aside = bubble.querySelector('.aside');
                         if (message.aside) {
                             if (!aside) {
@@ -1450,7 +1589,7 @@
                                 aside.className = 'aside';
                                 body.insertAdjacentElement('afterend', aside);
                             }
-                            aside.textContent = message.aside;
+                            aside.innerHTML = linkify(message.aside);
                         }
                     });
                     paintTicks(data.ticks || []);
@@ -1489,7 +1628,169 @@
     });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
     function liveReady() { return true; }
+    function clearQuote() {
+        quoteId = 0;
+        var bar = document.getElementById('quoteBar');
+        if (bar) bar.hidden = true;
+    }
+    function setQuote(id, text) {
+        quoteId = id;
+        var bar = document.getElementById('quoteBar');
+        var label = document.getElementById('quoteText');
+        if (label) label.textContent = text || 'Reply';
+        if (bar) bar.hidden = false;
+        var field = document.getElementById('chatBody');
+        if (field) field.focus();
+    }
+    function messageBody(bubble) {
+        var body = bubble ? bubble.querySelector('.body') : null;
+        return body ? body.textContent : '';
+    }
+    function messagePost(id, action, fields) {
+        var data = new FormData();
+        data.append('_token', csrfToken());
+        Object.keys(fields || {}).forEach(function (key) { data.append(key, fields[key]); });
+        return fetch(chatPage + '/' + openChat + '/messages/' + id + '/' + action, {
+            method: 'POST',
+            body: data,
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
+        }).then(function (response) {
+            return response.json().then(function (payload) { payload._ok = response.ok; return payload; });
+        });
+    }
+    function replaceBubble(message) {
+        if (!message) return;
+        var node = document.querySelector('#chatStream .bubble[data-id="' + message.id + '"]');
+        var html = bubbleHtml(message);
+        if (node) node.outerHTML = html;
+        else placeMessages([message], false);
+    }
+    function resetMessageSheet() {
+        var actions = document.getElementById('msgActions');
+        var edit = document.getElementById('msgEdit');
+        var drop = document.getElementById('msgDelete');
+        if (actions) actions.hidden = false;
+        if (edit) edit.hidden = true;
+        if (drop) drop.hidden = true;
+    }
+    function openMessageMenu(bubble) {
+        if (!bubble || openGroup || !openChat) return;
+        activeMessage = bubble;
+        resetMessageSheet();
+        var deleted = bubble.getAttribute('data-deleted') === '1';
+        var text = messageBody(bubble);
+        var title = document.getElementById('msgSheetText');
+        if (title) title.textContent = text ? text.slice(0, 80) : 'Message';
+        document.querySelectorAll('#msgActions button').forEach(function (button) {
+            var act = button.getAttribute('data-act');
+            var show = true;
+            if (deleted && act !== 'delete') show = false;
+            if (act === 'edit' && bubble.getAttribute('data-edit') !== '1') show = false;
+            if (act === 'copy' && !text) show = false;
+            if (act === 'star') button.textContent = bubble.getAttribute('data-star') === '1' ? 'Unstar' : 'Star';
+            button.hidden = !show;
+        });
+        var everyone = document.querySelector('[data-act="delete-all"]');
+        if (everyone) everyone.hidden = bubble.getAttribute('data-drop') !== '1';
+        openSheet('msgSheet');
+    }
+    function openForwardList() {
+        var list = document.getElementById('forwardList');
+        var rows = document.querySelectorAll('.chat-row[data-kind="person"]');
+        if (!list) return;
+        list.innerHTML = '';
+        rows.forEach(function (row) {
+            var id = row.getAttribute('data-id');
+            if (!id || String(id) === String(openChat)) return;
+            var name = row.querySelector('.chat-name');
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.setAttribute('data-to', id);
+            button.textContent = name ? name.textContent : 'Chat';
+            list.appendChild(button);
+        });
+        if (!list.children.length) {
+            list.innerHTML = '<p>No other chat to forward to.</p>';
+        }
+        closeSheet('msgSheet');
+        openSheet('forwardSheet');
+    }
+    var forwardSearch = document.getElementById('forwardSearch');
+    if (forwardSearch) {
+        forwardSearch.addEventListener('input', function () {
+            var query = forwardSearch.value.trim().toLowerCase();
+            document.querySelectorAll('#forwardList button').forEach(function (button) {
+                button.hidden = query !== '' && button.textContent.toLowerCase().indexOf(query) === -1;
+            });
+        });
+    }
     document.addEventListener('click', function (event) {
+        var quoteClear = event.target.closest && event.target.closest('#quoteClear');
+        if (quoteClear) { clearQuote(); return; }
+        var act = event.target.closest && event.target.closest('[data-act]');
+        if (act && activeMessage) {
+            var id = activeMessage.getAttribute('data-id');
+            var action = act.getAttribute('data-act');
+            if (action === 'reply') {
+                setQuote(id, messageBody(activeMessage));
+                closeSheet('msgSheet');
+                return;
+            }
+            if (action === 'copy') {
+                var copied = messageBody(activeMessage);
+                if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(copied);
+                closeSheet('msgSheet');
+                return;
+            }
+            if (action === 'forward') { openForwardList(); return; }
+            if (action === 'star') {
+                messagePost(id, 'star').then(function (payload) {
+                    if (payload && payload._ok && payload.message) replaceBubble(payload.message);
+                    closeSheet('msgSheet');
+                });
+                return;
+            }
+            if (action === 'edit') {
+                var box = document.getElementById('msgEditBody');
+                if (box) box.value = messageBody(activeMessage);
+                document.getElementById('msgActions').hidden = true;
+                document.getElementById('msgEdit').hidden = false;
+                return;
+            }
+            if (action === 'delete') {
+                document.getElementById('msgActions').hidden = true;
+                document.getElementById('msgDelete').hidden = false;
+                return;
+            }
+            if (action === 'cancel-edit' || action === 'cancel-delete') { resetMessageSheet(); return; }
+            if (action === 'delete-me' || action === 'delete-all') {
+                messagePost(id, 'delete', { everyone: action === 'delete-all' ? '1' : '0' }).then(function (payload) {
+                    if (!payload || !payload._ok) { window.alert((payload && payload.error) || 'Delete failed.'); return; }
+                    if (payload.removed) {
+                        var node = document.querySelector('#chatStream .bubble[data-id="' + id + '"]');
+                        if (node) node.remove();
+                    } else if (payload.message) replaceBubble(payload.message);
+                    closeSheet('msgSheet');
+                });
+                return;
+            }
+        }
+        var forwardTo = event.target.closest && event.target.closest('#forwardList button');
+        if (forwardTo && activeMessage) {
+            messagePost(activeMessage.getAttribute('data-id'), 'forward', { to: forwardTo.getAttribute('data-to') }).then(function (payload) {
+                if (!payload || !payload._ok) { window.alert((payload && payload.error) || 'Forward failed.'); return; }
+                showChatNote(payload.notice || 'Forwarded.');
+                closeSheet('forwardSheet');
+            });
+            return;
+        }
+        var bubble = event.target.closest && event.target.closest('#chatStream .bubble');
+        if (bubble && !(event.target.closest && event.target.closest('a, audio, video, button'))) {
+            var selected = window.getSelection ? String(window.getSelection()) : '';
+            if (!selected) openMessageMenu(bubble);
+            return;
+        }
         var back = event.target.closest && event.target.closest('a.chat-back');
         if (back) {
             event.preventDefault();

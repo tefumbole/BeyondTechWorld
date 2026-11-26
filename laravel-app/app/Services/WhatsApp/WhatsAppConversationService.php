@@ -315,6 +315,12 @@ class WhatsAppConversationService
                 continue;
             }
             if ($incomingId !== '' && (string) $echo->provider_message_id !== $incomingId && preg_match('/^\d+$/', (string) $echo->provider_message_id)) {
+                $media = $echo->media();
+                if (empty($media['wasender_id'])) {
+                    $media['wasender_id'] = (string) $echo->provider_message_id;
+                }
+                $media['wa_id'] = $incomingId;
+                $echo->media_json = json_encode($media);
                 $echo->provider_message_id = $incomingId;
                 $echo->save();
             }
@@ -577,7 +583,7 @@ class WhatsAppConversationService
         }
     }
 
-    public function reply(WhatsAppConversation $conversation, $body, $userId = null)
+    public function reply(WhatsAppConversation $conversation, $body, $userId = null, WhatsAppMessage $quote = null)
     {
         $body = trim((string) $body);
         if ($body === '') {
@@ -625,17 +631,24 @@ class WhatsAppConversationService
         if ($translation) {
             $sendBody = $translation['text'];
         }
+        $quoteWasender = $quote ? $quote->wasenderId() : '';
+        $quoteSnippet = '';
+        if ($quote) {
+            $quoteSnippet = trim(preg_replace('/\s+/u', ' ', (string) ($quote->body !== '' ? $quote->body : $quote->hubText())));
+            if (function_exists('mb_substr')) {
+                $quoteSnippet = mb_substr($quoteSnippet, 0, 140);
+            }
+            if ($quoteWasender === '' && $quoteSnippet !== '') {
+                $sendBody = "↩ ".$quoteSnippet."\n".$sendBody;
+            }
+        }
         $message = WhatsAppMessage::create([
             'conversation_id' => $conversation->id,
             'contact_id' => $contact->id,
             'direction' => WhatsAppMessage::DIR_OUT,
             'type' => 'TEXT',
             'body' => $sendBody,
-            'media_json' => $translation ? json_encode(['translation' => [
-                'staff' => $translation['staff'],
-                'language' => $translation['language'],
-                'language_name' => $translation['language_name'],
-            ]]) : null,
+            'media_json' => $this->replyMedia($translation, $quote, $quoteSnippet),
             'status' => WhatsAppMessage::STATUS_QUEUED,
             'sender_type' => 'STAFF',
             'sender_user_id' => $userId,
@@ -649,12 +662,25 @@ class WhatsAppConversationService
             $message->save();
             $result = ['success' => true, 'msg_id' => $message->provider_message_id, 'channel' => 'website'];
         } else {
-            $result = $this->provider->sendText($contact->normalized_phone, $sendBody);
+            if ($quoteWasender !== '') {
+                $result = app(\App\Services\BeyondWasenderService::class)->sendTextRaw(
+                    $contact->normalized_phone,
+                    $sendBody,
+                    false,
+                    true,
+                    30,
+                    true,
+                    $quoteWasender
+                );
+            } else {
+                $result = $this->provider->sendText($contact->normalized_phone, $sendBody);
+            }
             if (! empty($result['success'])) {
                 $msgId = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
                 $message->provider_message_id = $msgId ?: null;
                 $message->status = WhatsAppMessage::STATUS_SENT;
                 $message->sent_at = now();
+                $this->keepWasenderId($message, $msgId);
                 $message->save();
             } else {
                 $message->status = WhatsAppMessage::STATUS_FAILED;
@@ -689,6 +715,184 @@ class WhatsAppConversationService
         $result['message'] = $message;
 
         return $result;
+    }
+
+    protected function replyMedia($translation, $quote, $quoteSnippet)
+    {
+        $media = [];
+        if ($translation) {
+            $media['translation'] = [
+                'staff' => $translation['staff'],
+                'language' => $translation['language'],
+                'language_name' => $translation['language_name'],
+            ];
+        }
+        if ($quote && $quoteSnippet !== '') {
+            $media['quote'] = [
+                'id' => (int) $quote->id,
+                'text' => $quoteSnippet,
+            ];
+        }
+
+        return $media ? json_encode($media) : null;
+    }
+
+    protected function keepWasenderId(WhatsAppMessage $message, $msgId)
+    {
+        if ($msgId === null || ! preg_match('/^\d+$/', (string) $msgId)) {
+            return;
+        }
+        $media = $message->media();
+        $media['wasender_id'] = (string) $msgId;
+        $message->media_json = json_encode($media);
+    }
+
+    public function editOutgoing(WhatsAppConversation $conversation, WhatsAppMessage $message, $text)
+    {
+        $text = trim((string) $text);
+        if ((int) $message->conversation_id !== (int) $conversation->id || $message->direction !== WhatsAppMessage::DIR_OUT) {
+            return ['success' => false, 'error' => 'That message is not in this chat.'];
+        }
+        if ($text === '') {
+            return ['success' => false, 'error' => 'Write the new message first.'];
+        }
+        if (! $message->canEditOnWhatsApp()) {
+            return ['success' => false, 'error' => 'WhatsApp only lets you edit a message for 15 minutes after it is sent.'];
+        }
+        $translator = app(WhatsAppTranslator::class);
+        $sendBody = $text;
+        $translation = $translator->forClient($conversation, $text);
+        if (is_array($translation) && ! empty($translation['failed'])) {
+            $name = ! empty($translation['language_name']) ? $translation['language_name'] : 'their language';
+
+            return ['success' => false, 'error' => 'Not changed. The translation into '.$name.' did not finish.'];
+        }
+        if ($translation) {
+            $sendBody = $translation['text'];
+        }
+        if (! $message->isWebsiteMessage() && ! $conversation->isWebsite()) {
+            $result = app(\App\Services\BeyondWasenderService::class)->editSentMessage($message->wasenderId(), $sendBody);
+            if (empty($result['success'])) {
+                return ['success' => false, 'error' => isset($result['error']) ? $result['error'] : 'WhatsApp did not change that message.'];
+            }
+        }
+        $media = $message->media();
+        $media['edited'] = true;
+        if ($translation) {
+            $media['translation'] = [
+                'staff' => $translation['staff'],
+                'language' => $translation['language'],
+                'language_name' => $translation['language_name'],
+            ];
+        } else {
+            unset($media['translation']);
+        }
+        $message->body = $sendBody;
+        $message->media_json = json_encode($media);
+        $message->save();
+
+        return ['success' => true, 'message' => $message];
+    }
+
+    public function deleteMessage(WhatsAppConversation $conversation, WhatsAppMessage $message, $everyone)
+    {
+        if ((int) $message->conversation_id !== (int) $conversation->id) {
+            return ['success' => false, 'error' => 'That message is not in this chat.'];
+        }
+        if ($everyone) {
+            if (! $message->canDeleteForEveryone()) {
+                return ['success' => false, 'error' => 'WhatsApp only lets you delete a message for everyone for 15 minutes after it is sent.'];
+            }
+            if (! $message->isWebsiteMessage() && ! $conversation->isWebsite()) {
+                $result = app(\App\Services\BeyondWasenderService::class)->deleteSentMessage($message->wasenderId());
+                if (empty($result['success'])) {
+                    return ['success' => false, 'error' => isset($result['error']) ? $result['error'] : 'WhatsApp did not delete that message.'];
+                }
+            }
+            $media = $message->media();
+            $media['deleted'] = true;
+            $message->media_json = json_encode($media);
+            $message->save();
+
+            return ['success' => true, 'message' => $message];
+        }
+        $message->status = WhatsAppMessage::STATUS_HIDDEN;
+        $message->save();
+
+        return ['success' => true, 'removed' => true, 'message' => $message];
+    }
+
+    public function starMessage(WhatsAppConversation $conversation, WhatsAppMessage $message)
+    {
+        if ((int) $message->conversation_id !== (int) $conversation->id) {
+            return ['success' => false, 'error' => 'That message is not in this chat.'];
+        }
+        $media = $message->media();
+        $media['starred'] = empty($media['starred']);
+        $message->media_json = json_encode($media);
+        $message->save();
+
+        return ['success' => true, 'message' => $message];
+    }
+
+    public function forwardTo(WhatsAppConversation $target, WhatsAppMessage $source, $userId = null)
+    {
+        $text = trim((string) $source->body);
+        if ($text === '') {
+            $text = trim($source->hubText());
+        }
+        if ($text === '' || $source->wasDeleted()) {
+            return ['success' => false, 'error' => 'There is nothing in that message to forward.'];
+        }
+        $contact = $target->contact;
+        if (! $contact || $contact->isBlocked()) {
+            return ['success' => false, 'error' => 'That person cannot receive a message.'];
+        }
+        $message = WhatsAppMessage::create([
+            'conversation_id' => $target->id,
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIR_OUT,
+            'type' => 'TEXT',
+            'body' => $text,
+            'media_json' => json_encode([
+                'forwarded' => true,
+                'from_message' => (int) $source->id,
+            ]),
+            'status' => WhatsAppMessage::STATUS_QUEUED,
+            'sender_type' => 'STAFF',
+            'sender_user_id' => $userId,
+            'queued_at' => now(),
+        ]);
+        if ($target->isWebsite()) {
+            $message->provider_message_id = 'webmsg:'.uniqid('', true);
+            $message->status = WhatsAppMessage::STATUS_SENT;
+            $message->sent_at = now();
+            $message->save();
+            $result = ['success' => true];
+        } else {
+            $result = $this->provider->sendText($contact->normalized_phone, $text);
+            if (! empty($result['success'])) {
+                $msgId = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
+                $message->provider_message_id = $msgId ?: null;
+                $message->status = WhatsAppMessage::STATUS_SENT;
+                $message->sent_at = now();
+                $this->keepWasenderId($message, $msgId);
+                $message->save();
+            } else {
+                $message->status = WhatsAppMessage::STATUS_FAILED;
+                $message->failed_at = now();
+                $message->error = isset($result['error']) ? substr((string) $result['error'], 0, 500) : 'send failed';
+                $message->save();
+
+                return ['success' => false, 'error' => $message->error, 'message' => $message];
+            }
+        }
+        $target->last_message = $this->preview($text, 'TEXT');
+        $target->last_activity_at = now();
+        $target->last_outgoing_at = now();
+        $target->save();
+
+        return ['success' => true, 'message' => $message];
     }
 
     /**
@@ -785,6 +989,7 @@ class WhatsAppConversationService
             $message->provider_message_id = $msgId ?: null;
             $message->status = WhatsAppMessage::STATUS_SENT;
             $message->sent_at = now();
+            $this->keepWasenderId($message, $msgId);
             $message->save();
         } else {
             $message->status = WhatsAppMessage::STATUS_FAILED;

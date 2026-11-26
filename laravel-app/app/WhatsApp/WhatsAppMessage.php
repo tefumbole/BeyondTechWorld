@@ -16,6 +16,7 @@ class WhatsAppMessage extends Model
     const STATUS_READ = 'READ';
     const STATUS_PLAYED = 'PLAYED';
     const STATUS_FAILED = 'FAILED';
+    const STATUS_HIDDEN = 'HIDDEN';
 
     protected $table = 'whatsapp_messages';
 
@@ -65,6 +66,9 @@ class WhatsAppMessage extends Model
     /** Text the agent reads. Incoming foreign text is the English translation. */
     public function hubText()
     {
+        if ($this->wasDeleted()) {
+            return $this->direction === self::DIR_OUT ? 'You deleted this message' : 'This message was deleted';
+        }
         $meta = $this->translationMeta();
         if ($this->direction === self::DIR_IN && ! empty($meta['english'])) {
             return (string) $meta['english'];
@@ -79,6 +83,9 @@ class WhatsAppMessage extends Model
     /** Original or sent wording, shown under the English when it differs. */
     public function hubAside()
     {
+        if ($this->wasDeleted()) {
+            return '';
+        }
         $meta = $this->translationMeta();
         if ($this->direction === self::DIR_IN && ! empty($meta['english']) && trim((string) $this->body) !== trim((string) $meta['english'])) {
             $name = ! empty($meta['language_name']) ? $meta['language_name'] : 'original';
@@ -151,5 +158,83 @@ class WhatsAppMessage extends Model
         }
 
         return 'queued';
+    }
+
+    public function scopeVisible($query)
+    {
+        return $query->where('status', '!=', self::STATUS_HIDDEN);
+    }
+
+    public function wasenderId()
+    {
+        $media = $this->media();
+        if (! empty($media['wasender_id']) && preg_match('/^\d+$/', (string) $media['wasender_id'])) {
+            return (string) $media['wasender_id'];
+        }
+        if (preg_match('/^\d+$/', (string) $this->provider_message_id)) {
+            return (string) $this->provider_message_id;
+        }
+
+        return '';
+    }
+
+    public function wasDeleted()
+    {
+        return ! empty($this->media()['deleted']);
+    }
+
+    public function wasEdited()
+    {
+        return ! empty($this->media()['edited']);
+    }
+
+    public function isStarred()
+    {
+        return ! empty($this->media()['starred']);
+    }
+
+    public function isForwarded()
+    {
+        return ! empty($this->media()['forwarded']);
+    }
+
+    public function quoteText()
+    {
+        $quote = $this->media()['quote'] ?? null;
+        if (! is_array($quote) || empty($quote['text'])) {
+            return '';
+        }
+
+        return (string) $quote['text'];
+    }
+
+    public function isWebsiteMessage()
+    {
+        return strpos((string) $this->provider_message_id, 'webmsg:') === 0;
+    }
+
+    public function withinWhatsAppWindow()
+    {
+        $at = $this->sent_at ?: $this->created_at;
+
+        return $at && $at->gt(now()->subMinutes(15));
+    }
+
+    public function canEditOnWhatsApp()
+    {
+        return $this->direction === self::DIR_OUT
+            && strtoupper((string) $this->type) === 'TEXT'
+            && ! $this->wasDeleted()
+            && $this->status !== self::STATUS_FAILED
+            && $this->withinWhatsAppWindow()
+            && ($this->isWebsiteMessage() || $this->wasenderId() !== '');
+    }
+
+    public function canDeleteForEveryone()
+    {
+        return $this->direction === self::DIR_OUT
+            && ! $this->wasDeleted()
+            && $this->withinWhatsAppWindow()
+            && ($this->isWebsiteMessage() || $this->wasenderId() !== '');
     }
 }

@@ -230,7 +230,7 @@ class BeyondWasenderService
         return (bool) preg_match('/verification code/i', (string) $message);
     }
 
-    public function sendTextRaw($phone, $message, $stampReference = true, $copyToAdmin = true, $timeout = 30, $retryGateway = true)
+    public function sendTextRaw($phone, $message, $stampReference = true, $copyToAdmin = true, $timeout = 30, $retryGateway = true, $replyTo = null)
     {
         $blocked = $this->messagingBlocked();
         if ($blocked) {
@@ -261,7 +261,11 @@ class BeyondWasenderService
             if ($stampReference) {
                 $message = \App\Support\LetterReference::applyToMessage((string) $message, 'whatsapp');
             }
-            $posted = $this->postSendMessage(['to' => $to, 'text' => $message], $timeout, $retryGateway);
+            $payload = ['to' => $to, 'text' => $message];
+            if ($replyTo !== null && $replyTo !== '' && preg_match('/^\d+$/', (string) $replyTo)) {
+                $payload['replyTo'] = (int) $replyTo;
+            }
+            $posted = $this->postSendMessage($payload, $timeout, $retryGateway);
             $decoded = $posted['decoded'];
             $http = (int) ($posted['http'] ?? 0);
             if (empty($posted['success'])) {
@@ -286,6 +290,93 @@ class BeyondWasenderService
 
             return ['success' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Change a message already on WhatsApp. Wasender only accepts this for a short time.
+     *
+     * @return array{success:bool,error?:string}
+     */
+    public function editSentMessage($msgId, $text)
+    {
+        $blocked = $this->messagingBlocked();
+        if ($blocked) {
+            return $blocked;
+        }
+        if (! preg_match('/^\d+$/', (string) $msgId)) {
+            return ['success' => false, 'error' => 'WhatsApp can no longer edit this message.'];
+        }
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
+        }
+
+        return $this->requestApi('PUT', '/messages/'.(int) $msgId, ['text' => (string) $text]);
+    }
+
+    /**
+     * Remove a message from WhatsApp for everyone.
+     *
+     * @return array{success:bool,error?:string}
+     */
+    public function deleteSentMessage($msgId)
+    {
+        $blocked = $this->messagingBlocked();
+        if ($blocked) {
+            return $blocked;
+        }
+        if (! preg_match('/^\d+$/', (string) $msgId)) {
+            return ['success' => false, 'error' => 'WhatsApp can no longer delete this message for everyone.'];
+        }
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
+        }
+
+        return $this->requestApi('DELETE', '/messages/'.(int) $msgId, null);
+    }
+
+    /**
+     * @return array{success:bool,error?:string,http?:int}
+     */
+    protected function requestApi($method, $path, $payload)
+    {
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $ch = curl_init($base.$path);
+        $headers = [
+            'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+            'Accept: application/json',
+            'Content-Type: application/json',
+        ];
+        $options = [
+            CURLOPT_CUSTOMREQUEST => strtoupper((string) $method),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_CONNECTTIMEOUT => 12,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        ];
+        if ($payload !== null) {
+            $options[CURLOPT_POSTFIELDS] = json_encode($payload);
+        }
+        curl_setopt_array($ch, $options);
+        $body = curl_exec($ch);
+        $err = curl_error($ch);
+        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($err) {
+            return ['success' => false, 'error' => $err, 'http' => $http];
+        }
+        $decoded = json_decode((string) $body, true);
+        $apiSuccess = is_array($decoded) ? ($decoded['success'] ?? null) : null;
+        $apiMessage = is_array($decoded) ? (string) ($decoded['message'] ?? $decoded['error'] ?? '') : '';
+        if ($http >= 400 || $apiSuccess === false) {
+            return [
+                'success' => false,
+                'error' => $apiMessage !== '' ? $apiMessage : ('WhatsApp refused that (HTTP '.$http.').'),
+                'http' => $http,
+            ];
+        }
+
+        return ['success' => true, 'http' => $http, 'error' => null];
     }
 
     public function maskPhone($phone)

@@ -874,6 +874,10 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/chats/language-settings', 'WhatsApp\WhatsAppHubController@saveLanguageSettings')->name('whatsapp.chats.settings');
     Route::post('/admin/whatsapp/chats/letter', 'WhatsApp\WhatsAppHubController@sendLetter')->name('whatsapp.chats.letter');
     Route::post('/admin/whatsapp/chats/{id}/voice', 'WhatsApp\WhatsAppHubController@hearVoice')->name('whatsapp.chats.voice');
+    Route::post('/admin/whatsapp/chats/{id}/messages/{message}/edit', 'WhatsApp\WhatsAppHubController@editChatMessage')->name('whatsapp.chats.edit');
+    Route::post('/admin/whatsapp/chats/{id}/messages/{message}/delete', 'WhatsApp\WhatsAppHubController@deleteChatMessage')->name('whatsapp.chats.delete');
+    Route::post('/admin/whatsapp/chats/{id}/messages/{message}/star', 'WhatsApp\WhatsAppHubController@starChatMessage')->name('whatsapp.chats.star');
+    Route::post('/admin/whatsapp/chats/{id}/messages/{message}/forward', 'WhatsApp\WhatsAppHubController@forwardChatMessage')->name('whatsapp.chats.forward');
     Route::get('/admin/whatsapp/conversations', 'WhatsApp\WhatsAppHubController@conversations')->name('whatsapp.conversations');
     Route::post('/admin/whatsapp/conversations/delete', 'WhatsApp\WhatsAppHubController@destroyConversations')->name('whatsapp.conversations.delete');
     Route::post('/admin/whatsapp/conversations/{id}/delete', 'WhatsApp\WhatsAppHubController@destroyConversation')->name('whatsapp.conversation.delete');

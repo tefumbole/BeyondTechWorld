@@ -142,7 +142,7 @@ class WhatsAppHubController extends Controller
         $this->conversations->syncIdentityLinks($conversation->contact);
         $conversation->load('contact.links');
         $this->conversations->markRead($conversation);
-        $messages = WhatsAppMessage::where('conversation_id', $conversation->id)->orderBy('id')->get();
+        $messages = WhatsAppMessage::visible()->where('conversation_id', $conversation->id)->orderBy('id')->get();
         $notes = WhatsAppNote::with('author')->where('conversation_id', $conversation->id)->orderBy('id')->get();
         $events = WhatsAppConversationEvent::with('actor')->where('conversation_id', $conversation->id)->orderByDesc('id')->limit(20)->get();
         $canReply = $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
@@ -274,7 +274,7 @@ class WhatsAppHubController extends Controller
             $open = WhatsAppConversation::with('contact')->find($request->get('chat'));
             if ($open) {
                 $this->conversations->readOnWeb($open);
-                $messages = WhatsAppMessage::where('conversation_id', $open->id)
+                $messages = WhatsAppMessage::visible()->where('conversation_id', $open->id)
                     ->orderByDesc('created_at')
                     ->orderByDesc('id')
                     ->limit(60)
@@ -283,7 +283,7 @@ class WhatsAppHubController extends Controller
                     ->values();
                 $first = $messages->first();
                 $hasEarlier = $first
-                    ? WhatsAppMessage::where('conversation_id', $open->id)->where('id', '<', $first->id)->exists()
+                    ? WhatsAppMessage::visible()->where('conversation_id', $open->id)->where('id', '<', $first->id)->exists()
                     : false;
             }
         }
@@ -379,7 +379,7 @@ class WhatsAppHubController extends Controller
             return ['ok' => false];
         }
         $this->conversations->readOnWeb($conversation);
-        $messages = WhatsAppMessage::where('conversation_id', $conversation->id)
+        $messages = WhatsAppMessage::visible()->where('conversation_id', $conversation->id)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit(60)
@@ -417,7 +417,7 @@ class WhatsAppHubController extends Controller
                 return $this->chatFeedMessage($message);
             })->values(),
             'has_earlier' => $first
-                ? WhatsAppMessage::where('conversation_id', $conversation->id)->where('id', '<', $first->id)->exists()
+                ? WhatsAppMessage::visible()->where('conversation_id', $conversation->id)->where('id', '<', $first->id)->exists()
                 : false,
         ];
     }
@@ -430,7 +430,7 @@ class WhatsAppHubController extends Controller
         $payload = ['items' => [], 'messages' => [], 'ticks' => [], 'earlier' => [], 'has_earlier' => false];
 
         if ($chatId > 0 && $before > 0) {
-            $older = WhatsAppMessage::where('conversation_id', $chatId)
+            $older = WhatsAppMessage::visible()->where('conversation_id', $chatId)
                 ->where('id', '<', $before)
                 ->orderByDesc('id')
                 ->limit(40)
@@ -442,10 +442,10 @@ class WhatsAppHubController extends Controller
             })->values();
             $first = $older->first();
             $payload['has_earlier'] = $first
-                ? WhatsAppMessage::where('conversation_id', $chatId)->where('id', '<', $first->id)->exists()
+                ? WhatsAppMessage::visible()->where('conversation_id', $chatId)->where('id', '<', $first->id)->exists()
                 : false;
         } elseif ($chatId > 0) {
-            $fresh = WhatsAppMessage::where('conversation_id', $chatId)
+            $fresh = WhatsAppMessage::visible()->where('conversation_id', $chatId)
                 ->where('id', '>', $after)
                 ->orderBy('id')
                 ->limit(30)
@@ -572,6 +572,13 @@ class WhatsAppHubController extends Controller
             'needs_voice' => strtoupper((string) $message->type) === 'AUDIO'
                 && $message->direction === WhatsAppMessage::DIR_IN
                 && trim((string) (isset($message->translationMeta()['english']) ? $message->translationMeta()['english'] : '')) === '',
+            'quote' => $message->quoteText(),
+            'starred' => $message->isStarred(),
+            'edited' => $message->wasEdited(),
+            'deleted' => $message->wasDeleted(),
+            'forwarded' => $message->isForwarded(),
+            'can_edit' => $message->canEditOnWhatsApp(),
+            'can_drop' => $message->canDeleteForEveryone(),
         ];
     }
 
@@ -689,7 +696,12 @@ class WhatsAppHubController extends Controller
                 Auth::id()
             );
         } else {
-            $result = $this->conversations->reply($conversation, $request->input('body'), Auth::id());
+            $quote = null;
+            $quoteId = (int) $request->input('quote_id');
+            if ($quoteId > 0) {
+                $quote = WhatsAppMessage::visible()->where('conversation_id', $conversation->id)->where('id', $quoteId)->first();
+            }
+            $result = $this->conversations->reply($conversation, $request->input('body'), Auth::id(), $quote);
         }
         }
         if (empty($result['success'])) {
@@ -759,6 +771,66 @@ class WhatsAppHubController extends Controller
         }
 
         return redirect()->route('whatsapp.chats', ['chat' => $id])->with('message', $notice);
+    }
+
+    public function editChatMessage(Request $request, $id, $message)
+    {
+        return $this->messageAction($request, $id, $message, 'edit');
+    }
+
+    public function deleteChatMessage(Request $request, $id, $message)
+    {
+        return $this->messageAction($request, $id, $message, 'delete');
+    }
+
+    public function starChatMessage(Request $request, $id, $message)
+    {
+        return $this->messageAction($request, $id, $message, 'star');
+    }
+
+    public function forwardChatMessage(Request $request, $id, $message)
+    {
+        return $this->messageAction($request, $id, $message, 'forward');
+    }
+
+    protected function messageAction(Request $request, $id, $message, $action)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $conversation = WhatsAppConversation::with('contact')->findOrFail($id);
+        $row = WhatsAppMessage::where('conversation_id', $conversation->id)->where('id', (int) $message)->first();
+        if (! $row) {
+            return response()->json(['ok' => false, 'error' => 'That message is not in this chat.'], 404);
+        }
+        if ($action === 'edit') {
+            $result = $this->conversations->editOutgoing($conversation, $row, $request->input('text'));
+        } elseif ($action === 'delete') {
+            $result = $this->conversations->deleteMessage($conversation, $row, $request->input('everyone') === '1');
+        } elseif ($action === 'star') {
+            $result = $this->conversations->starMessage($conversation, $row);
+        } else {
+            $target = WhatsAppConversation::with('contact')->find((int) $request->input('to'));
+            if (! $target || (int) $target->id === (int) $conversation->id) {
+                return response()->json(['ok' => false, 'error' => 'Choose a different chat to forward to.'], 422);
+            }
+            $result = $this->conversations->forwardTo($target, $row, Auth::id());
+        }
+        if (empty($result['success'])) {
+            return response()->json([
+                'ok' => false,
+                'error' => isset($result['error']) ? $result['error'] : 'That did not work.',
+            ], 422);
+        }
+        $saved = isset($result['message']) ? $result['message'] : null;
+        $name = $action === 'forward' && isset($target) && $target->contact ? $target->contact->displayName() : '';
+
+        return response()->json([
+            'ok' => true,
+            'removed' => ! empty($result['removed']),
+            'notice' => $action === 'forward' ? ('Forwarded to '.($name ?: 'that chat').'.') : '',
+            'message' => $saved ? $this->chatFeedMessage($saved->fresh() ?: $saved) : null,
+        ]);
     }
 
     public function saveLanguageSettings(Request $request)
