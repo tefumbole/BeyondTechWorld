@@ -316,7 +316,8 @@ class CloudSubscribeWizardTest extends TestCase
         $this->get('/whatsapp-mai/link')
             ->assertOk()
             ->assertSee('Link WhatsApp')
-            ->assertSee('ABCD1234')
+            ->assertSee('QR code')
+            ->assertSee('Link code')
             ->assertSee('250794006160');
         $this->assertSame('POST', $seen[0][0]);
         $this->assertSame('/sessions', $seen[0][1]);

@@ -23,8 +23,49 @@ class MaiWhatsAppController extends Controller
         return view('cloud.portal.mai_link', [
             'phone' => $user->phone,
             'session' => $engine->status($user->phone, true),
-            'messages' => $engine->messages($user->phone),
+            'linkTab' => session('link_tab') === 'code' ? 'code' : 'qr',
+            'otpSent' => (bool) session('link_otp_sent'),
         ]);
+    }
+
+    public function sendLinkOtp()
+    {
+        $user = $this->person();
+        if (! $user) {
+            return redirect()->to(url('/login?mai=1'));
+        }
+        try {
+            app(\App\Services\Cloud\CloudSignupOtp::class)->send($user->phone);
+        } catch (\Exception $e) {
+            return redirect()->route('whatsapp.mai.link')->with('not_permitted', $e->getMessage())->with('link_tab', 'code');
+        }
+
+        return redirect()->route('whatsapp.mai.link')
+            ->with('message', 'A code was sent to this phone. Enter it to open Whats MAI.')
+            ->with('link_tab', 'code')
+            ->with('link_otp_sent', 1);
+    }
+
+    public function verifyLinkOtp(Request $request)
+    {
+        $user = $this->person();
+        if (! $user) {
+            return redirect()->to(url('/login?mai=1'));
+        }
+        try {
+            app(\App\Services\Cloud\CloudSignupOtp::class)->verify($user->phone, $request->input('code'));
+        } catch (\Exception $e) {
+            return redirect()->route('whatsapp.mai.link')
+                ->with('not_permitted', $e->getMessage())
+                ->with('link_tab', 'code')
+                ->with('link_otp_sent', 1);
+        }
+        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($user->phone);
+        $computer = $user
+            ? \URL::temporarySignedRoute('whatsapp.mai.enter', now()->addDays(14), ['user' => $user->id])
+            : route('whatsapp.mai.home');
+
+        return redirect()->route('whatsapp.mai.home')->with('message', 'Whats MAI is open for this phone. Open it on this computer too: '.$computer);
     }
 
     public function status()

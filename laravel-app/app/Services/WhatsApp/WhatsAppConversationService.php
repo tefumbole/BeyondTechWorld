@@ -104,7 +104,9 @@ class WhatsAppConversationService
                 continue;
             }
             $contact->wa_name = $name;
-            $contact->save();
+            app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation(function () use ($contact) {
+                $contact->save();
+            });
             $digits = preg_replace('/\D+/', '', (string) $contact->normalized_phone);
             if ($digits !== '') {
                 \Illuminate\Support\Facades\Cache::put('wa.book.'.$digits, $name, now()->addDays(30));
@@ -1238,9 +1240,11 @@ class WhatsAppConversationService
 
     public function markRead(WhatsAppConversation $conversation)
     {
-        $this->stampIncomingRead($conversation);
-        $conversation->unread_count = 0;
-        $conversation->save();
+        app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation(function () use ($conversation) {
+            $this->stampIncomingRead($conversation);
+            $conversation->unread_count = 0;
+            $conversation->save();
+        });
         $this->touchStaffView($conversation);
     }
 

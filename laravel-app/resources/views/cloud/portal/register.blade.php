@@ -364,7 +364,6 @@
                 @if(($selected ?? '') === 'MESSAGING')
                     <img src="{{ asset('branding/mbole-ai.png') }}" alt="" width="92" height="104" class="mx-auto" style="width:92px;height:104px;object-fit:contain">
                     <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">Whats MAI</h1>
-                    <p class="hint mt-2">WhatsApp, with a little help from MAI.</p>
                     @include('cloud.portal.mai_features')
                 @else
                     <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">Subscribe</h1>
