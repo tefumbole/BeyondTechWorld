@@ -205,8 +205,27 @@
     .country-item { display: block; width: 100%; text-align: left; background: #fff; color: #10233f; border: 0; border-bottom: 1px solid #e8eef6; padding: 0.45rem 0.7rem; cursor: pointer; font-weight: 600; }
     .country-chosen { color: #F5D76E; font-weight: 700; margin: 0.35rem 0; }
     .pay-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .pay-card { display: flex; align-items: center; gap: 0.4rem; background: #fff; color: #10233f; border: 2px solid #d6deea; border-radius: 14px; padding: 0.65rem 0.85rem; font-weight: 700; cursor: pointer; }
-    .pay-card:has(input:checked) { border-color: #c6ab47; box-shadow: 0 0 0 3px rgba(198,171,71,.25); }
+    .pay-card { display: flex; align-items: center; gap: 0.45rem; background: rgba(255,255,255,.08); color: #fff !important; border: 1px solid rgba(212,175,55,.75); border-radius: 14px; padding: 0.7rem 0.85rem; font-weight: 700; cursor: pointer; }
+    .subscribe-panel label.pay-card,
+    .subscribe-panel label.pay-card strong,
+    .subscribe-panel label.pay-card span { color: #fff !important; }
+    .pay-card strong { color: #F5D76E !important; }
+    .pay-card:has(input:checked) { background: rgba(212,175,55,.2); border-color: #F5D76E; }
+    form.mai-shell { max-width: 460px; margin-left: auto; margin-right: auto; background: linear-gradient(165deg, rgba(8,32,78,.96), rgba(4,16,42,.94)); border-radius: 28px; }
+    .mai-shell .field-row { display: block; }
+    .mai-shell .field-row label { display: block; margin: 0 0 0.35rem; }
+    .mai-shell .field-row input,
+    .mai-shell .field-row select { width: 100% !important; max-width: none !important; flex: none; }
+    .country-name { color: #F5D76E; font-weight: 800; margin: 0.45rem 0 0; }
+    .duration-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 0.8rem; }
+    .duration-card { display: block; text-align: left; background: rgba(255,255,255,.06); border: 1px solid rgba(212,175,55,.55); border-radius: 16px; padding: 0.75rem 0.8rem; cursor: pointer; }
+    .subscribe-panel label.duration-card,
+    .subscribe-panel label.duration-card strong,
+    .subscribe-panel label.duration-card span { color: #fff !important; }
+    .duration-card strong { display: block; color: #F5D76E !important; }
+    .duration-card:has(input:checked) { background: rgba(212,175,55,.18); border-color: #F5D76E; }
+    .otp-boxes { display: flex; gap: 8px; justify-content: space-between; margin-top: 0.6rem; }
+    .otp-boxes input { width: 44px; height: 52px; text-align: center; font-size: 1.25rem; border-radius: 12px !important; padding: 0 !important; }
     .signature-prompt,
     .signature-done {
         text-align: left;
@@ -289,7 +308,7 @@
         @if($errors->any())
             <p class="mb-4 rounded-xl bg-red-50 text-red-800 px-4 py-3">{{ $errors->first() }}</p>
         @endif
-        <form method="POST" action="{{ route('cloud.register.submit') }}" id="build-company" class="subscribe-panel rounded-3xl p-5 sm:p-8 text-center" @if(($selected ?? '') === 'MESSAGING') data-mai="1" @endif>
+        <form method="POST" action="{{ route('cloud.register.submit') }}" id="build-company" class="subscribe-panel rounded-3xl p-5 sm:p-8 text-center {{ ($selected ?? '') === 'MESSAGING' ? 'mai-shell' : '' }}" @if(($selected ?? '') === 'MESSAGING') data-mai="1" @endif>
             @csrf
             <input type="hidden" name="onboard_token" value="{{ $onboardToken }}">
             <input type="hidden" name="account_kind" id="account-kind" value="{{ old('account_kind', 'company') }}">
@@ -321,7 +340,7 @@
                 @if(($selected ?? '') === 'MESSAGING')
                     <img src="{{ asset('branding/mbole-ai.png') }}" alt="" width="92" height="104" class="mx-auto" style="width:92px;height:104px;object-fit:contain">
                     <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">Whats MAI</h1>
-                    <p class="hint mt-2">WhatsApp with translation, voice transcription, assisted replies, chat summaries, group messages, and automated posts.</p>
+                    <p class="hint mt-2">WhatsApp, with a little help from MAI.</p>
                     @include('cloud.portal.mai_features')
                     <p class="hint mt-2">The code sent to your phone only signs you in. That code does not link WhatsApp. Linking is a separate QR code or link code.</p>
                     <p class="hint mt-2"><a href="{{ route('cloud.login') }}">Already registered? Sign in with your phone code.</a></p>
@@ -341,20 +360,21 @@
 
             <section class="step" data-step="2">
                 <button type="button" class="back-step" data-back="1">Back</button>
-                <h2 class="text-xl font-bold">Phone number</h2>
+                <h2 class="text-xl font-bold">{{ ($selected ?? '') === 'MESSAGING' ? 'Enter your phone number' : 'Phone number' }}</h2>
                 <p class="hint mt-1">A verification code is sent on WhatsApp before any service is shown. That code only signs you in. It does not connect WhatsApp.</p>
                 <div class="field-row">
-                    <label for="{{ ($selected ?? '') === 'MESSAGING' ? 'country-search' : 'dial' }}">Country</label>
+                    <label for="dial">Country code</label>
                     @if(($selected ?? '') === 'MESSAGING')
-                        <input class="px-4 py-2" id="country-search" placeholder="Search a country" autocomplete="off">
-                        <input type="hidden" name="dial" id="dial" value="{{ old('dial', '237') }}">
-                        <p class="country-chosen" id="country-chosen">Cameroon (+237)</p>
-                        <div id="country-list" class="country-list">
+                        <select name="dial" id="dial">
                             @foreach(\App\Support\CountryDialCodes::all() as $label)
-                                @php $dialCode = preg_replace('/\D+/', '', $label); @endphp
-                                <button type="button" class="country-item" data-dial="{{ $dialCode }}">{{ $label }}</button>
+                                @php
+                                    $dialCode = preg_replace('/\D+/', '', $label);
+                                    $countryName = trim(preg_replace('/\(\+\d+\)/', '', $label));
+                                @endphp
+                                <option value="{{ $dialCode }}" data-name="{{ $countryName }}" {{ old('dial', '237') === $dialCode ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
-                        </div>
+                        </select>
+                        <p class="country-name" id="country-name">Cameroon</p>
                     @else
                         <select name="dial" id="dial">
                             <option value="237" {{ old('dial', '237') === '237' ? 'selected' : '' }}>+237 Cameroon</option>
@@ -372,12 +392,21 @@
 
             <section class="step" data-step="3">
                 <button type="button" class="back-step" data-back="2">Back</button>
-                <h2 class="text-xl font-bold">Verification code</h2>
+                <h2 class="text-xl font-bold">{{ ($selected ?? '') === 'MESSAGING' ? 'Enter your verification code' : 'Verification code' }}</h2>
                 <p class="hint mt-1">Enter the code sent to this phone on WhatsApp.</p>
+                @if(($selected ?? '') === 'MESSAGING')
+                    <div class="otp-boxes" id="otp-boxes">
+                        @for($i = 0; $i < 6; $i++)
+                            <input class="otp-box" inputmode="numeric" maxlength="1" autocomplete="{{ $i === 0 ? 'one-time-code' : 'off' }}">
+                        @endfor
+                    </div>
+                    <input type="hidden" id="otp-code">
+                @else
                 <div class="field-row">
                     <label for="otp-code">Code</label>
                     <input class="px-4 py-2" id="otp-code" inputmode="numeric" autocomplete="one-time-code">
                 </div>
+                @endif
                 <button type="button" id="check-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Verify and continue</button>
                 <p class="hint mt-3" id="resend-wait">You can resend the code in 2:00</p>
                 <button type="button" id="resend-code" class="mt-2 bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5" disabled>Resend code</button>
@@ -386,7 +415,7 @@
 
             <section class="step" data-step="4">
                 <button type="button" class="back-step" data-back="3">Back</button>
-                <h2 class="text-xl font-bold" id="name-title">Your name</h2>
+                <h2 class="text-xl font-bold" id="name-title">{{ ($selected ?? '') === 'MESSAGING' ? 'What should we call you?' : 'Your name' }}</h2>
                 <p class="hint mt-2" id="name-note"></p>
                 <div class="field-row">
                     <label for="full-name">Name</label>
@@ -438,6 +467,20 @@
 
             <section class="step" data-step="7">
                 <button type="button" class="back-step" data-back="services">Back</button>
+                @if(($selected ?? '') === 'MESSAGING')
+                    <h2 class="text-xl font-bold">Choose a plan</h2>
+                    <p class="hint mt-1">A 3-day trial, or a longer subscription.</p>
+                    <input type="checkbox" name="modules[]" value="MESSAGING" checked hidden>
+                    <div class="duration-grid">
+                        @foreach(app(\App\Services\Cloud\CloudMbolePrice::class)->periods() as $period)
+                            <label class="duration-card">
+                                <input type="radio" name="mai_days" value="{{ $period['days'] }}" {{ (int) old('mai_days', 3) === (int) $period['days'] ? 'checked' : '' }}>
+                                <strong>{{ $period['title'] }}</strong>
+                                <span>{{ number_format((float) $period['amount'], 0) }} XAF</span>
+                            </label>
+                        @endforeach
+                    </div>
+                @else
                 <h2 class="text-xl font-bold">Services</h2>
                 <p class="hint mt-1">Select one or more. The total updates as you tick them.</p>
                 <div class="service-grid">
@@ -456,7 +499,8 @@
                     </label>
                 @endforeach
                 </div>
-                <div class="service-grid">
+                @endif
+                <div class="service-grid" @if(($selected ?? '') === 'MESSAGING') hidden @endif>
                 <div class="rounded-2xl border border-gray-200 p-4" id="price-summary">
                     <strong>Selected modules</strong>
                     <div id="price-lines"></div>
@@ -490,7 +534,7 @@
                         @foreach(['MTN' => 'MTN MoMo', 'ORANGE' => 'Orange Money', 'VISA' => 'VISA', 'CRYPTO' => 'Crypto'] as $code => $label)
                             <label class="{{ ($selected ?? '') === 'MESSAGING' ? 'pay-card' : 'rounded-full border border-brand-gold px-4 py-2 font-bold' }} {{ in_array($code, ['MTN', 'ORANGE'], true) ? 'pay-local' : '' }}">
                                 <input type="radio" name="payment_method" value="{{ $code }}" {{ old('payment_method') === $code ? 'checked' : '' }}>
-                                {{ $label }}
+                                <strong>{{ $label }}</strong>
                             </label>
                         @endforeach
                     </div>
@@ -498,13 +542,12 @@
                         <p class="hint mt-2">Cameroon can pay with MTN or Orange. Every country can pay by card or crypto.</p>
                     @endif
                 </fieldset>
-                @if(($selected ?? '') === 'MESSAGING')
-                    @include('cloud.portal.mai_features')
-                @endif
                 <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="pay-method-error" hidden>Choose MTN, Orange, VISA, or crypto before paying.</p>
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
+                    @if(($selected ?? '') !== 'MESSAGING')
                     <button type="submit" name="start_mode" value="trial" class="bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Start free trial</button>
-                    <button type="submit" name="start_mode" value="pay" id="pay-now" class="bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5">Pay</button>
+                    @endif
+                    <button type="submit" name="start_mode" value="pay" id="pay-now" class="bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">{{ ($selected ?? '') === 'MESSAGING' ? 'Continue' : 'Pay' }}</button>
                 </div>
             </section>
         </form>
@@ -796,23 +839,42 @@
             }
             document.getElementById('signature').value = savedUrl;
         });
-        var search = document.getElementById('country-search');
-        if (search) {
-            var items = document.querySelectorAll('.country-item');
-            search.oninput = function () {
-                var query = search.value.toLowerCase();
-                for (var i = 0; i < items.length; i++) {
-                    items[i].hidden = items[i].textContent.toLowerCase().indexOf(query) === -1;
-                }
+        var dial = document.getElementById('dial');
+        var countryName = document.getElementById('country-name');
+        if (dial && countryName) {
+            var showCountry = function () {
+                var option = dial.options[dial.selectedIndex];
+                countryName.textContent = option ? (option.getAttribute('data-name') || option.text) : '';
+                paintPay();
             };
-            for (var c = 0; c < items.length; c++) {
-                items[c].onclick = function () {
-                    document.getElementById('dial').value = this.getAttribute('data-dial');
-                    document.getElementById('country-chosen').textContent = this.textContent;
-                    search.value = '';
-                    paintPay();
+            dial.onchange = showCountry;
+            showCountry();
+        }
+        var boxes = document.querySelectorAll('.otp-box');
+        var codeField = document.getElementById('otp-code');
+        if (boxes.length && codeField) {
+            var writeCode = function () {
+                var code = '';
+                for (var i = 0; i < boxes.length; i++) code += boxes[i].value || '';
+                codeField.value = code;
+            };
+            for (var b = 0; b < boxes.length; b++) {
+                boxes[b].oninput = function () {
+                    this.value = (this.value || '').replace(/\D/g, '').slice(-1);
+                    writeCode();
+                    if (this.value && this.nextElementSibling) this.nextElementSibling.focus();
+                };
+                boxes[b].onkeydown = function (event) {
+                    if (event.key === 'Backspace' && !this.value && this.previousElementSibling) this.previousElementSibling.focus();
                 };
             }
+            boxes[0].onpaste = function (event) {
+                var text = (event.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, boxes.length);
+                if (!text) return;
+                event.preventDefault();
+                for (var i = 0; i < boxes.length; i++) boxes[i].value = text.charAt(i) || '';
+                writeCode();
+            };
         }
         paintPay();
         paint();

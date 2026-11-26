@@ -134,7 +134,7 @@ class CloudSubscribeWizardTest extends TestCase
         $catalog = $this->get('/cloud/register');
         $catalog->assertOk()->assertSee('Individual')->assertSee('Company')->assertSee('Phone number')->assertDontSee('Confirm password')->assertSee('Quotations')->assertSee('Digital Invitations')->assertDontSee('WhatsApp Hub');
         $catalog->assertSee('Whats MAI')->assertSee('branding/mbole-ai.png')->assertSee('/whatsapp-mai');
-        $this->get('/whatsapp-mai')->assertOk()->assertSee('Whats MAI')->assertSee('That code does not link WhatsApp.')->assertSee('Automated Posting')->assertSee('Auto Translate')->assertSee('AI Mode')->assertSee('Subscribe')->assertDontSee('Signature Required')->assertDontSee('Digital Invitations');
+        $this->get('/whatsapp-mai')->assertOk()->assertSee('Whats MAI')->assertSee('That code does not link WhatsApp.')->assertSee('Automated Posting')->assertSee('Auto Translate')->assertSee('AI Mode')->assertSee('Subscribe')->assertSee('3-day trial')->assertSee('MTN MoMo')->assertSee('1,500')->assertDontSee('Signature Required')->assertDontSee('Digital Invitations');
         $page = $this->get('/cloud/register?service=QUOTATIONS');
         $page->assertOk()->assertSee('Quotations')->assertDontSee('WhatsApp Hub')->assertDontSee('Digital Invitations')->assertDontSee('Messaging');
         preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
@@ -273,7 +273,7 @@ class CloudSubscribeWizardTest extends TestCase
             'modules' => ['MESSAGING'],
             'mai' => '1',
             'onboard_token' => $match[1],
-        ])->assertRedirect('/cloud/messaging');
+        ])->assertRedirect('/whatsapp-mai/plan');
         auth()->logout();
         $this->assertGuest();
         $login = $this->postJson('/cloud/login/otp', [

@@ -171,6 +171,95 @@ class CloudPortalController extends Controller
         ]);
     }
 
+    public function whatsappMaiSession(Request $request)
+    {
+        $phone = app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial'));
+        try {
+            $phone = app(\App\Services\Cloud\CloudSignupOtp::class)->verify($phone, $request->input('code'));
+        } catch (\Exception $e) {
+            return redirect()->to(url('/login?mai=1'))->with('not_permitted', $e->getMessage())->withInput();
+        }
+        $user = app(CloudOnboardingService::class)->ensurePerson($phone, $request->input('full_name'));
+        Auth::login($user);
+        $request->session()->regenerate();
+        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($phone);
+
+        return redirect()->route('whatsapp.mai.plan')->with('message', 'A link was sent to this phone. Choose a 3-day trial or a subscription.');
+    }
+
+    public function whatsappMaiPlan()
+    {
+        if (! Auth::check()) {
+            return redirect()->to(url('/login?mai=1'));
+        }
+        if (! session('cloud_onboard_token')) {
+            session(['cloud_onboard_token' => Str::random(40)]);
+        }
+        $user = Auth::user();
+
+        return view('cloud.portal.mai_plan', [
+            'onboardToken' => session('cloud_onboard_token'),
+            'phone' => $user->phone,
+            'periods' => app(\App\Services\Cloud\CloudMbolePrice::class)->periods(),
+            'countries' => \App\Support\CountryDialCodes::all(),
+        ]);
+    }
+
+    public function whatsappMaiPlanStore(Request $request)
+    {
+        if (! Auth::check()) {
+            return redirect()->to(url('/login?mai=1'));
+        }
+        $days = (int) $request->input('mai_days');
+        if (! in_array($days, [3, 7, 15, 30], true)) {
+            return redirect()->route('whatsapp.mai.plan')->with('not_permitted', 'Choose 3, 7, 15, or 30 days.');
+        }
+        $method = strtoupper((string) $request->input('payment_method'));
+        if (! in_array($method, ['MTN', 'ORANGE', 'VISA', 'CRYPTO'], true)) {
+            return redirect()->route('whatsapp.mai.plan')->with('not_permitted', 'Choose MTN, Orange, VISA, or crypto.');
+        }
+        $user = Auth::user();
+        $tenant = $this->maiCustomerTenant($user);
+        if (! $tenant) {
+            if (! session('cloud_onboard_token')) {
+                session(['cloud_onboard_token' => Str::random(40)]);
+            }
+            $name = trim((string) $user->name);
+            if ($name === '' || $name === 'Whats MAI') {
+                $name = trim((string) $request->input('full_name'));
+            }
+            if ($name === '') {
+                $name = 'Whats MAI';
+            }
+            try {
+                list($user, $tenant) = app(CloudOnboardingService::class)->addCompany($user, [
+                    'company_name' => $name,
+                    'first_name' => $name,
+                    'last_name' => $name,
+                    'phone' => $user->phone,
+                    'modules' => ['MESSAGING'],
+                    'onboard_token' => (string) session('cloud_onboard_token'),
+                    'account_kind' => 'personal',
+                    'start_mode' => 'pay',
+                    'mai_days' => $days,
+                ]);
+            } catch (\Exception $e) {
+                return redirect()->route('whatsapp.mai.plan')->with('not_permitted', $e->getMessage());
+            }
+        } else {
+            $plan = \App\Cloud\CloudPlan::whereHas('module', function ($query) {
+                $query->where('code', \App\Cloud\CloudModuleCode::MESSAGING);
+            })->where('active', true)->first();
+            if ($plan) {
+                app(\App\Services\Cloud\CloudSubscriptionService::class)->openPaidTerm($tenant, $plan, $days, $user->id);
+            }
+        }
+        session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
+        $request->merge(['payment_method' => $method]);
+
+        return $this->startMaiPayment($request, $tenant);
+    }
+
     public function register(Request $request)
     {
         $fromMai = (string) $request->input('mai') === '1' || (string) $request->input('mai_join') === '1';
@@ -270,15 +359,50 @@ class CloudPortalController extends Controller
             $request->session()->regenerate();
             session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
             app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($data['phone']);
+            if ($request->input('start_mode') === 'pay') {
+                return $this->startMaiPayment($request, $tenant);
+            }
 
-            return redirect()->route('whatsapp.mai.open')->with('message', 'Whats MAI is ready on this number. Add the app, then open your subscription.');
+            return redirect()->route('whatsapp.mai.plan')->with('message', 'A link was sent to this phone. Choose a 3-day trial or a subscription.');
         }
         Auth::login($user);
         $request->session()->regenerate();
-        session([CloudTenantResolver::SESSION_KEY => $membership->cloudTenant->id]);
         app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($data['phone']);
 
-        return redirect()->route('cloud.messaging')->with('message', 'This number is already in Whats MAI. You are signed in.');
+        return redirect()->route('whatsapp.mai.plan')->with('message', 'A link was sent to this phone. Choose a 3-day trial or a subscription.');
+    }
+
+    protected function startMaiPayment(Request $request, $tenant)
+    {
+        $method = strtoupper((string) $request->input('payment_method'));
+        $subscriptions = CloudSubscription::where('cloud_tenant_id', $tenant->id)->get()->all();
+        try {
+            $url = app(\App\Services\Cloud\CloudCheckoutService::class)->startMany($tenant, $subscriptions, $method);
+
+            return redirect()->away($url);
+        } catch (\Exception $e) {
+            return redirect()->route('whatsapp.mai.plan')->with('not_permitted', $e->getMessage());
+        }
+    }
+
+    protected function maiCustomerTenant($user)
+    {
+        if (! $user || ! Schema::hasTable('cloud_tenant_settings')) {
+            return null;
+        }
+        $rows = \App\Cloud\CloudTenantMembership::where('user_id', $user->id)
+            ->where('status', \App\Cloud\CloudMembershipStatus::ACTIVE)
+            ->get();
+        foreach ($rows as $row) {
+            $flag = \App\Cloud\CloudTenantSetting::where('cloud_tenant_id', $row->cloud_tenant_id)
+                ->where('key', 'mai_account')
+                ->value('value');
+            if ((string) $flag === '1') {
+                return $row->cloudTenant;
+            }
+        }
+
+        return null;
     }
 
     protected function registrationOpen(Request $request)
@@ -515,6 +639,7 @@ class CloudPortalController extends Controller
             'company_email' => 'nullable|email|max:191',
             'country' => 'nullable|string|max:64',
             'start_mode' => 'nullable|in:trial,pay',
+            'mai_days' => 'nullable|integer|in:3,7,15,30',
             'signature' => 'nullable|string|max:500000',
             'city' => 'nullable|string|max:191',
             'address' => 'nullable|string|max:191',

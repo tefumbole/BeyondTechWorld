@@ -81,6 +81,43 @@ class CloudSubscriptionService
         });
     }
 
+    /**
+     * A priced Whats MAI term. Access starts when the payment is confirmed.
+     */
+    public function openPaidTerm(CloudTenant $tenant, CloudPlan $plan, $days, $actorUserId = null)
+    {
+        $period = app(CloudMbolePrice::class)->period($days);
+        if (Schema::hasTable('cloud_tenant_settings')) {
+            \App\Cloud\CloudTenantSetting::updateOrCreate(
+                ['cloud_tenant_id' => $tenant->id, 'key' => 'mai_days'],
+                ['value' => (string) $period['days'], 'type' => 'string']
+            );
+            \App\Cloud\CloudTenantSetting::updateOrCreate(
+                ['cloud_tenant_id' => $tenant->id, 'key' => 'mai_account'],
+                ['value' => '1', 'type' => 'string']
+            );
+        }
+        $subscription = CloudSubscription::where('cloud_tenant_id', $tenant->id)
+            ->where('cloud_plan_id', $plan->id)
+            ->orderByDesc('id')
+            ->first();
+        if (! $subscription) {
+            $subscription = new CloudSubscription([
+                'cloud_tenant_id' => $tenant->id,
+                'cloud_plan_id' => $plan->id,
+            ]);
+        }
+        $subscription->status = CloudSubscriptionStatus::PAST_DUE;
+        $subscription->quoted_price = $period['amount'];
+        $subscription->quoted_currency = 'XAF';
+        $subscription->current_period_start = now();
+        $subscription->current_period_end = now();
+        $subscription->cancel_at_period_end = false;
+        $subscription->save();
+
+        return $subscription;
+    }
+
     public function grantTrial(CloudTenant $tenant, CloudPlan $plan, $actorUserId)
     {
         $this->assertCustomer($tenant);
@@ -529,7 +566,7 @@ class CloudSubscriptionService
         if (! $subscription) {
             return false;
         }
-        $subscription->load('plan');
+        $subscription->load('plan.module');
         $paidLeft = in_array($subscription->status, [CloudSubscriptionStatus::ACTIVE, CloudSubscriptionStatus::SUSPENDED], true)
             && $subscription->current_period_end
             && $subscription->current_period_end->gt(now());
@@ -546,7 +583,15 @@ class CloudSubscriptionService
             $subscription->current_period_start = $start->copy();
         }
         $subscription->status = CloudSubscriptionStatus::ACTIVE;
-        $subscription->current_period_end = $this->periodEnd($subscription->plan, $start);
+        $days = 0;
+        if ($subscription->plan && $subscription->plan->module && $subscription->plan->module->code === \App\Cloud\CloudModuleCode::MESSAGING && Schema::hasTable('cloud_tenant_settings')) {
+            $days = (int) \App\Cloud\CloudTenantSetting::where('cloud_tenant_id', $subscription->cloud_tenant_id)->where('key', 'mai_days')->value('value');
+        }
+        if (in_array($days, [3, 7, 15, 30], true)) {
+            $subscription->current_period_end = $start->copy()->addDays($days);
+        } else {
+            $subscription->current_period_end = $this->periodEnd($subscription->plan, $start);
+        }
         $subscription->cancel_at_period_end = false;
         $subscription->suspended_at = null;
         $subscription->save();

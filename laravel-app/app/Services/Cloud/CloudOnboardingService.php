@@ -173,6 +173,51 @@ class CloudOnboardingService
         return $plain;
     }
 
+    /**
+     * A phone that has proved the WhatsApp code gets a session even with no subscription yet.
+     */
+    public function ensurePerson($phone, $name = '')
+    {
+        $phone = app(CloudTrialEligibility::class)->normalizePhone($phone);
+        $existing = $this->accountForPhone($phone);
+        if ($existing) {
+            return $existing;
+        }
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        $email = ($digits !== '' ? $digits : 'client').'@clients.mbole.invalid';
+        $found = User::where('email', $email)->first();
+        if ($found) {
+            return $found;
+        }
+        $name = trim((string) $name);
+        if ($name === '') {
+            $name = 'Whats MAI';
+        }
+        $attributes = [
+            'name' => $name,
+            'email' => $email,
+            'phone' => $phone,
+            'password' => Hash::make(Str::random(40)),
+            'role_id' => 5,
+            'is_active' => 1,
+            'company_name' => $name,
+        ];
+        if (Schema::hasColumn('users', 'username')) {
+            $base = $digits !== '' ? $digits : 'mai';
+            $attributes['username'] = $base;
+            $n = 2;
+            while (app(CloudSignupIdentity::class)->usernameTaken($attributes['username'])) {
+                $attributes['username'] = $base.$n;
+                $n++;
+            }
+        }
+        if (Schema::hasColumn('users', 'is_deleted')) {
+            $attributes['is_deleted'] = 0;
+        }
+
+        return User::create($attributes);
+    }
+
     public function addCompany(User $user, array $input)
     {
         return $this->withToken($input, function () use ($user, $input) {
@@ -306,7 +351,11 @@ class CloudOnboardingService
             $plan = CloudPlan::whereHas('module', function ($query) use ($line) {
                 $query->where('code', $line['code']);
             })->where('active', true)->first();
-            $subscriptions->startTrial($tenant, $plan, $user->id);
+            if (! empty($input['mai_days']) && isset($input['start_mode']) && $input['start_mode'] === 'pay' && $line['code'] === \App\Cloud\CloudModuleCode::MESSAGING) {
+                $subscriptions->openPaidTerm($tenant, $plan, (int) $input['mai_days'], $user->id);
+            } else {
+                $subscriptions->startTrial($tenant, $plan, $user->id);
+            }
         }
 
         return $tenant;

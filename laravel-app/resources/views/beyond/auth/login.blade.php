@@ -7,6 +7,17 @@
 @endphp
 
 @section('auth_body')
+<style>
+    .entry-switch { display: flex; gap: 8px; margin: 0 0 14px; }
+    .entry-switch label { flex: 1; border: 1px solid #d6deea; border-radius: 999px; padding: 8px 6px; font-size: 13px; font-weight: 700; color: #0b3f90; cursor: pointer; }
+    .entry-switch label.on { background: #0b3f90; color: #fff; }
+    .mai-login select, .mai-login input { width: 100%; margin-top: 4px; }
+    .mai-country { color: #0b3f90; font-weight: 800; margin: 6px 0 10px; text-align: left; }
+    .mai-login .bad { background: #fdecec; color: #7f1d1d; border-radius: 10px; padding: 8px 10px; text-align: left; }
+</style>
+@if(session('not_permitted'))
+    <div class="auth-alert" style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;">{{ session('not_permitted') }}</div>
+@endif
 @if($asCustomer)
     <div class="auth-alert" style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;">
         Signing in as a <strong>customer</strong> account.
@@ -14,7 +25,12 @@
     </div>
 @endif
 
-<form method="POST" action="{{ url('/login') }}" autocomplete="on">
+<div class="entry-switch" id="entry-switch">
+    <label id="entry-dashboard" class="on"><input type="radio" name="entry" value="dashboard" checked> Dashboard</label>
+    <label id="entry-mai"><input type="radio" name="entry" value="mai"> Whats MAI</label>
+</div>
+
+<form method="POST" action="{{ url('/login') }}" autocomplete="on" id="dashboard-login">
     @csrf
     @php
         $loginRedirect = request('redirect') ?: session('beyond_intended');
@@ -62,6 +78,26 @@
     </button>
 </form>
 
+<form method="POST" action="{{ route('whatsapp.mai.session') }}" id="mai-login" class="mai-login" hidden>
+    @csrf
+    <label for="mai-dial" style="display:block;text-align:left;font-weight:700;color:#0b3f90;">Country code</label>
+    <select id="mai-dial" name="dial" class="auth-input" style="padding-left:16px;">
+        @foreach(\App\Support\CountryDialCodes::all() as $label)
+            @php
+                $dialCode = preg_replace('/\D+/', '', $label);
+                $countryName = trim(preg_replace('/\(\+\d+\)/', '', $label));
+            @endphp
+            <option value="{{ $dialCode }}" data-name="{{ $countryName }}" {{ $dialCode === '237' ? 'selected' : '' }}>{{ $label }}</option>
+        @endforeach
+    </select>
+    <p class="mai-country" id="mai-country">Cameroon</p>
+    <input id="mai-phone" name="phone" class="auth-input" style="padding-left:16px;" inputmode="tel" autocomplete="tel" placeholder="Phone number" required>
+    <button type="button" class="auth-btn" id="mai-send" style="margin-top:10px;">Send WhatsApp code</button>
+    <p class="bad" id="mai-error" hidden></p>
+    <input id="mai-code" name="code" class="auth-input" style="padding-left:16px;margin-top:10px;" inputmode="numeric" autocomplete="one-time-code" placeholder="Verification code" required>
+    <button type="submit" class="auth-btn">Verify and continue</button>
+</form>
+
 <div class="auth-links">
     <a class="wa" href="{{ url('/phone-login') }}">
         Trouble with your account? Sign in with WhatsApp OTP
@@ -96,6 +132,58 @@
         if (off) off.style.display = show ? 'block' : 'none';
         btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
     });
+    var dash = document.getElementById('dashboard-login');
+    var mai = document.getElementById('mai-login');
+    var dashLabel = document.getElementById('entry-dashboard');
+    var maiLabel = document.getElementById('entry-mai');
+    function showEntry(which) {
+        var isMai = which === 'mai';
+        if (dash) dash.hidden = isMai;
+        if (mai) mai.hidden = !isMai;
+        if (dashLabel) dashLabel.className = isMai ? '' : 'on';
+        if (maiLabel) maiLabel.className = isMai ? 'on' : '';
+        var picked = document.querySelector('input[name="entry"][value="' + which + '"]');
+        if (picked) picked.checked = true;
+    }
+    var radios = document.querySelectorAll('input[name="entry"]');
+    for (var i = 0; i < radios.length; i++) {
+        radios[i].onchange = function () { showEntry(this.value); };
+    }
+    if (window.location.search.indexOf('mai=1') !== -1) showEntry('mai');
+    var dial = document.getElementById('mai-dial');
+    var country = document.getElementById('mai-country');
+    if (dial && country) {
+        dial.onchange = function () {
+            var option = dial.options[dial.selectedIndex];
+            country.textContent = option ? option.getAttribute('data-name') : '';
+        };
+    }
+    var send = document.getElementById('mai-send');
+    if (send) {
+        send.onclick = function () {
+            var error = document.getElementById('mai-error');
+            error.hidden = true;
+            var token = mai.querySelector('input[name="_token"]').value;
+            var code = dial ? dial.value : '237';
+            var digits = (document.getElementById('mai-phone').value || '').replace(/\D+/g, '').replace(/^0+/, '');
+            var data = new FormData();
+            data.append('_token', token);
+            data.append('phone', '+' + code + digits);
+            data.append('dial', code);
+            data.append('account_kind', 'personal');
+            data.append('mai', '1');
+            fetch('{{ route('cloud.register.otp') }}', { method: 'POST', body: data, headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (response) { return response.json().then(function (json) {
+                    if (!response.ok) {
+                        error.hidden = false;
+                        error.textContent = json.message || 'The code could not be sent.';
+                        return;
+                    }
+                    document.getElementById('mai-code').focus();
+                }); })
+                .catch(function () { error.hidden = false; error.textContent = 'Try again.'; });
+        };
+    }
 })();
 </script>
 @endpush
