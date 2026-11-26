@@ -136,7 +136,8 @@
     .clip:hover { background: #e2e9f6; transform: rotate(90deg); }
     .clip input { display: none; }
     .paste-preview { width: 44px; height: 44px; object-fit: cover; border-radius: 12px; flex: none; border: 1px solid var(--wa-line); }
-    .file-name { align-self: center; color: var(--wa-muted); font-size: 12px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-name { align-self: center; color: #0b3f90; font-size: 12px; font-weight: 700; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-name:not(:empty) { padding: 4px 10px; border: 1px solid #c6ab47; border-radius: 999px; background: #f3f6fb; cursor: pointer; }
     .chats-compose { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; padding: 12px 18px; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); position: relative; }
     .chats-compose textarea { flex: 1; border: 1px solid transparent; border-radius: 22px; background: #f1f4fa; color: var(--wa-ink); min-height: 44px; max-height: 120px; padding: 11px 16px; resize: none; font-size: 16px; transition: border-color .18s, box-shadow .18s, background-color .18s; }
     .chats-compose textarea:focus { outline: none; background: #fff; border-color: #9cc2ff; box-shadow: 0 0 0 4px rgba(21, 101, 192, .12); }
@@ -491,7 +492,7 @@
                     <img class="paste-preview" id="chatPaste" alt="" hidden>
                     <span class="file-name" id="chatFileName"></span>
                     <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
-                    <textarea name="body" id="chatBody" placeholder="{{ $replyCode !== 'off' && $replyCode !== '' ? ('Type in '.$writeName.'. It is sent in '.$replyName.'.') : 'Type a message. Paste an image here.' }}"></textarea>
+                    <textarea name="body" id="chatBody" placeholder="{{ $replyCode !== 'off' && $replyCode !== '' ? ('Type in '.$writeName.'. Paste a photo or a document. It is sent in '.$replyName.'.') : 'Type a message. Paste a photo or a document.' }}"></textarea>
                     <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
@@ -562,7 +563,7 @@
                     <img class="paste-preview" id="chatPaste" alt="" hidden>
                     <span class="file-name" id="chatFileName"></span>
                     <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
-                    <textarea name="body" id="chatBody" placeholder="Message the group. Paste an image here."></textarea>
+                    <textarea name="body" id="chatBody" placeholder="Message the group. Paste a photo or a document."></textarea>
                     <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
@@ -653,7 +654,7 @@
         <img class="paste-preview" id="chatPaste" alt="" hidden>
         <span class="file-name" id="chatFileName"></span>
         <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
-        <textarea name="body" id="chatBody" placeholder="Type a message. Paste an image here."></textarea>
+        <textarea name="body" id="chatBody" placeholder="Type a message. Paste a photo or a document."></textarea>
         <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
         <button type="submit" aria-label="Send">➤</button>
     </form>
@@ -795,13 +796,55 @@
     if (stream) stream.scrollTop = stream.scrollHeight;
     var enterSends = @json(!empty($enterSends));
     var voiceHeard = 0;
+    function pastedKind(file) {
+        if (!file) return '';
+        var type = (file.type || '').toLowerCase();
+        var name = (file.name || '').toLowerCase();
+        if (type.indexOf('image/') === 0 || /\.(png|jpe?g|gif|webp)$/.test(name)) return 'image';
+        if (type === 'application/pdf' || name.slice(-4) === '.pdf') return 'pdf';
+        if (type.indexOf('word') !== -1 || name.slice(-5) === '.docx' || name.slice(-4) === '.doc') return 'doc';
+        if (type.indexOf('sheet') !== -1 || type.indexOf('excel') !== -1 || name.slice(-5) === '.xlsx' || name.slice(-4) === '.xls') return 'sheet';
+        return '';
+    }
+    function namePasted(file) {
+        if (!file) return null;
+        var kind = pastedKind(file);
+        if (!kind && file.name) kind = pastedKind({ type: file.type, name: file.name });
+        if (!kind) return null;
+        if (file.name) return file;
+        var ext = kind === 'image' ? 'png' : (kind === 'pdf' ? 'pdf' : (kind === 'doc' ? 'docx' : 'xlsx'));
+        var mime = file.type || (kind === 'image' ? 'image/png' : (kind === 'pdf' ? 'application/pdf' : 'application/octet-stream'));
+        try { return new File([file], 'pasted-file.' + ext, { type: mime }); }
+        catch (e) { return file; }
+    }
+    function clipboardFile(data) {
+        if (!data) return null;
+        var items = data.items || [];
+        var i;
+        for (i = 0; i < items.length; i++) {
+            if (!items[i] || items[i].kind !== 'file') continue;
+            var fromItem = namePasted(items[i].getAsFile());
+            if (fromItem) return fromItem;
+        }
+        var files = data.files || [];
+        for (i = 0; i < files.length; i++) {
+            var fromList = namePasted(files[i]);
+            if (fromList) return fromList;
+        }
+        return null;
+    }
     function showPicked(file) {
         var name = document.getElementById('chatFileName');
         var preview = document.getElementById('chatPaste');
-        if (name) name.textContent = file ? (file.name || 'Pasted image') : '';
+        var form = document.getElementById('chatCompose');
+        if (form) form.hubFile = file || null;
+        if (name) {
+            name.textContent = file ? (file.name || 'Pasted file') : '';
+            name.title = file ? 'Click to remove ' + (file.name || 'this file') : '';
+        }
         if (!preview) return;
         if (preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
-        if (file && file.type && file.type.indexOf('image/') === 0) {
+        if (file && pastedKind(file) === 'image') {
             var url = URL.createObjectURL(file);
             preview.dataset.url = url;
             preview.src = url;
@@ -811,13 +854,12 @@
             preview.removeAttribute('src');
         }
     }
-    function attachImage(picked) {
+    function attachPasted(picked) {
+        picked = namePasted(picked);
         if (!picked) return;
-        if (!picked.name) {
-            var named = new File([picked], 'pasted-image.png', { type: picked.type || 'image/png' });
-            picked = named;
-        }
         var input = document.getElementById('chatFile');
+        var form = document.getElementById('chatCompose');
+        if (form) form.hubFile = picked;
         if (input) {
             try {
                 var list = new DataTransfer();
@@ -827,6 +869,13 @@
         }
         showPicked(picked);
     }
+    document.addEventListener('click', function (event) {
+        if (event.target && event.target.id === 'chatFileName' && event.target.textContent) {
+            var input = document.getElementById('chatFile');
+            if (input) input.value = '';
+            showPicked(null);
+        }
+    });
     document.addEventListener('change', function (event) {
         if (!event.target || event.target.id !== 'chatFile') return;
         var picked = event.target.files && event.target.files[0];
@@ -835,34 +884,28 @@
     document.addEventListener('paste', function (event) {
         var field = event.target;
         if (!field || field.id !== 'chatBody') return;
-        var data = event.clipboardData;
-        if (!data) return;
-        var picked = null;
-        var items = data.items || [];
-        for (var i = 0; i < items.length; i++) {
-            if (items[i].type && items[i].type.indexOf('image') === 0) {
-                picked = items[i].getAsFile();
-                break;
-            }
-        }
-        if (!picked && data.files && data.files.length) {
-            for (var j = 0; j < data.files.length; j++) {
-                if (data.files[j].type && data.files[j].type.indexOf('image') === 0) {
-                    picked = data.files[j];
-                    break;
-                }
-            }
-        }
+        var picked = clipboardFile(event.clipboardData);
         if (!picked) return;
         event.preventDefault();
-        attachImage(picked);
+        attachPasted(picked);
+    }, true);
+    document.addEventListener('dragover', function (event) {
+        if (!event.target || event.target.id !== 'chatBody') return;
+        event.preventDefault();
+    });
+    document.addEventListener('drop', function (event) {
+        if (!event.target || event.target.id !== 'chatBody') return;
+        var picked = clipboardFile(event.dataTransfer);
+        if (!picked) return;
+        event.preventDefault();
+        attachPasted(picked);
     });
     document.addEventListener('keydown', function (event) {
         if (!enterSends || event.key !== 'Enter' || event.shiftKey) return;
         var field = event.target;
         if (!field || field.id !== 'chatBody') return;
         var picked = document.getElementById('chatFile');
-        var hasFile = picked && picked.files && picked.files.length;
+        var hasFile = (picked && picked.files && picked.files.length) || (field.form && field.form.hubFile);
         if (field.form && field.form.getAttribute('data-sending') !== '1' && (field.value.trim() !== '' || hasFile)) {
             event.preventDefault();
             if (field.form.requestSubmit) field.form.requestSubmit();
@@ -1186,7 +1229,7 @@
             var writeIn = (chat.staff && chat.staff.name) ? chat.staff.name : '';
             var sentIn = document.getElementById('threadReplyName');
             var sentName = sentIn ? sentIn.textContent : '';
-            composeField.placeholder = (writeIn && sentName && sentName !== 'Off') ? ('Type in ' + writeIn + '. It is sent in ' + sentName + '.') : 'Type a message';
+            composeField.placeholder = (writeIn && sentName && sentName !== 'Off') ? ('Type in ' + writeIn + '. Paste a photo or a document. It is sent in ' + sentName + '.') : 'Type a message. Paste a photo or a document.';
         }
         paintThread(data);
         var app = document.querySelector('.chats-app');
@@ -1248,7 +1291,8 @@
         var picker = form.querySelector('#chatFile') || form.querySelector('input[type="file"]');
         var typed = field ? field.value.trim() : '';
         var picked = picker && picker.files && picker.files.length;
-        if (!typed && !picked) return;
+        var held = form.hubFile || null;
+        if (!typed && !picked && !held) return;
         form.setAttribute('data-sending', '1');
         var button = form.querySelector('button[type="submit"]');
         if (button) button.disabled = true;
@@ -1258,6 +1302,7 @@
         var actionMatch = (form.getAttribute('action') || '').match(/chats\/(\d+)\/reply/);
         if (actionMatch) sentChat = actionMatch[1];
         var data = new FormData(form);
+        if (!picked && held) data.append('file', held, held.name || 'pasted-file');
         data.append('send_token', token);
         if (typed) {
             placeMessages([{ id: pendingId, out: true, text: typed, time: '', at: new Date().toISOString(), tick: 'queued', type: 'TEXT', media: '', name: '', aside: '', day: '' }], false);
