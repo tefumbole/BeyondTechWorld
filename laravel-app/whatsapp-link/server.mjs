@@ -38,20 +38,72 @@ function tenantId(value) {
   return id
 }
 
+function phoneKey(phone) {
+  const digits = String(phone || '').replace(/\D/g, '')
+  if (!/^[1-9][0-9]{7,14}$/.test(digits)) {
+    return ''
+  }
+  return 'p' + digits
+}
+
+function sessionKey(value) {
+  return tenantId(value) || (/^p[1-9][0-9]{7,14}$/.test(String(value || '')) ? String(value) : '')
+}
+
+function samePhone(expected, reported) {
+  const left = String(expected || '').replace(/\D/g, '')
+  const right = String(reported || '').replace(/\D/g, '')
+  if (left.length < 8 || right.length < 8) {
+    return true
+  }
+  return left.slice(-8) === right.slice(-8)
+}
+
 function publicState(entry, withQr) {
   return {
     status: entry.status,
     phone: entry.phone || null,
     qr: withQr && entry.status === 'AWAITING_QR' ? entry.qr : null,
+    pairing_code: entry.pairing || null,
+    error: entry.error || null,
   }
+}
+
+function messageText(message) {
+  if (!message) return ''
+  if (typeof message.conversation === 'string') return message.conversation
+  if (message.extendedTextMessage && message.extendedTextMessage.text) return message.extendedTextMessage.text
+  if (message.imageMessage) return message.imageMessage.caption || '[image]'
+  if (message.videoMessage) return '[video]'
+  if (message.audioMessage) return '[voice]'
+  if (message.documentMessage) return '[document]'
+  return ''
+}
+
+function rememberMessage(entry, msg) {
+  if (!msg || !msg.key) return
+  const text = messageText(msg.message).trim()
+  if (!text) return
+  if (!entry.inbox) entry.inbox = []
+  entry.inbox.push({
+    id: String(msg.key.id || ''),
+    from: String(msg.key.remoteJid || ''),
+    from_me: !!msg.key.fromMe,
+    text: text.slice(0, 1000),
+    at: String(msg.messageTimestamp || ''),
+  })
+  if (entry.inbox.length > 40) entry.inbox.splice(0, entry.inbox.length - 40)
 }
 
 function sessionDir(id) {
   return path.join(sessionRoot, id)
 }
 
-async function startSocket(id) {
+async function startSocket(id, expected) {
   const existing = sessions.get(id)
+  if (expected) {
+    if (existing) existing.expected = expected
+  }
   if (existing && existing.sock && existing.status !== 'DISCONNECTED' && existing.status !== 'ERROR') {
     return existing
   }
@@ -59,8 +111,10 @@ async function startSocket(id) {
   ensureDir(dir)
   const { state, saveCreds } = await useMultiFileAuthState(dir)
   const version = await fetchLatestBaileysVersion()
-  const entry = existing || { status: 'AWAITING_QR', phone: null, qr: null, sock: null, retries: 0 }
+  const entry = existing || { status: 'AWAITING_QR', phone: null, qr: null, sock: null, retries: 0, inbox: [] }
+  if (expected) entry.expected = expected
   entry.status = entry.status === 'CONNECTED' ? 'CONNECTED' : 'AWAITING_QR'
+  entry.error = null
   sessions.set(id, entry)
   const sock = makeWASocket({
     version: version.version,
@@ -73,6 +127,10 @@ async function startSocket(id) {
   })
   entry.sock = sock
   sock.ev.on('creds.update', saveCreds)
+  sock.ev.on('messages.upsert', (packet) => {
+    const list = packet && packet.messages ? packet.messages : []
+    list.forEach((msg) => rememberMessage(entry, msg))
+  })
   sock.ev.on('connection.update', async (update) => {
     if (update.qr) {
       entry.qr = await QRCode.toDataURL(update.qr)
@@ -81,9 +139,16 @@ async function startSocket(id) {
     if (update.connection === 'open') {
       entry.status = 'CONNECTED'
       entry.qr = null
+      entry.pairing = null
       entry.retries = 0
       const raw = sock.user && sock.user.id ? String(sock.user.id) : ''
       entry.phone = raw.split(':')[0].split('@')[0]
+      if (entry.expected && !samePhone(entry.expected, entry.phone)) {
+        entry.status = 'ERROR'
+        entry.error = 'This WhatsApp is a different number.'
+        entry.closing = true
+        sock.logout().catch(() => {})
+      }
     }
     if (update.connection === 'close') {
       const code = update.lastDisconnect && update.lastDisconnect.error && update.lastDisconnect.error.output
@@ -109,6 +174,59 @@ async function startSocket(id) {
     }
   })
   return entry
+}
+
+async function pairingFor(id) {
+  const entry = await startSocket(id, id.indexOf('p') === 0 ? id.slice(1) : '')
+  if (!entry.sock || entry.status === 'CONNECTED') {
+    return publicState(entry, false)
+  }
+  if (typeof entry.sock.requestPairingCode !== 'function') {
+    entry.error = 'The link code is not available on this engine.'
+    return publicState(entry, false)
+  }
+  const phone = String(entry.expected || (id.indexOf('p') === 0 ? id.slice(1) : '')).replace(/\D/g, '')
+  const code = await entry.sock.requestPairingCode(phone)
+  entry.pairing = String(code || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 17)
+  return publicState(entry, false)
+}
+
+async function sendText(id, to, text) {
+  const entry = sessions.get(id)
+  if (!entry || !entry.sock || entry.status !== 'CONNECTED') {
+    return { success: false, error: 'WhatsApp is not linked for this phone yet.' }
+  }
+  const clean = String(text || '').trim()
+  if (!clean || clean.length > 1000) {
+    return { success: false, error: 'Write a message.' }
+  }
+  let jid = String(to || '').trim()
+  if (jid.indexOf('@') === -1) {
+    const digits = jid.replace(/\D/g, '')
+    if (!/^[1-9][0-9]{7,14}$/.test(digits)) {
+      return { success: false, error: 'Enter the other phone number.' }
+    }
+    jid = digits + '@s.whatsapp.net'
+  } else if (!/^([1-9][0-9]{7,14}@s\.whatsapp\.net|[0-9]+(-[0-9]+)?@g\.us)$/.test(jid)) {
+    return { success: false, error: 'That chat is not available.' }
+  }
+  const sent = await entry.sock.sendMessage(jid, { text: clean })
+  return { success: true, id: sent && sent.key ? sent.key.id : null }
+}
+
+function readBody(req, limit, done) {
+  let raw = ''
+  req.on('data', (chunk) => {
+    raw += chunk
+    if (raw.length > limit) req.destroy()
+  })
+  req.on('end', () => {
+    try {
+      done(JSON.parse(raw || '{}'))
+    } catch (e) {
+      done(null)
+    }
+  })
 }
 
 async function groupsFor(id) {
@@ -196,23 +314,47 @@ const server = http.createServer((req, res) => {
         send(res, 422, { error: 'invalid' })
         return
       }
-      const id = tenantId(body.tenant_id)
+      const id = body.phone ? phoneKey(body.phone) : tenantId(body.tenant_id)
       if (!id) {
         send(res, 422, { error: 'invalid' })
         return
       }
-      startSocket(id).then((entry) => {
+      const expected = body.phone ? id.slice(1) : ''
+      startSocket(id, expected).then((entry) => {
         send(res, 200, publicState(entry, false))
       }).catch(() => {
-        send(res, 500, { status: 'ERROR', phone: null, qr: null })
+        send(res, 500, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: 'WhatsApp could not be started.' })
       })
     })
     return
   }
   if (parts[0] === 'sessions' && parts[1]) {
-    const id = tenantId(parts[1])
+    const id = sessionKey(parts[1])
     if (!id) {
       send(res, 422, { error: 'invalid' })
+      return
+    }
+    if (req.method === 'POST' && parts[2] === 'pair') {
+      pairingFor(id).then((payload) => send(res, 200, payload)).catch(() => {
+        send(res, 200, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: 'The link code could not be created.' })
+      })
+      return
+    }
+    if (req.method === 'GET' && parts[2] === 'messages') {
+      const entry = sessions.get(id) || { inbox: [] }
+      send(res, 200, { messages: entry.inbox || [] })
+      return
+    }
+    if (req.method === 'POST' && parts[2] === 'send') {
+      readBody(req, 4000, (body) => {
+        if (!body) {
+          send(res, 422, { success: false, error: 'invalid' })
+          return
+        }
+        sendText(id, body.to, body.text).then((payload) => send(res, 200, payload)).catch(() => {
+          send(res, 200, { success: false, error: 'The message was not sent.' })
+        })
+      })
       return
     }
     if (req.method === 'GET' && parts[2] === 'groups') {
@@ -228,7 +370,7 @@ const server = http.createServer((req, res) => {
       return
     }
     if (req.method === 'GET' && !parts[2]) {
-      const entry = sessions.get(id) || { status: 'NOT_CONNECTED', phone: null, qr: null }
+      const entry = sessions.get(id) || { status: 'NOT_CONNECTED', phone: null, qr: null, pairing: null, error: null }
       send(res, 200, publicState(entry, url.searchParams.get('qr') === '1'))
       return
     }
@@ -255,7 +397,7 @@ const server = http.createServer((req, res) => {
 ensureDir(sessionRoot)
 server.listen(port, '127.0.0.1', () => {
   fs.readdirSync(sessionRoot).forEach((id) => {
-    if (!tenantId(id)) {
+    if (!sessionKey(id)) {
       return
     }
     if (fs.existsSync(path.join(sessionDir(id), 'creds.json'))) {

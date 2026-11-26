@@ -27,6 +27,14 @@
             <img src="{{ asset('branding/mbole-ai.png') }}" alt="" width="64" height="72" style="width:64px;height:72px;object-fit:contain">
             <h1>Choose a plan</h1>
             <p>A link was sent to <strong>{{ $phone }}</strong>. Open it on your phone and add Whats MAI to the home screen. On iPhone, tap Share, then Add to Home Screen.</p>
+            <div class="note">
+                <strong>Your WhatsApp</strong>
+                <p>This phone has its own session. Company or individual does not change that. Approve the link on the phone, then use WhatsApp here.</p>
+                @if(!empty($session['qr']))
+                    <img src="{{ $session['qr'] }}" alt="WhatsApp QR code" width="180" height="180" style="background:#fff;border-radius:12px;">
+                @endif
+                <p><a href="{{ route('whatsapp.mai.link') }}" style="color:#F5D76E;">Open WhatsApp in Whats MAI</a></p>
+            </div>
             @if(session('message'))<p class="note">{{ session('message') }}</p>@endif
             @if(session('not_permitted'))<p class="bad">{{ session('not_permitted') }}</p>@endif
             <form method="POST" action="{{ route('whatsapp.mai.plan.store') }}">

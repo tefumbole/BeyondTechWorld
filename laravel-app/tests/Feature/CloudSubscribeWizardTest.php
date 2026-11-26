@@ -134,7 +134,7 @@ class CloudSubscribeWizardTest extends TestCase
         $catalog = $this->get('/cloud/register');
         $catalog->assertOk()->assertSee('Individual')->assertSee('Company')->assertSee('Phone number')->assertDontSee('Confirm password')->assertSee('Quotations')->assertSee('Digital Invitations')->assertDontSee('WhatsApp Hub');
         $catalog->assertSee('Whats MAI')->assertSee('branding/mbole-ai.png')->assertSee('/whatsapp-mai');
-        $this->get('/whatsapp-mai')->assertOk()->assertSee('Whats MAI')->assertSee('That code does not link WhatsApp.')->assertSee('Automated Posting')->assertSee('Auto Translate')->assertSee('AI Mode')->assertSee('Subscribe')->assertSee('3-day trial')->assertSee('MTN MoMo')->assertSee('1,500')->assertDontSee('Signature Required')->assertDontSee('Digital Invitations');
+        $this->get('/whatsapp-mai')->assertOk()->assertSee('Whats MAI')->assertSee('Auto Translate')->assertSee('Transcribe')->assertSee('AI Replies')->assertSee('Auto Summaries')->assertSee('Scheduled Posts')->assertSee('Group Messaging')->assertSee('Start free trial')->assertSee('Install on Android')->assertSee('Subscribe')->assertSee('3-day trial')->assertSee('MTN MoMo')->assertSee('1,500')->assertDontSee('That code does not link WhatsApp.')->assertDontSee('Already registered?')->assertDontSee('Signature Required')->assertDontSee('Digital Invitations');
         $page = $this->get('/cloud/register?service=QUOTATIONS');
         $page->assertOk()->assertSee('Quotations')->assertDontSee('WhatsApp Hub')->assertDontSee('Digital Invitations')->assertDontSee('Messaging');
         preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
@@ -288,5 +288,48 @@ class CloudSubscribeWizardTest extends TestCase
             'next' => 'messaging',
         ])->assertOk()->assertJson(['verified' => true]);
         $this->assertAuthenticated();
+    }
+
+    public function test_a_signed_in_phone_gets_its_own_whatsapp_session()
+    {
+        $seen = [];
+        config(['cloud.whatsapp.link_transport' => function ($method, $path, $body) use (&$seen) {
+            $seen[] = [$method, $path, $body];
+
+            return [
+                'status' => 'AWAITING_QR',
+                'phone' => null,
+                'qr' => 'data:image/png;base64,abc',
+                'pairing_code' => 'ABCD1234',
+            ];
+        }]);
+        $user = \App\User::create([
+            'name' => 'Mai Person',
+            'username' => 'mai250',
+            'email' => 'mai250@clients.mbole.invalid',
+            'password' => bcrypt('secret'),
+            'phone' => '250794006160',
+            'role_id' => 5,
+            'is_active' => 1,
+        ]);
+        $this->actingAs($user);
+        $this->get('/whatsapp-mai/link')
+            ->assertOk()
+            ->assertSee('Link WhatsApp')
+            ->assertSee('ABCD1234')
+            ->assertSee('250794006160');
+        $this->assertSame('POST', $seen[0][0]);
+        $this->assertSame('/sessions', $seen[0][1]);
+        $this->assertSame('250794006160', $seen[0][2]['phone']);
+        $this->post('/whatsapp-mai/link/send', [
+            'to' => '237670000000',
+            'text' => 'Hello',
+        ])->assertRedirect('/whatsapp-mai/link');
+        $paths = [];
+        foreach ($seen as $row) {
+            $paths[] = $row[1];
+        }
+        $this->assertContains('/sessions/p250794006160?qr=1', $paths);
+        $this->assertNotContains('/sessions/p250794006160/send', $paths);
     }
 }

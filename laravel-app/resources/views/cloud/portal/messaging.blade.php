@@ -1,6 +1,7 @@
 @extends('cloud.portal.layout')
 @section('content')
 <div class="card">
+    <p style="text-align:right;margin:0 0 0.4rem;"><a href="{{ route('whatsapp.mai') }}">Close</a></p>
     <h1>Messaging</h1>
     <p>{{ $tenant->system_name }}</p>
     <p><strong>Renewal:</strong> {{ !empty($entitled) ? 'Active. Sending and MAI are available.' : 'Not active. The inbox stays readable. Sending and MAI stay off until this is paid.' }}</p>

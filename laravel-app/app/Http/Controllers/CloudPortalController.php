@@ -182,6 +182,7 @@ class CloudPortalController extends Controller
         $user = app(CloudOnboardingService::class)->ensurePerson($phone, $request->input('full_name'));
         Auth::login($user);
         $request->session()->regenerate();
+        $this->openMaiWhatsApp($phone);
         app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($phone);
 
         return redirect()->route('whatsapp.mai.plan')->with('message', 'A link was sent to this phone. Choose a 3-day trial or a subscription.');
@@ -196,8 +197,11 @@ class CloudPortalController extends Controller
             session(['cloud_onboard_token' => Str::random(40)]);
         }
         $user = Auth::user();
+        $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
+        $engine->open($user->phone);
 
         return view('cloud.portal.mai_plan', [
+            'session' => $engine->status($user->phone, true),
             'onboardToken' => session('cloud_onboard_token'),
             'phone' => $user->phone,
             'periods' => app(\App\Services\Cloud\CloudMbolePrice::class)->periods(),
@@ -311,6 +315,9 @@ class CloudPortalController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
+        if ($fromMai) {
+            $this->openMaiWhatsApp($user->phone);
+        }
 
         if ($request->input('start_mode') === 'pay') {
             if ($fromMai) {
@@ -361,6 +368,7 @@ class CloudPortalController extends Controller
             Auth::login($user);
             $request->session()->regenerate();
             session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
+            $this->openMaiWhatsApp($data['phone']);
             app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($data['phone']);
             if ($request->input('start_mode') === 'pay') {
                 return $this->startMaiPayment($request, $tenant);
@@ -370,6 +378,7 @@ class CloudPortalController extends Controller
         }
         Auth::login($user);
         $request->session()->regenerate();
+        $this->openMaiWhatsApp($data['phone']);
         app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($data['phone']);
 
         return redirect()->route('whatsapp.mai.plan')->with('message', 'A link was sent to this phone. Choose a 3-day trial or a subscription.');
@@ -406,6 +415,14 @@ class CloudPortalController extends Controller
         }
 
         return view('cloud.portal.mai_pay', ['payment' => $payment]);
+    }
+
+    protected function openMaiWhatsApp($phone)
+    {
+        try {
+            app(\App\Services\Cloud\MaiWhatsAppEngine::class)->open($phone);
+        } catch (\Exception $e) {
+        }
     }
 
     protected function startMaiPayment(Request $request, $tenant)

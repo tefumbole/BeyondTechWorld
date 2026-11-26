@@ -202,10 +202,12 @@
     .mai-features li { text-align: center; }
     .install-android { display: inline-flex; margin-top: 0.6rem; background: #fff; color: #072f6b; border: 0; border-radius: 999px; font-weight: 800; padding: 0.65rem 1rem; cursor: pointer; }
     .mai-features { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.55rem; text-align: center; }
-    .mai-features li { background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 14px; padding: 0.7rem 0.8rem; }
+    .mai-features li { background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 14px; }
     .mai-features li:nth-child(-n+3) { background: rgba(212,175,55,.16); }
-    .mai-features strong { display: block; color: #F5D76E; }
-    .mai-features span { display: block; color: rgba(255,255,255,.88); font-size: 0.86rem; margin-top: 0.15rem; }
+    .mai-features button { display: block; width: 100%; background: transparent; border: 0; color: #F5D76E; font-weight: 800; padding: 0.85rem 0.45rem; cursor: pointer; }
+    #mai-detail { margin-top: 0.7rem; background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 14px; padding: 0.75rem 0.85rem; text-align: left; }
+    #mai-detail p { margin: 0 0 0.45rem; color: #fff; }
+    #mai-detail-close { background: transparent; border: 0; color: #F5D76E; font-weight: 800; cursor: pointer; padding: 0; }
     .country-list { max-height: 180px; overflow: auto; border-radius: 12px; background: #fff; text-align: left; }
     .country-item { display: block; width: 100%; text-align: left; background: #fff; color: #10233f; border: 0; border-bottom: 1px solid #e8eef6; padding: 0.45rem 0.7rem; cursor: pointer; font-weight: 600; }
     .country-chosen { color: #F5D76E; font-weight: 700; margin: 0.35rem 0; }
@@ -351,8 +353,6 @@
                     <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">Whats MAI</h1>
                     <p class="hint mt-2">WhatsApp, with a little help from MAI.</p>
                     @include('cloud.portal.mai_features')
-                    <p class="hint mt-2">The code sent to your phone only signs you in. That code does not link WhatsApp. Linking is a separate QR code or link code.</p>
-                    <p class="hint mt-2"><a href="{{ route('cloud.login') }}">Already registered? Sign in with your phone code.</a></p>
                 @else
                     <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">Subscribe</h1>
                     <p class="hint mt-2">Build your own company. Choose Individual or Company.</p>
@@ -362,7 +362,6 @@
                     <button type="button" id="pick-company" class="subscribe-choice bg-white/15 hover:bg-white/25 border border-brand-gold text-brand-gold px-7">Company</button>
                 </div>
                 @if(($selected ?? '') === 'MESSAGING')
-                    <p class="hint mt-4">On iPhone, tap Share, then Add to Home Screen. On Android, install it from Chrome.</p>
                     <button type="button" id="install-app" class="install-android">Install on Android</button>
                     <p class="hint" id="install-note" hidden></p>
                 @endif
@@ -403,7 +402,7 @@
             <section class="step" data-step="3">
                 <button type="button" class="back-step" data-back="2">Back</button>
                 <h2 class="text-xl font-bold">{{ ($selected ?? '') === 'MESSAGING' ? 'Enter your verification code' : 'Verification code' }}</h2>
-                <p class="hint mt-1">Enter the 6-digit code sent to your WhatsApp. That code does not link WhatsApp.</p>
+                <p class="hint mt-1">Enter the 6-digit code sent to your WhatsApp.</p>
                 @if(($selected ?? '') === 'MESSAGING')
                     <div class="otp-boxes" id="otp-boxes">
                         @for($i = 0; $i < 6; $i++)
@@ -929,6 +928,29 @@
                 event.preventDefault();
                 if (note) note.hidden = false;
             });
+        }
+        var featureList = document.getElementById('mai-features');
+        var featureDetail = document.getElementById('mai-detail');
+        var featureText = document.getElementById('mai-detail-text');
+        var featureClose = document.getElementById('mai-detail-close');
+        if (featureList && featureDetail && featureText) {
+            featureList.addEventListener('click', function (event) {
+                var button = event.target.closest('button');
+                if (!button || !featureList.contains(button)) return;
+                if (featureText.textContent === button.getAttribute('data-detail') && !featureDetail.hidden) {
+                    featureDetail.hidden = true;
+                    featureText.textContent = '';
+                    return;
+                }
+                featureText.textContent = button.getAttribute('data-detail') || '';
+                featureDetail.hidden = false;
+            });
+            if (featureClose) {
+                featureClose.addEventListener('click', function () {
+                    featureDetail.hidden = true;
+                    featureText.textContent = '';
+                });
+            }
         }
         if (form && form.getAttribute('data-mai') === '1') {
             var installPrompt = null;
