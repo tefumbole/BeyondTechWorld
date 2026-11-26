@@ -114,7 +114,7 @@
     .announce-btn:hover { color: #fff; text-decoration: none; }
     .chats-stream { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 12px 7% 18px; display: flex; flex-direction: column; gap: 4px; }
     .chats-head, .chats-compose, .chat-note, .chat-live { flex: none; }
-    .bubble { flex: none; align-self: flex-start; max-width: min(680px, 78%); margin: 0; padding: 7px 11px 5px; border-radius: 4px 16px 16px 16px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; color: var(--wa-ink); font-size: 14px; box-shadow: 0 1px 2px rgba(15,31,61,.08), 0 2px 8px rgba(15,31,61,.05); animation: bubbleIn .18s ease-out; }
+    .bubble { position: relative; flex: none; align-self: flex-start; max-width: min(680px, 78%); margin: 0; padding: 7px 32px 5px 11px; border-radius: 4px 16px 16px 16px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; color: var(--wa-ink); font-size: 14px; box-shadow: 0 1px 2px rgba(15,31,61,.08), 0 2px 8px rgba(15,31,61,.05); animation: bubbleIn .18s ease-out; }
     .bubble .aside { display: block; margin-top: 4px; font-size: 11px; line-height: 1.3; opacity: .72; }
     .bubble.in { background: #fff; }
     .bubble.out { align-self: flex-end; background: #e4e7ee; color: #5c6573; border-radius: 16px 4px 16px 16px; margin-left: auto; }
@@ -154,7 +154,12 @@
     .clip input { display: none; }
     .paste-preview { width: 44px; height: 44px; object-fit: cover; border-radius: 12px; flex: none; border: 1px solid var(--wa-line); }
     .file-name { align-self: center; color: #0b3f90; font-size: 12px; font-weight: 700; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .file-name:not(:empty) { padding: 4px 10px; border: 1px solid #c6ab47; border-radius: 999px; background: #f3f6fb; cursor: pointer; }
+    .file-name:not(:empty) { padding: 4px 10px; border: 1px solid #c6ab47; border-radius: 999px; background: #f3f6fb; }
+    .picked { display: inline-flex; align-items: center; gap: 4px; flex: none; max-width: 240px; }
+    .picked[hidden] { display: none !important; }
+    .file-clear { width: 22px; height: 22px; border: 0; border-radius: 50%; background: #9b1c1c; color: #fff; font-size: 14px; font-weight: 800; line-height: 1; cursor: pointer; flex: none; }
+    .bubble { position: relative; }
+    .bubble-more { position: absolute; top: 4px; right: 4px; z-index: 2; width: 26px; height: 26px; border: 0; border-radius: 8px; background: rgba(255,255,255,.9); color: #16315c; font-size: 18px; font-weight: 900; line-height: 1; cursor: pointer; box-shadow: 0 1px 3px rgba(15,31,61,.15); }
     .chats-compose { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; padding: 12px 18px; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); position: relative; }
     .chats-compose textarea { flex: 1; border: 1px solid transparent; border-radius: 22px; background: #f1f4fa; color: var(--wa-ink); min-height: 44px; max-height: 120px; padding: 11px 16px; resize: none; font-size: 16px; transition: border-color .18s, box-shadow .18s, background-color .18s; }
     .chats-compose textarea:focus { outline: none; background: #fff; border-color: #9cc2ff; box-shadow: 0 0 0 4px rgba(21, 101, 192, .12); }
@@ -523,8 +528,11 @@
                 <form class="chats-compose" id="chatCompose" method="POST" action="{{ route('whatsapp.chats.reply', $open->id) }}" enctype="multipart/form-data">
                     @csrf
                     <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
-                    <img class="paste-preview" id="chatPaste" alt="" hidden>
-                    <span class="file-name" id="chatFileName"></span>
+                    <span class="picked" id="chatPicked" hidden>
+                        <img class="paste-preview" id="chatPaste" alt="" hidden>
+                        <span class="file-name" id="chatFileName"></span>
+                        <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
+                    </span>
                     <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
                     <textarea name="body" id="chatBody" placeholder="{{ $replyCode !== 'off' && $replyCode !== '' ? ('Type in '.$writeName.'. Paste a photo or a document. It is sent in '.$replyName.'.') : 'Type a message. Paste a photo or a document.' }}"></textarea>
                     <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
@@ -594,8 +602,11 @@
                     @csrf
                     <input type="hidden" name="jid" value="{{ $group['jid'] }}">
                     <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
-                    <img class="paste-preview" id="chatPaste" alt="" hidden>
-                    <span class="file-name" id="chatFileName"></span>
+                    <span class="picked" id="chatPicked" hidden>
+                        <img class="paste-preview" id="chatPaste" alt="" hidden>
+                        <span class="file-name" id="chatFileName"></span>
+                        <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
+                    </span>
                     <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
                     <textarea name="body" id="chatBody" placeholder="Message the group. Paste a photo or a document."></textarea>
                     <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
@@ -686,8 +697,11 @@
     <form class="chats-compose" id="chatCompose" method="POST" action="" enctype="multipart/form-data">
         @csrf
         <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
-        <img class="paste-preview" id="chatPaste" alt="" hidden>
-        <span class="file-name" id="chatFileName"></span>
+        <span class="picked" id="chatPicked" hidden>
+            <img class="paste-preview" id="chatPaste" alt="" hidden>
+            <span class="file-name" id="chatFileName"></span>
+            <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
+        </span>
         <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
         <textarea name="body" id="chatBody" placeholder="Type a message. Paste a photo or a document."></textarea>
         <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
@@ -780,7 +794,8 @@
             <button type="button" data-act="forward">Forward</button>
             <button type="button" data-act="star">Star</button>
             <button type="button" data-act="edit">Edit</button>
-            <button type="button" data-act="delete" class="danger">Delete</button>
+            <button type="button" data-act="delete-me" class="danger">Delete for me</button>
+            <button type="button" data-act="delete-all" class="danger">Delete for everyone</button>
         </div>
         <form class="msg-edit" id="msgEdit" hidden>
             <textarea id="msgEditBody" maxlength="4000"></textarea>
@@ -926,11 +941,12 @@
     function showPicked(file) {
         var name = document.getElementById('chatFileName');
         var preview = document.getElementById('chatPaste');
+        var chip = document.getElementById('chatPicked');
         var form = document.getElementById('chatCompose');
         if (form) form.hubFile = file || null;
+        if (chip) chip.hidden = !file;
         if (name) {
             name.textContent = file ? (file.name || 'Pasted file') : '';
-            name.title = file ? 'Click to remove ' + (file.name || 'this file') : '';
         }
         if (!preview) return;
         if (preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
@@ -960,6 +976,15 @@
         showPicked(picked);
     }
     document.addEventListener('click', function (event) {
+        if (event.target && event.target.closest && event.target.closest('.file-clear')) {
+            event.preventDefault();
+            var clearInput = document.getElementById('chatFile');
+            var clearForm = document.getElementById('chatCompose');
+            if (clearInput) clearInput.value = '';
+            if (clearForm) clearForm.hubFile = null;
+            showPicked(null);
+            return;
+        }
         if (event.target && event.target.id === 'chatFileName' && event.target.textContent) {
             var input = document.getElementById('chatFile');
             if (input) input.value = '';
@@ -1133,7 +1158,9 @@
             + '<time' + (at ? ' data-at="' + esc(at) + '"' : '') + '><span class="clock">' + esc(clock) + '</span>'
             + (message.edited ? '<span class="edited">Edited</span>' : '')
             + (message.starred ? '<span class="star">★</span>' : '')
-            + (message.out ? tickHtml(message.tick) : '') + '</time></div>';
+            + (message.out ? tickHtml(message.tick) : '') + '</time>'
+            + (String(message.id).indexOf('pending') === 0 ? '' : '<button type="button" class="bubble-more" aria-label="Message options">⋮</button>')
+            + '</div>';
     }
     function nearBottom(node) {
         return node.scrollHeight - node.scrollTop - node.clientHeight < 140;
@@ -1685,7 +1712,8 @@
         document.querySelectorAll('#msgActions button').forEach(function (button) {
             var act = button.getAttribute('data-act');
             var show = true;
-            if (deleted && act !== 'delete') show = false;
+            if (deleted && act !== 'delete-me') show = false;
+            if (act === 'delete-all' && bubble.getAttribute('data-drop') !== '1') show = false;
             if (act === 'edit' && bubble.getAttribute('data-edit') !== '1') show = false;
             if (act === 'copy' && !text) show = false;
             if (act === 'star') button.textContent = bubble.getAttribute('data-star') === '1' ? 'Unstar' : 'Star';
@@ -1765,6 +1793,7 @@
             }
             if (action === 'cancel-edit' || action === 'cancel-delete') { resetMessageSheet(); return; }
             if (action === 'delete-me' || action === 'delete-all') {
+                if (action === 'delete-all' && !window.confirm('Delete this message for everyone?')) return;
                 messagePost(id, 'delete', { everyone: action === 'delete-all' ? '1' : '0' }).then(function (payload) {
                     if (!payload || !payload._ok) { window.alert((payload && payload.error) || 'Delete failed.'); return; }
                     if (payload.removed) {
@@ -1783,6 +1812,12 @@
                 showChatNote(payload.notice || 'Forwarded.');
                 closeSheet('forwardSheet');
             });
+            return;
+        }
+        var more = event.target.closest && event.target.closest('.bubble-more');
+        if (more) {
+            var moreBubble = more.closest('.bubble');
+            if (moreBubble) openMessageMenu(moreBubble);
             return;
         }
         var bubble = event.target.closest && event.target.closest('#chatStream .bubble');

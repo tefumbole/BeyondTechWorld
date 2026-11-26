@@ -53,4 +53,5 @@
         </div>
     @endif
     <time @if(!empty($at)) data-at="{{ $at }}" @endif><span class="clock">{{ $time ?? '' }}</span>@if(!empty($edited))<span class="edited">Edited</span>@endif @if(!empty($starred))<span class="star">★</span>@endif @if(!empty($out))<span class="tick {{ $tick }}">@if($tick === 'failed')! Not sent@elseif($tick === 'read' || $tick === 'played')✓✓ Read@elseif($tick === 'delivered')✓✓ Delivered@elseif($tick === 'sent')✓ Sent@elseif($tick === 'queued')Sending@else ✓@endif</span>@endif</time>
+    @if(!empty($id))<button type="button" class="bubble-more" aria-label="Message options">⋮</button>@endif
 </div>
