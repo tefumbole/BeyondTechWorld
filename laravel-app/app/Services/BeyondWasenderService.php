@@ -116,7 +116,7 @@ class BeyondWasenderService
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                $this->authorizationHeader(),
                 'Accept: application/json',
                 'Content-Type: application/json',
             ],
@@ -164,10 +164,56 @@ class BeyondWasenderService
 
     public function isConfigured()
     {
-        $key = config('services.whatsapp.wasender_api_key');
-        $session = config('services.whatsapp.wasender_session_id');
+        $key = $this->bearerToken();
+        if ($key === '' || strpos($key, 'your_') === 0) {
+            return false;
+        }
+        if ($key === trim((string) config('services.whatsapp.wasender_api_key'))) {
+            return trim((string) config('services.whatsapp.wasender_session_id')) !== '';
+        }
 
-        return ! empty($key) && ! empty($session) && strpos($key, 'your_') !== 0;
+        return true;
+    }
+
+    public function bearerToken()
+    {
+        $staff = trim((string) config('services.whatsapp.wasender_api_key'));
+        $context = app(\App\Services\Cloud\CloudTenantContext::class);
+        if (! $context->has()) {
+            return $staff;
+        }
+        $tenant = $context->tenant();
+        if (! $tenant || $tenant->type !== \App\Cloud\CloudTenantType::CUSTOMER) {
+            return $staff;
+        }
+        $own = $this->customerSessionKey($tenant);
+
+        return ($own !== '' && $own !== $staff) ? $own : '';
+    }
+
+    public function authorizationHeader()
+    {
+        return 'Authorization: Bearer '.$this->bearerToken();
+    }
+
+    protected function customerSessionKey($tenant)
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('cloud_whatsapp_connections')) {
+            return '';
+        }
+        $connection = \App\Cloud\CloudWhatsAppConnection::where('cloud_tenant_id', $tenant->id)
+            ->whereIn('status', ['ACTIVE', 'CONNECTED'])
+            ->orderBy('id', 'desc')
+            ->first();
+        if (! $connection || $connection->credentials_reference !== 'wasender.session') {
+            return '';
+        }
+        $internal = trim((string) config('services.whatsapp.wasender_session_id'));
+        if ($internal !== '' && (string) $connection->provider_connection_id === $internal) {
+            return '';
+        }
+
+        return $connection->sessionKey();
     }
 
     public function formatPhone($phone)
@@ -342,7 +388,7 @@ class BeyondWasenderService
         $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
         $ch = curl_init($base.$path);
         $headers = [
-            'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+            $this->authorizationHeader(),
             'Accept: application/json',
             'Content-Type: application/json',
         ];
@@ -616,7 +662,7 @@ class BeyondWasenderService
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                $this->authorizationHeader(),
                 'Accept: application/json',
                 'Content-Type: '.$mime,
             ],
@@ -634,7 +680,7 @@ class BeyondWasenderService
                     CURLOPT_POST => true,
                     CURLOPT_RETURNTRANSFER => true,
                     CURLOPT_HTTPHEADER => [
-                        'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                        $this->authorizationHeader(),
                         'Accept: application/json',
                         'Content-Type: '.$mime,
                     ],
@@ -736,7 +782,7 @@ class BeyondWasenderService
                 CURLOPT_HTTPGET => true,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_HTTPHEADER => [
-                    'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                    $this->authorizationHeader(),
                     'Accept: application/json',
                 ],
                 CURLOPT_TIMEOUT => 20,
@@ -1134,7 +1180,7 @@ class BeyondWasenderService
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                $this->authorizationHeader(),
                 'Accept: application/json',
                 'Content-Type: application/json',
             ],
@@ -1168,7 +1214,7 @@ class BeyondWasenderService
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                $this->authorizationHeader(),
                 'Accept: application/json',
                 'Content-Type: application/json',
             ],
@@ -1189,7 +1235,7 @@ class BeyondWasenderService
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                $this->authorizationHeader(),
                 'Accept: application/json',
             ],
             CURLOPT_TIMEOUT => 20,
@@ -1353,21 +1399,14 @@ class BeyondWasenderService
         if (! \Illuminate\Support\Facades\Schema::hasTable('cloud_whatsapp_connections')) {
             return ['success' => false, 'error' => 'WhatsApp is not connected for this company.'];
         }
-        $connection = \App\Cloud\CloudWhatsAppConnection::where('cloud_tenant_id', $tenant->id)
-            ->whereIn('status', ['ACTIVE', 'CONNECTED'])
-            ->orderBy('id', 'desc')
-            ->first();
-        $internalSession = trim((string) config('services.whatsapp.wasender_session_id'));
-        $usesInternal = ! $connection
-            || $connection->credentials_reference === 'services.whatsapp.wasender_api_key'
-            || ($internalSession !== '' && (string) $connection->provider_connection_id === $internalSession)
-            || $connection->provider !== 'wasender'
-            || ! config('cloud.whatsapp_self_connect');
-        if ($usesInternal) {
+        if (! app(\App\Services\Cloud\WhatsAppCapacityService::class)->canSendWhatsApp($tenant)) {
+            return ['success' => false, 'error' => 'WhatsApp is not connected for this company.'];
+        }
+        if ($this->customerSessionKey($tenant) === '') {
             return ['success' => false, 'error' => 'WhatsApp is not connected for this company.'];
         }
 
-        return ['success' => false, 'error' => 'WhatsApp is not connected for this company.'];
+        return null;
     }
 
     /**

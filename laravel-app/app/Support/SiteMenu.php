@@ -15,6 +15,7 @@ class SiteMenu
     {
         return [
             'home'         => 'Home',
+            'whatsapp-mai' => 'WhatsApp MAI',
             'trainings'    => 'Training',
             'events'       => 'Events',
             'rentals'      => 'Rentals',
@@ -109,7 +110,13 @@ class SiteMenu
 
     public static function landingOrder()
     {
-        return self::ordered('landing_menu_order', self::landingItems());
+        $saved = SiteSetting::getValue('landing_menu_order', []);
+        $ordered = self::ordered('landing_menu_order', self::landingItems());
+        if (! is_array($saved) || ! in_array('whatsapp-mai', $saved, true)) {
+            $ordered = self::moveBefore($ordered, 'whatsapp-mai', 'reviews');
+        }
+
+        return $ordered;
     }
 
     public static function sideOrder()
@@ -124,6 +131,22 @@ class SiteMenu
         }
 
         return $ordered;
+    }
+
+    protected static function moveBefore(array $keys, $key, $before)
+    {
+        $keys = array_values(array_filter($keys, function ($item) use ($key) {
+            return $item !== $key;
+        }));
+        $pos = array_search($before, $keys, true);
+        if ($pos === false) {
+            $keys[] = $key;
+
+            return $keys;
+        }
+        array_splice($keys, $pos, 0, [$key]);
+
+        return $keys;
     }
 
     protected static function moveAfter(array $keys, $key, $after)

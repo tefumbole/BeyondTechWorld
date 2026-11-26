@@ -319,12 +319,7 @@
                 @php
                     $person = optional($row->contact)->displayName() ?: 'WhatsApp';
                     $when = $row->last_activity_at ?: $row->updated_at;
-                    $preview = trim((string) $row->last_message);
-                    $previewLabels = ['[IMAGE]' => 'Photo', '[AUDIO]' => 'Voice message', '[VIDEO]' => 'Video', '[DOCUMENT]' => 'Document', '[LOCATION]' => 'Location'];
-                    $previewKey = strtoupper($preview);
-                    if (isset($previewLabels[$previewKey])) {
-                        $preview = $previewLabels[$previewKey];
-                    }
+                    $preview = \App\WhatsApp\WhatsAppMessage::listPreview($row->last_message);
                     $rowUnread = (int) $row->id === $openId ? 0 : (int) $row->unread_count;
                     $tone = sprintf('%u', crc32(strtolower($person))) % 8;
                 @endphp

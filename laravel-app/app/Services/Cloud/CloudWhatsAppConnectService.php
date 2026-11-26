@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Schema;
  */
 class CloudWhatsAppConnectService
 {
-    public function begin(CloudTenant $tenant, User $actor)
+    public function begin(CloudTenant $tenant, User $actor, $link = 'qr')
     {
         $this->assertAllowed($tenant, $actor);
         $existing = CloudWhatsAppConnection::where('cloud_tenant_id', $tenant->id)
@@ -29,6 +29,8 @@ class CloudWhatsAppConnectService
             throw new \RuntimeException('This company already has a WhatsApp connection.');
         }
         if ($existing && $existing->status === 'AWAITING_QR' && $existing->created_at && $existing->created_at->gt(now()->subMinutes(3))) {
+            $this->rememberLinkChoice($existing, $link);
+
             return $existing;
         }
         $recent = CloudWhatsAppConnection::where('cloud_tenant_id', $tenant->id)
@@ -45,16 +47,17 @@ class CloudWhatsAppConnectService
             $reservationId = $capacity->reserve($tenant);
             $connection = $existing ?: new CloudWhatsAppConnection();
             $connection->cloud_tenant_id = $tenant->id;
-            $connection->provider = 'stub';
+            $connection->provider = $this->usesWasender() ? 'wasender' : 'stub';
             $connection->status = 'PROVISIONING';
-            $connection->credentials_reference = 'stub';
+            $connection->credentials_reference = $this->usesWasender() ? 'wasender.session' : 'stub';
+            $connection->phone_number = app(CloudMbolePrice::class)->e164($tenant->phone);
             $connection->display_name = $tenant->system_name ?: $tenant->name;
             $connection->save();
 
             return $connection;
         });
 
-        $provider = app(CloudStubWhatsAppSessionProvider::class);
+        $provider = $this->sessions();
         $created = $provider->provision($connection);
         if (empty($created['session_id'])) {
             $connection->status = 'ERROR';
@@ -67,7 +70,13 @@ class CloudWhatsAppConnectService
         $connection->status = 'AWAITING_QR';
         $connection->save();
         $capacity->consume($reservationId);
-        Cache::put($this->qrKey($connection), $provider->qr($connection), now()->addMinutes(2));
+        $qr = isset($created['qr']) && $created['qr'] !== '' ? $created['qr'] : $provider->qr($connection);
+        Cache::put($this->qrKey($connection), $qr, now()->addMinutes(2));
+        $pairing = isset($created['pairing_code']) ? (string) $created['pairing_code'] : '';
+        if ($pairing !== '') {
+            Cache::put($this->pairKey($connection), $pairing, now()->addMinutes(2));
+        }
+        $this->rememberLinkChoice($connection, $link);
         $this->audit($tenant, $connection, $actor, 'qr_requested');
 
         return $connection->fresh();
@@ -83,16 +92,43 @@ class CloudWhatsAppConnectService
         return Cache::get($this->qrKey($connection));
     }
 
+    public function linkMode(CloudWhatsAppConnection $connection)
+    {
+        return Cache::get($this->linkKey($connection)) === 'code' ? 'code' : 'qr';
+    }
+
+    public function pairing(CloudTenant $tenant, CloudWhatsAppConnection $connection, User $actor)
+    {
+        $this->assertSameCompany($tenant, $connection, $actor);
+        if ($connection->status !== 'AWAITING_QR') {
+            return '';
+        }
+        $code = Cache::get($this->pairKey($connection));
+
+        return is_string($code) ? $code : '';
+    }
+
     public function refresh(CloudTenant $tenant, CloudWhatsAppConnection $connection, User $actor)
     {
         $this->assertSameCompany($tenant, $connection, $actor);
-        $remote = app(CloudStubWhatsAppSessionProvider::class)->status($connection);
+        $provider = $this->sessions();
+        $remote = $provider->status($connection);
         $connection->last_health_check_at = now();
         if ($remote === 'CONNECTED') {
-            $connection->status = 'CONNECTED';
-            $connection->connected_at = $connection->connected_at ?: now();
-            Cache::forget($this->qrKey($connection));
-            $this->audit($tenant, $connection, $actor, 'connected');
+            $reported = method_exists($provider, 'reportedPhone') ? $provider->reportedPhone($connection) : '';
+            if ($connection->provider === 'wasender' && ! $this->phonesMatch($connection->phone_number, $reported)) {
+                $provider->disconnect($connection);
+                $connection->status = 'ERROR';
+                Cache::forget($this->qrKey($connection));
+                Cache::forget($this->pairKey($connection));
+                $this->audit($tenant, $connection, $actor, 'number_mismatch');
+            } else {
+                $connection->status = 'CONNECTED';
+                $connection->connected_at = $connection->connected_at ?: now();
+                Cache::forget($this->qrKey($connection));
+                Cache::forget($this->pairKey($connection));
+                $this->audit($tenant, $connection, $actor, 'connected');
+            }
         } elseif ($remote === 'ERROR') {
             $connection->status = 'ERROR';
             $this->audit($tenant, $connection, $actor, 'provider_failed');
@@ -105,7 +141,7 @@ class CloudWhatsAppConnectService
     public function disconnect(CloudTenant $tenant, CloudWhatsAppConnection $connection, User $actor)
     {
         $this->assertSameCompany($tenant, $connection, $actor);
-        app(CloudStubWhatsAppSessionProvider::class)->disconnect($connection);
+        $this->sessions()->disconnect($connection);
         $connection->status = 'DISCONNECTED';
         $connection->save();
         Cache::forget($this->qrKey($connection));
@@ -151,9 +187,49 @@ class CloudWhatsAppConnectService
         }
     }
 
+    public function phonesMatch($expected, $reported)
+    {
+        $left = preg_replace('/\D+/', '', (string) $expected);
+        $right = preg_replace('/\D+/', '', (string) $reported);
+
+        return $left !== '' && $left === $right;
+    }
+
+    protected function usesWasender()
+    {
+        $token = trim((string) config('services.whatsapp.wasender_personal_token'));
+        $staff = trim((string) config('services.whatsapp.wasender_api_key'));
+
+        return $token !== '' && $token !== $staff;
+    }
+
+    protected function sessions()
+    {
+        if ($this->usesWasender()) {
+            return app(CloudWasenderSessionProvider::class);
+        }
+
+        return app(CloudStubWhatsAppSessionProvider::class);
+    }
+
     protected function qrKey(CloudWhatsAppConnection $connection)
     {
         return 'cloud-wa-qr:'.$connection->id;
+    }
+
+    protected function pairKey(CloudWhatsAppConnection $connection)
+    {
+        return 'cloud-wa-pair:'.$connection->id;
+    }
+
+    protected function linkKey(CloudWhatsAppConnection $connection)
+    {
+        return 'cloud-wa-link-mode:'.$connection->id;
+    }
+
+    protected function rememberLinkChoice(CloudWhatsAppConnection $connection, $link)
+    {
+        Cache::put($this->linkKey($connection), $link === 'code' ? 'code' : 'qr', now()->addMinutes(10));
     }
 
     protected function audit(CloudTenant $tenant, CloudWhatsAppConnection $connection, User $actor, $event)

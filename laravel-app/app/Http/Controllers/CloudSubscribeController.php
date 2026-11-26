@@ -13,6 +13,7 @@ class CloudSubscribeController extends Controller
 {
     public function identity(Request $request)
     {
+        $this->applyDial($request);
         $data = $request->validate([
             'phone' => 'required|string|max:32',
             'account_kind' => 'required|in:personal,company',
@@ -37,6 +38,7 @@ class CloudSubscribeController extends Controller
 
     public function sendSignupCode(Request $request)
     {
+        $this->applyDial($request);
         $data = $request->validate([
             'phone' => 'required|string|max:32',
             'account_kind' => 'required|in:personal,company',
@@ -57,6 +59,7 @@ class CloudSubscribeController extends Controller
 
     public function verifySignupCode(Request $request)
     {
+        $this->applyDial($request);
         $data = $request->validate([
             'phone' => 'required|string|max:32',
             'code' => 'required|string|max:12',
@@ -68,5 +71,12 @@ class CloudSubscribeController extends Controller
         }
 
         return response()->json(['verified' => true, 'phone' => $phone]);
+    }
+
+    protected function applyDial(Request $request)
+    {
+        $request->merge([
+            'phone' => app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial')),
+        ]);
     }
 }

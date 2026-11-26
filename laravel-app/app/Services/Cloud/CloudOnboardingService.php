@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 /**
  * Public company creation. Trials go through CloudSubscriptionService.
@@ -85,11 +86,39 @@ class CloudOnboardingService
         if ($replay) {
             return $replay;
         }
-        $email = strtolower(trim($input['email']));
-        if (User::where('email', $email)->exists()) {
-            throw new CloudExistingAccountException('That email already has an account. Choose a different email. You can keep the same phone number, and the username must be one that is not already in use.');
+        $input['phone'] = app(CloudTrialEligibility::class)->normalizePhone(isset($input['phone']) ? $input['phone'] : '');
+        $email = strtolower(trim(isset($input['email']) ? $input['email'] : ''));
+        $internal = '@clients.mbole.invalid';
+        if ($email === '') {
+            $digits = preg_replace('/\D+/', '', $input['phone']);
+            $email = ($digits !== '' ? $digits : 'client').$internal;
         }
-        if (Schema::hasColumn('users', 'username') && ! empty($input['username'])
+        $suppliedLogin = trim(isset($input['email']) ? $input['email'] : '') !== '' || trim(isset($input['password']) ? $input['password'] : '') !== '';
+        $existing = $this->accountForPhone($input['phone']);
+        if (! $suppliedLogin && $existing && app(CloudPortalService::class)->membershipFor($existing)) {
+            throw new CloudExistingAccountException('This phone already has an account. Sign in with the WhatsApp code.');
+        }
+        if (User::where('email', $email)->exists()) {
+            if (substr($email, -strlen($internal)) === $internal) {
+                throw new CloudExistingAccountException('This phone already has an account. Sign in with the WhatsApp code.');
+            }
+            throw new CloudExistingAccountException('That email already has an account. Choose a different email. You can keep the same phone number.');
+        }
+        if (trim(isset($input['password']) ? $input['password'] : '') === '') {
+            $input['password'] = Str::random(40);
+        }
+        if (Schema::hasColumn('users', 'username') && trim(isset($input['username']) ? $input['username'] : '') === '') {
+            $base = preg_replace('/\D+/', '', $input['phone']);
+            if ($base === '') {
+                $base = 'client';
+            }
+            $input['username'] = $base;
+            $n = 2;
+            while (app(CloudSignupIdentity::class)->usernameTaken($input['username'])) {
+                $input['username'] = $base.$n;
+                $n++;
+            }
+        } elseif (Schema::hasColumn('users', 'username') && ! empty($input['username'])
             && app(CloudSignupIdentity::class)->usernameTaken($input['username'])) {
             throw new \RuntimeException('That username already exists. Choose another one.');
         }
@@ -120,6 +149,28 @@ class CloudOnboardingService
         app(CloudCompanyAccess::class)->ensureRole($pair[0], true);
 
         return $pair;
+    }
+
+    public function accountForPhone($phone)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (strlen($digits) < 8 || ! Schema::hasTable('users')) {
+            return null;
+        }
+        $users = User::where('is_active', 1)->where('phone', 'like', '%'.substr($digits, -8))->get();
+        $plain = null;
+        foreach ($users as $user) {
+            $userDigits = preg_replace('/\D+/', '', (string) $user->phone);
+            if ($userDigits !== $digits) {
+                continue;
+            }
+            if (app(CloudPortalService::class)->membershipFor($user)) {
+                return $user;
+            }
+            $plain = $user;
+        }
+
+        return $plain;
     }
 
     public function addCompany(User $user, array $input)
@@ -342,12 +393,14 @@ class CloudOnboardingService
             report($e);
         }
         try {
-            Mail::raw(
-                config('cloud.trial_welcome').' '.$tenant->system_name.' is ready.',
-                function ($message) use ($user) {
-                    $message->to($user->email)->subject('Your company trial has started');
-                }
-            );
+            if (strpos((string) $user->email, '@clients.mbole.invalid') === false) {
+                Mail::raw(
+                    config('cloud.trial_welcome').' '.$tenant->system_name.' is ready.',
+                    function ($message) use ($user) {
+                        $message->to($user->email)->subject('Your company trial has started');
+                    }
+                );
+            }
         } catch (\Throwable $e) {
             // Platform mail must not remove a company that is already saved.
         }

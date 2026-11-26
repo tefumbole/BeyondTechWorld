@@ -79,6 +79,14 @@ class BeyondAssistantService
         if ($existing && $existing->status === AssistantActivity::SKIPPED && ! in_array((string) $existing->error, ['human_mode', 'assistant_disabled', 'not_ai_mode'], true)) {
             return ['skipped' => true, 'reason' => 'duplicate'];
         }
+        if ($this->subscriptionClosed($conversation)) {
+            $activity = $existing ?: $this->startActivity($conversation->id, $message->id, $fingerprint);
+            $activity->status = AssistantActivity::SKIPPED;
+            $activity->error = 'subscription_inactive';
+            $activity->save();
+
+            return ['skipped' => true, 'reason' => 'subscription_inactive'];
+        }
         $activity = $existing ?: $this->startActivity($conversation->id, $message->id, $fingerprint);
         list($allowed, $reason) = $this->policy->mayProcess($conversation);
         if (! $allowed) {
@@ -1143,6 +1151,20 @@ class BeyondAssistantService
         $conversation->save();
 
         return ['success' => true, 'reply' => $caption];
+    }
+
+    protected function subscriptionClosed($conversation)
+    {
+        $tenantId = isset($conversation->cloud_tenant_id) ? (int) $conversation->cloud_tenant_id : 0;
+        if ($tenantId < 1) {
+            return false;
+        }
+        $tenant = \App\Cloud\CloudTenant::find($tenantId);
+        if (! $tenant || $tenant->type !== \App\Cloud\CloudTenantType::CUSTOMER) {
+            return false;
+        }
+
+        return ! app(\App\Services\Cloud\CloudModuleAccessService::class)->canWriteCapability($tenant, 'messaging');
     }
 
     protected function fingerprint(WhatsAppMessage $message)

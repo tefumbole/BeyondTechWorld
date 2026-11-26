@@ -226,6 +226,8 @@
             display: flex; flex-direction: column; overflow: hidden;
         }
         .mobile-nav-links { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 8px 12px; }
+        .nav-mai { display: inline-flex; align-items: center; gap: 6px; }
+        .nav-mai-icon { width: 22px; height: 26px; object-fit: contain; flex-shrink: 0; }
         .mobile-nav-links a {
             display: flex; align-items: center; min-height: 48px; padding: 0 12px;
             border-bottom: 1px solid rgba(255,255,255,.08); font-size: 1.05rem; font-weight: 600;
@@ -292,6 +294,7 @@
 @php
     $navDefs = [
         'home'         => ['label' => 'Home', 'url' => url('/')],
+        'whatsapp-mai' => ['label' => 'WhatsApp MAI', 'url' => url('/whatsapp-mai'), 'icon' => asset('branding/mbole-ai.png')],
         'trainings'    => ['label' => 'Training', 'url' => url('/trainings')],
         'events'       => ['label' => 'Events', 'url' => url('/events')],
         'rentals'      => ['label' => 'Rentals', 'url' => url('/rentals')],
@@ -323,7 +326,7 @@
             <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}" class="nav-logo-spin">
         </a>
 
-        <nav class="hidden lg:flex items-center gap-x-4 xl:gap-x-6 flex-1 justify-center min-w-0">
+        <nav class="hidden lg:flex items-center gap-x-3 xl:gap-x-4 flex-1 justify-center min-w-0">
             @foreach ($navLinks as $link)
                 @php
                     $active = rtrim($currentUrl,'/') === rtrim($link['url'],'/');
@@ -333,10 +336,13 @@
                     }
                 @endphp
                 <a href="{{ $link['url'] }}"
-                   class="text-sm xl:text-base font-medium transition-colors duration-300 whitespace-nowrap
+                   class="text-sm xl:text-base font-medium transition-colors duration-300 whitespace-nowrap {{ !empty($link['icon']) ? 'nav-mai' : '' }}
                       @if($active) text-brand-gold border-b-2 border-brand-gold pb-1
                       @elseif(!empty($link['special'])) text-brand-gold hover:text-white font-bold
                       @else text-white hover:text-brand-gold @endif">
+                    @if(!empty($link['icon']))
+                        <img src="{{ $link['icon'] }}" alt="" class="nav-mai-icon" width="26" height="30">
+                    @endif
                     {{ $link['label'] }}
                 </a>
             @endforeach
@@ -412,7 +418,12 @@
     <div x-show="open" x-cloak x-transition.opacity class="mobile-nav-sheet lg:hidden">
         <nav class="mobile-nav-links">
             @foreach ($navLinks as $link)
-                <a href="{{ $link['url'] }}" class="{{ !empty($link['special']) ? 'text-brand-gold' : 'text-white' }}">{{ $link['label'] }}</a>
+                <a href="{{ $link['url'] }}" class="{{ !empty($link['icon']) ? 'nav-mai ' : '' }}{{ !empty($link['special']) ? 'text-brand-gold' : 'text-white' }}">
+                    @if(!empty($link['icon']))
+                        <img src="{{ $link['icon'] }}" alt="" class="nav-mai-icon" width="26" height="30">
+                    @endif
+                    {{ $link['label'] }}
+                </a>
             @endforeach
         </nav>
         <div class="mobile-nav-actions">

@@ -77,7 +77,30 @@ class WhatsAppMessage extends Model
             return (string) $meta['staff'];
         }
 
-        return (string) $this->body;
+        return self::listPreview((string) $this->body);
+    }
+
+    /** Chat-list wording. Authentication templates arrive as a locked placeholder. */
+    public static function listPreview($preview)
+    {
+        $text = trim((string) $preview);
+        $labels = [
+            '[IMAGE]' => 'Photo',
+            '[AUDIO]' => 'Voice message',
+            '[VIDEO]' => 'Video',
+            '[DOCUMENT]' => 'Document',
+            '[LOCATION]' => 'Location',
+        ];
+        $key = strtoupper($text);
+        if (isset($labels[$key])) {
+            return $labels[$key];
+        }
+        $plain = strtoupper(preg_replace('/[^A-Za-z]+/', '', $text));
+        if ($plain === 'AUTHENTICATION') {
+            return 'Verification code';
+        }
+
+        return $text;
     }
 
     /** Original or sent wording, shown under the English when it differs. */

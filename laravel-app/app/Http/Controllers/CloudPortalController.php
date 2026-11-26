@@ -39,22 +39,52 @@ class CloudPortalController extends Controller
 
     public function login(Request $request)
     {
-        $data = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string',
+        return back()->with('not_permitted', 'Sign in with the WhatsApp code sent to your phone.');
+    }
+
+    public function sendLoginCode(Request $request)
+    {
+        $request->merge([
+            'phone' => app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial')),
         ]);
-        if (! Auth::attempt(['email' => $data['email'], 'password' => $data['password'], 'is_active' => 1])) {
-            return back()->with('not_permitted', 'Those sign-in details were not recognised.')->withInput();
+        $data = $request->validate(['phone' => 'required|string|max:32']);
+        try {
+            $code = app(\App\Services\Cloud\CloudSignupOtp::class)->send($data['phone']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
-        if (! $this->portal->membershipFor(Auth::user())) {
-            Auth::logout();
+        $body = ['sent' => true];
+        if (app()->environment('testing')) {
+            $body['testing_code'] = $code;
+        }
 
-            return back()->with('not_permitted', 'This sign-in is for company portals. Use the staff sign-in for the main system.');
+        return response()->json($body);
+    }
+
+    public function verifyLoginCode(Request $request)
+    {
+        $request->merge([
+            'phone' => app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial')),
+        ]);
+        $data = $request->validate([
+            'phone' => 'required|string|max:32',
+            'code' => 'required|string|max:12',
+        ]);
+        try {
+            $phone = app(\App\Services\Cloud\CloudSignupOtp::class)->verify($data['phone'], $data['code']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
-        app(\App\Services\Cloud\CloudCompanyAccess::class)->ensureRole(Auth::user(), true);
+        $user = app(CloudOnboardingService::class)->accountForPhone($phone);
+        if (! $user || ! $this->portal->membershipFor($user)) {
+            return response()->json(['message' => 'This phone does not have an account yet.'], 422);
+        }
+        Auth::login($user);
         $request->session()->regenerate();
+        app(\App\Services\Cloud\CloudCompanyAccess::class)->ensureRole($user, true);
+        $next = $request->input('next') === 'messaging' ? route('cloud.messaging') : url('/admin');
 
-        return redirect('/admin');
+        return response()->json(['verified' => true, 'redirect' => $next]);
     }
 
     public function showRegister()
@@ -75,6 +105,19 @@ class CloudPortalController extends Controller
             'selected' => (string) request('service'),
             'paymentNotice' => config('cloud.payment_pending_notice'),
         ]);
+    }
+
+    public function whatsappMai(Request $request)
+    {
+        if (Auth::check()) {
+            $membership = app(\App\Services\Cloud\CloudPortalService::class)->membershipFor(Auth::user());
+            if ($membership && $membership->cloudTenant) {
+                return redirect()->route('cloud.messaging');
+            }
+        }
+        $request->merge(['service' => 'MESSAGING']);
+
+        return $this->showRegister();
     }
 
     public function register(Request $request)
@@ -374,9 +417,9 @@ class CloudPortalController extends Controller
         ];
         if ($withAccount && Schema::hasColumn('users', 'username')) {
             $rules['username'] = [
-                'required', 'string', 'min:3', 'max:100', 'regex:/^[A-Za-z0-9._-]+$/',
+                'nullable', 'string', 'min:3', 'max:100', 'regex:/^[A-Za-z0-9._-]+$/',
                 function ($attribute, $value, $fail) {
-                    if (app(\App\Services\Cloud\CloudSignupIdentity::class)->usernameTaken($value)) {
+                    if ($value !== null && $value !== '' && app(\App\Services\Cloud\CloudSignupIdentity::class)->usernameTaken($value)) {
                         $fail('That username already exists. Choose another one.');
                     }
                 },
@@ -387,9 +430,9 @@ class CloudPortalController extends Controller
         if ($withAccount) {
             $rules['first_name'] = 'required|string|max:80';
             $rules['last_name'] = 'required|string|max:80';
-            $rules['email'] = 'required|email|max:191';
+            $rules['email'] = 'nullable|email|max:191';
             $rules['phone'] = 'required|string|max:32';
-            $rules['password'] = 'required|string|max:191|confirmed';
+            $rules['password'] = 'nullable|string|max:191|confirmed';
         } else {
             $rules['phone'] = 'nullable|string|max:32';
         }

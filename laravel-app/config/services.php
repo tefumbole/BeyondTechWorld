@@ -37,6 +37,8 @@ return [
         'enabled' => env('MESSAGING_WHATSAPP_ENABLED', true),
         'wasender_api_key' => env('WASENDER_API_KEY'),
         'wasender_session_id' => env('WASENDER_SESSION_ID'),
+        // Account token for creating a customer's own session. Never the staff session key.
+        'wasender_personal_token' => env('WASENDER_PERSONAL_ACCESS_TOKEN'),
         'wasender_base_url' => env('WASENDER_BASE_URL', env('WASENDER_API_URL', 'https://wasenderapi.com/api')),
         'min_send_interval_ms' => (int) env(
             'WASENDER_MIN_SEND_INTERVAL_MS',

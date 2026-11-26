@@ -70,4 +70,10 @@ return [
          */
         'link_url' => env('CLOUD_WHATSAPP_LINK_URL', 'http://127.0.0.1:3921'),
     ],
+
+    /*
+    | Rwanda Mobile Money is not collected until a gateway for RWF exists.
+    | A Rwanda number can still pay 10 USD by card.
+    */
+    'rwanda_momo' => env('CLOUD_RWANDA_MOMO', false),
 ];

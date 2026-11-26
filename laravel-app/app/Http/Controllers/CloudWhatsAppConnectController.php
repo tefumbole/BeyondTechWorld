@@ -16,12 +16,17 @@ class CloudWhatsAppConnectController extends Controller
     {
         $tenant = $request->attributes->get('cloudTenant');
         try {
-            app(CloudWhatsAppConnectService::class)->begin($tenant, $request->user());
+            $link = $request->input('link') === 'code' ? 'code' : 'qr';
+            app(CloudWhatsAppConnectService::class)->begin($tenant, $request->user(), $link);
         } catch (\Exception $e) {
             return redirect()->route('cloud.messaging')->with('not_permitted', $e->getMessage());
         }
 
-        return redirect()->route('cloud.messaging')->with('message', 'Scan the WhatsApp code for this company. It is not connected until the scan is confirmed.');
+        $notice = $request->input('link') === 'code'
+            ? 'Use the link code in WhatsApp under Linked devices. If no code is shown, scan the QR from Link a device.'
+            : 'Scan the QR from WhatsApp, Linked devices. It is not connected until the number matches.';
+
+        return redirect()->route('cloud.messaging')->with('message', $notice);
     }
 
     public function qr(Request $request, $connectionId)
@@ -41,6 +46,15 @@ class CloudWhatsAppConnectController extends Controller
         }
         if (! $qr) {
             abort(404);
+        }
+
+        if ($request->get('image') && strpos((string) $qr, 'stub-') !== 0 && class_exists(\SimpleSoftwareIO\QrCode\Generator::class)) {
+            $svg = (new \SimpleSoftwareIO\QrCode\Generator())->format('svg')->size(280)->margin(1)->generate($qr);
+
+            return response((string) $svg, 200, [
+                'Content-Type' => 'image/svg+xml',
+                'Cache-Control' => 'no-store, private',
+            ]);
         }
 
         return response($qr, 200, [

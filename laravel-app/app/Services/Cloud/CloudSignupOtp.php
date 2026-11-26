@@ -67,6 +67,7 @@ class CloudSignupOtp
             throw new \RuntimeException('That code does not match.');
         }
         Cache::forget($this->key($normalized));
+        Cache::forget('cloud-signup-otp-sent:'.$normalized);
         session([
             'cloud_phone_verified' => [
                 'phone' => $normalized,

@@ -41,6 +41,15 @@ class CloudBillingCheckout
                 throw new \RuntimeException('That subscription is not on this company.');
             }
             $subscription->load('plan.module');
+            $moduleCode = $subscription->plan && $subscription->plan->module
+                ? $subscription->plan->module->code
+                : null;
+            if (count($subscriptions) === 1 && $moduleCode === \App\Cloud\CloudModuleCode::MESSAGING) {
+                $priced = app(CloudMbolePrice::class)->forMessaging($tenant, $methodCode);
+                $subscription->quoted_price = $priced['amount'];
+                $subscription->quoted_currency = $priced['currency'];
+                $subscription->save();
+            }
             $amount = $subscription->quoted_price !== null
                 ? $subscription->quoted_price
                 : ($subscription->plan ? $subscription->plan->price : null);

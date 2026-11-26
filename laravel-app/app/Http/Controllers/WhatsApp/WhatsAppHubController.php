@@ -542,16 +542,7 @@ class WhatsAppHubController extends Controller
 
     protected function chatPreview($preview)
     {
-        $labels = [
-            '[IMAGE]' => 'Photo',
-            '[AUDIO]' => 'Voice message',
-            '[VIDEO]' => 'Video',
-            '[DOCUMENT]' => 'Document',
-            '[LOCATION]' => 'Location',
-        ];
-        $key = strtoupper(trim((string) $preview));
-
-        return isset($labels[$key]) ? $labels[$key] : $preview;
+        return \App\WhatsApp\WhatsAppMessage::listPreview($preview);
     }
 
     protected function chatFeedMessage(WhatsAppMessage $message)

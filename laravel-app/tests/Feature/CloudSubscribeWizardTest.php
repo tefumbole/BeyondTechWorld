@@ -132,7 +132,9 @@ class CloudSubscribeWizardTest extends TestCase
     {
         $this->get('/subscriptions')->assertRedirect('/cloud/register');
         $catalog = $this->get('/cloud/register');
-        $catalog->assertOk()->assertSee('Individual')->assertSee('Company')->assertSee('Phone number')->assertSee('Username')->assertSee('Quotations')->assertSee('Digital Invitations')->assertDontSee('WhatsApp Hub');
+        $catalog->assertOk()->assertSee('Individual')->assertSee('Company')->assertSee('Phone number')->assertDontSee('Confirm password')->assertSee('Quotations')->assertSee('Digital Invitations')->assertDontSee('WhatsApp Hub');
+        $catalog->assertSee('WhatsApp MAI')->assertSee('branding/mbole-ai.png')->assertSee('/whatsapp-mai');
+        $this->get('/whatsapp-mai')->assertOk()->assertSee('WhatsApp MAI')->assertSee('That code does not link WhatsApp.')->assertDontSee('Digital Invitations');
         $page = $this->get('/cloud/register?service=QUOTATIONS');
         $page->assertOk()->assertSee('Quotations')->assertDontSee('WhatsApp Hub')->assertDontSee('Digital Invitations')->assertDontSee('Messaging');
         preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
@@ -222,5 +224,46 @@ class CloudSubscribeWizardTest extends TestCase
             return response('ok', 200);
         });
         $this->assertSame(403, $denied->getStatusCode());
+    }
+
+    public function test_a_client_signs_up_and_returns_with_the_phone_code_only()
+    {
+        $page = $this->get('/whatsapp-mai');
+        $page->assertOk()->assertDontSee('Confirm password');
+        preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
+        $sent = $this->postJson('/cloud/register/otp', [
+            'phone' => '670000301',
+            'dial' => '237',
+            'account_kind' => 'personal',
+        ]);
+        $this->postJson('/cloud/register/otp/verify', [
+            'phone' => '670000301',
+            'dial' => '237',
+            'code' => $sent->json('testing_code'),
+        ])->assertOk();
+        $this->post('/cloud/register', [
+            'first_name' => 'Amina',
+            'last_name' => 'Ndi',
+            'phone' => '+237670000301',
+            'company_name' => 'Amina Ndi',
+            'account_kind' => 'personal',
+            'modules' => ['MESSAGING'],
+            'onboard_token' => $match[1],
+        ])->assertRedirect('/cloud');
+        $this->assertNotNull(\App\User::where('phone', '237670000301')->first());
+        auth()->logout();
+        $this->assertGuest();
+        $login = $this->postJson('/cloud/login/otp', [
+            'phone' => '670000301',
+            'dial' => '237',
+        ]);
+        $login->assertOk();
+        $this->postJson('/cloud/login/otp/verify', [
+            'phone' => '670000301',
+            'dial' => '237',
+            'code' => $login->json('testing_code'),
+            'next' => 'messaging',
+        ])->assertOk()->assertJson(['verified' => true]);
+        $this->assertAuthenticated();
     }
 }

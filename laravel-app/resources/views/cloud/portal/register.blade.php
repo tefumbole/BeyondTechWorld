@@ -234,14 +234,20 @@
                 <li data-stage="2">Phone</li>
                 <li data-stage="3">Code</li>
                 <li data-stage="4">Name</li>
-                <li data-stage="5">Account</li>
                 <li data-stage="6">Company</li>
                 <li data-stage="7">Services</li>
             </ol>
 
             <section class="step on" data-step="1">
-                <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">Subscribe</h1>
-                <p class="hint mt-2">Build your own company. Choose Individual or Company.</p>
+                @if(($selected ?? '') === 'MESSAGING')
+                    <img src="{{ asset('branding/mbole-ai.png') }}" alt="" width="92" height="104" class="mx-auto" style="width:92px;height:104px;object-fit:contain">
+                    <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">WhatsApp MAI</h1>
+                    <p class="hint mt-2">Sign in with the code sent to your phone. That code does not link WhatsApp. Linking is a separate QR code or link code.</p>
+                    <p class="hint mt-2"><a href="{{ route('cloud.login') }}">Already registered? Sign in with your phone code.</a></p>
+                @else
+                    <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">Subscribe</h1>
+                    <p class="hint mt-2">Build your own company. Choose Individual or Company.</p>
+                @endif
                 <div class="flex flex-col sm:flex-row items-stretch justify-center gap-3 mt-6">
                     <button type="button" id="pick-personal" class="subscribe-choice bg-brand-gold hover:bg-[#b5952f] text-brand-blue px-7 shadow-[0_0_15px_rgba(212,175,55,0.45)]">Individual</button>
                     <button type="button" id="pick-company" class="subscribe-choice bg-white/15 hover:bg-white/25 border border-brand-gold text-brand-gold px-7">Company</button>
@@ -251,10 +257,17 @@
             <section class="step" data-step="2">
                 <button type="button" class="back-step" data-back="1">Back</button>
                 <h2 class="text-xl font-bold">Phone number</h2>
-                <p class="hint mt-1">A verification code is sent on WhatsApp before any service is shown. A number already used by a client or a staff account can be used here too.</p>
+                <p class="hint mt-1">A verification code is sent on WhatsApp before any service is shown. That code only signs you in. It does not connect WhatsApp.</p>
+                <div class="field-row">
+                    <label for="dial">Country</label>
+                    <select name="dial" id="dial">
+                        <option value="237" {{ old('dial', '237') === '237' ? 'selected' : '' }}>+237 Cameroon</option>
+                        <option value="250" {{ old('dial') === '250' ? 'selected' : '' }}>+250 Rwanda</option>
+                    </select>
+                </div>
                 <div class="field-row">
                     <label for="phone">Phone number</label>
-                    <input class="px-4 py-2" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel">
+                    <input class="px-4 py-2" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel" inputmode="tel">
                 </div>
                 <button type="button" id="send-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Send WhatsApp code</button>
                 <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="send-error" hidden></p>
@@ -284,36 +297,13 @@
                 </div>
                 <input type="hidden" name="first_name" id="first-name" value="{{ old('first_name') }}">
                 <input type="hidden" name="last_name" id="last-name" value="{{ old('last_name') }}">
-                <button type="button" id="to-username" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Continue</button>
-            </section>
-
-            <section class="step" data-step="5">
-                <button type="button" class="back-step" data-back="4">Back</button>
-                <h2 class="text-xl font-bold">Username</h2>
-                <p class="hint mt-1">Create a username, then add the email and password. If this username is already used by a client, a staff member, or another account, choose a different one. The phone number can stay the same. Everyone signs in from the same portal.</p>
-                <div class="field-row">
-                    <label for="username">Username</label>
-                    <input class="px-4 py-2" name="username" id="username" value="{{ old('username') }}" autocomplete="username">
-                </div>
-                <div class="field-row">
-                    <label for="email">Email</label>
-                    <input class="px-4 py-2" type="email" name="email" id="email" value="{{ old('email') }}">
-                </div>
-                <div class="field-row">
-                    <label for="password">Password</label>
-                    <input class="px-4 py-2" type="password" name="password" id="password">
-                </div>
-                <div class="field-row">
-                    <label for="password-confirmation">Confirm password</label>
-                    <input class="px-4 py-2" type="password" name="password_confirmation" id="password-confirmation">
-                </div>
-                <button type="button" id="after-username" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Continue</button>
+                <button type="button" id="after-name" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Continue</button>
             </section>
 
             <section class="step" data-step="6">
-                <button type="button" class="back-step" data-back="5">Back</button>
+                <button type="button" class="back-step" data-back="4">Back</button>
                 <h2 class="text-xl font-bold">Company</h2>
-                <p class="hint mt-1">The name, phone, and email already entered are used for this company.</p>
+                <p class="hint mt-1">The name and phone already entered are used for this company.</p>
                 <p class="known-name" id="company-known"></p>
                 <input type="hidden" name="company_name" id="company-name" value="{{ old('company_name') }}">
                 <input type="hidden" name="company_phone" id="company-phone" value="{{ old('company_phone') }}">
@@ -514,11 +504,20 @@
                 paintWait();
             }, 1000);
         }
+        function mbolePhone() {
+            var dial = document.getElementById('dial');
+            var field = document.getElementById('phone');
+            var code = dial ? dial.value : '237';
+            var digits = (field && field.value ? field.value : '').replace(/\D+/g, '');
+            if (digits.indexOf('237') === 0 || digits.indexOf('250') === 0) return '+' + digits;
+            digits = digits.replace(/^0+/, '');
+            return '+' + code + digits;
+        }
         function sendCode(errorId) {
             var error = document.getElementById(errorId);
             error.hidden = true;
             post('{{ route('cloud.register.otp') }}', {
-                phone: document.getElementById('phone').value,
+                phone: mbolePhone(),
                 account_kind: kind.value
             }, function (ok, json) {
                 if (!ok) {
@@ -533,8 +532,8 @@
         function applyKnownCompany() {
             var full = personName();
             document.getElementById('company-name').value = full;
-            document.getElementById('company-phone').value = document.getElementById('phone').value;
-            document.getElementById('company-email').value = document.getElementById('email').value;
+            document.getElementById('company-phone').value = mbolePhone();
+            document.getElementById('company-email').value = '';
             document.getElementById('company-known').textContent = full;
             return full;
         }
@@ -554,7 +553,7 @@
             var error = document.getElementById('code-error');
             error.hidden = true;
             post('{{ route('cloud.register.otp.verify') }}', {
-                phone: document.getElementById('phone').value,
+                phone: mbolePhone(),
                 code: document.getElementById('otp-code').value
             }, function (ok, json) {
                 if (!ok) {
@@ -563,7 +562,7 @@
                     return;
                 }
                 post('{{ route('cloud.register.identity') }}', {
-                    phone: document.getElementById('phone').value,
+                    phone: mbolePhone(),
                     account_kind: kind.value
                 }, function (named, identity) {
                     document.getElementById('full-name').value = named ? (identity.name || '') : '';
@@ -582,11 +581,8 @@
                 });
             });
         };
-        document.getElementById('to-username').onclick = function () {
+        document.getElementById('after-name').onclick = function () {
             writeName();
-            show(5);
-        };
-        document.getElementById('after-username').onclick = function () {
             applyKnownCompany();
             if (kind.value === 'personal') {
                 show(7);
@@ -659,7 +655,7 @@
             backs[b].onclick = function () {
                 var target = this.getAttribute('data-back');
                 if (target === 'services') {
-                    show(kind.value === 'personal' ? 5 : 6);
+                    show(kind.value === 'personal' ? 4 : 6);
                     return;
                 }
                 show(target);
@@ -680,10 +676,8 @@
         @php
             $resume = 1;
             if ($errors->any()) {
-                $resume = 5;
-                if ($errors->has('username') || $errors->has('email') || $errors->has('password')) {
-                    $resume = 5;
-                } elseif ($errors->has('modules') || $errors->has('signature')) {
+                $resume = 4;
+                if ($errors->has('modules') || $errors->has('signature')) {
                     $resume = 7;
                 } elseif ($errors->has('country') || $errors->has('city') || $errors->has('address') || $errors->has('timezone') || $errors->has('currency')) {
                     $resume = 6;

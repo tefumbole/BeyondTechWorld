@@ -73,7 +73,10 @@ class WhatsAppCapacityService
         if (! $connection || $connection->provider !== 'wasender') {
             return false;
         }
-        if ($connection->credentials_reference === 'services.whatsapp.wasender_api_key') {
+        if ($connection->credentials_reference !== 'wasender.session') {
+            return false;
+        }
+        if ($connection->sessionKey() === '' || $connection->sessionKey() === trim((string) config('services.whatsapp.wasender_api_key'))) {
             return false;
         }
         $internal = trim((string) config('services.whatsapp.wasender_session_id'));

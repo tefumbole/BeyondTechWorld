@@ -169,6 +169,27 @@ class CloudCheckoutService
         return $decoded['link'];
     }
 
+    protected function stripeUnitAmount(CloudSubscriptionPayment $payment)
+    {
+        $currency = strtoupper((string) $payment->currency);
+        $amount = (float) $payment->amount;
+        if (in_array($currency, ['USD', 'EUR', 'GBP'], true)) {
+            return (int) round($amount * 100);
+        }
+
+        return (int) round($amount);
+    }
+
+    protected function stripeMajorAmount($minor, $currency)
+    {
+        $currency = strtoupper((string) $currency);
+        if (in_array($currency, ['USD', 'EUR', 'GBP'], true)) {
+            return round(((float) $minor) / 100, 2);
+        }
+
+        return (float) $minor;
+    }
+
     protected function stripeLink(CloudTenant $tenant, CloudSubscriptionPayment $payment)
     {
         $secret = config('services.stripe.secret') ?: getenv('STRIPE_SECRET');
@@ -182,7 +203,7 @@ class CloudCheckoutService
             'line_items' => [[
                 'price_data' => [
                     'currency' => strtolower($payment->currency ?: 'xaf'),
-                    'unit_amount' => (int) $payment->amount,
+                    'unit_amount' => $this->stripeUnitAmount($payment),
                     'product_data' => [
                         'name' => $tenant->system_name ?: $tenant->name,
                         'description' => 'Beyond Cloud subscription',
@@ -295,8 +316,8 @@ class CloudCheckoutService
         if (! isset($session->payment_status) || $session->payment_status !== 'paid') {
             return false;
         }
-        $paidAmount = isset($session->amount_total) ? ((float) $session->amount_total) : null;
         $paidCurrency = isset($session->currency) ? strtoupper((string) $session->currency) : '';
+        $paidAmount = isset($session->amount_total) ? $this->stripeMajorAmount($session->amount_total, $paidCurrency) : null;
         app(CloudSubscriptionService::class)->confirmPayment($payment, [
             'provider' => 'stripe',
             'event_id' => 'stripe:'.$sessionId.':paid',
