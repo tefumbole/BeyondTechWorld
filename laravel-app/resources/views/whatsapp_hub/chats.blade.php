@@ -141,7 +141,12 @@
     .msg-edit[hidden], .msg-actions[hidden], .msg-actions button[hidden] { display: none !important; }
     .msg-actions button, .msg-edit button { min-height: 44px; border: 0; border-radius: 14px; background: #f3f6fb; color: #0b3f90; font-weight: 800; cursor: pointer; }
     .msg-actions button.danger { background: #fde8e8; color: #9b1c1c; }
-    .msg-edit textarea { width: 100%; min-height: 90px; border: 1px solid #d5deee; border-radius: 14px; padding: 10px; font: inherit; }
+    .msg-edit textarea, #transcribePrompt { width: 100%; min-height: 90px; border: 1px solid #d5deee; border-radius: 14px; padding: 10px; font: inherit; }
+    .transcribe-text, #transcribeResult { white-space: pre-wrap; border-radius: 14px; padding: 12px; color: #16315c; }
+    .transcribe-text { background: #f4f7ff; min-height: 48px; margin-bottom: 8px; }
+    #transcribeResult { background: #f3f6fb; margin-top: 12px; }
+    #transcribeResult[hidden], #transcribeUse[hidden] { display: none !important; }
+    #transcribeAsk, #transcribeUse { min-height: 44px; width: 100%; margin-top: 8px; border: 0; border-radius: 14px; background: #0b3f90; color: #fff; font-weight: 800; cursor: pointer; }
     .msg-edit { display: flex; flex-direction: column; gap: 8px; }
     .forward-list { max-height: 320px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
     .forward-list button { text-align: left; min-height: 42px; border: 0; border-radius: 12px; background: #f3f6fb; color: #16315c; font-weight: 700; padding: 0 12px; cursor: pointer; }
@@ -783,7 +788,7 @@
             <button type="button" class="lang-close" data-close="msgSheet" aria-label="Close">×</button>
         </header>
         <div class="msg-actions" id="msgActions">
-            <button type="button" data-act="transcribe" hidden>Transcribe</button>
+            <button type="button" data-act="transcribe">Transcribe</button>
             <button type="button" data-act="reply">Reply</button>
             <button type="button" data-act="copy">Copy</button>
             <button type="button" data-act="forward">Forward</button>
@@ -802,6 +807,21 @@
             <button type="button" data-act="delete-all" class="danger">Delete for everyone</button>
             <button type="button" data-act="cancel-delete">Cancel</button>
         </div>
+    </div>
+</div>
+<div class="lang-sheet" id="transcribeSheet">
+    <div class="lang-card">
+        <header>
+            <h3>Transcribe</h3>
+            <button type="button" class="lang-close" data-close="transcribeSheet" aria-label="Close">×</button>
+        </header>
+        <p id="transcribeStatus">The message as text.</p>
+        <div class="transcribe-text" id="transcribeText"></div>
+        <label for="transcribePrompt">Ask about this message</label>
+        <textarea id="transcribePrompt" maxlength="2000" placeholder="Ask for a reply, a summary, or what to do next."></textarea>
+        <button type="button" id="transcribeAsk">Ask</button>
+        <div id="transcribeResult" hidden></div>
+        <button type="button" id="transcribeUse" hidden>Use this reply</button>
     </div>
 </div>
 <div class="lang-sheet" id="forwardSheet">
@@ -1729,12 +1749,7 @@
             var act = button.getAttribute('data-act');
             var show = true;
             if (deleted && act !== 'delete-me') show = false;
-            if (act === 'transcribe') {
-                show = isAudio && !deleted;
-                button.disabled = false;
-                button.removeAttribute('data-busy');
-                button.textContent = 'Transcribe';
-            }
+            if (act === 'transcribe') show = !deleted;
             if (act === 'delete-all' && bubble.getAttribute('data-drop') !== '1') show = false;
             if (act === 'edit' && bubble.getAttribute('data-edit') !== '1') show = false;
             if (act === 'copy' && !text) show = false;
@@ -1745,6 +1760,108 @@
         if (everyone) everyone.hidden = bubble.getAttribute('data-drop') !== '1';
         openSheet('msgSheet');
     }
+    function fillTranscribe(status, text) {
+        var statusNode = document.getElementById('transcribeStatus');
+        var textNode = document.getElementById('transcribeText');
+        if (statusNode) statusNode.textContent = status || '';
+        if (textNode) textNode.textContent = text || '';
+    }
+    function openTranscribe(bubble) {
+        if (!bubble) return;
+        activeMessage = bubble;
+        var sheet = document.getElementById('transcribeSheet');
+        var result = document.getElementById('transcribeResult');
+        var use = document.getElementById('transcribeUse');
+        var prompt = document.getElementById('transcribePrompt');
+        var ask = document.getElementById('transcribeAsk');
+        var isAudio = bubble.getAttribute('data-audio') === '1' || !!bubble.querySelector('audio');
+        var existing = messageBody(bubble);
+        if (sheet) sheet.setAttribute('data-kind', isAudio ? 'audio' : 'text');
+        if (result) { result.hidden = true; result.textContent = ''; }
+        if (use) use.hidden = true;
+        if (prompt) prompt.value = '';
+        if (ask) { ask.disabled = isAudio && !existing; ask.textContent = 'Ask'; }
+        closeSheet('msgSheet');
+        openSheet('transcribeSheet');
+        if (!isAudio) {
+            fillTranscribe(existing ? 'This message as text' : 'This message has no text.', existing);
+            return;
+        }
+        fillTranscribe(existing ? 'Voice note as text' : 'Hearing the voice note…', existing);
+        var data = new FormData();
+        data.append('message', bubble.getAttribute('data-id'));
+        data.append('_token', csrfToken());
+        fetch(chatPage + '/' + openChat + '/voice', {
+            method: 'POST',
+            body: data,
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
+        }).then(function (response) {
+            return response.json().then(function (payload) { payload._ok = response.ok; return payload; }).catch(function () { return { _ok: false }; });
+        }).then(function (payload) {
+            if (ask) ask.disabled = false;
+            if (payload && payload._ok && payload.message) {
+                replaceBubble(payload.message);
+                var heard = payload.message.text || payload.message.aside || existing;
+                fillTranscribe('Voice note as text', heard);
+                var fresh = document.querySelector('#chatStream .bubble[data-id="' + payload.message.id + '"]');
+                if (fresh) activeMessage = fresh;
+                return;
+            }
+            if (!existing) fillTranscribe((payload && payload.error) || 'Could not hear that voice note.', '');
+        }).catch(function () {
+            if (ask) ask.disabled = false;
+            if (!existing) fillTranscribe('Could not hear that voice note.', '');
+        });
+    }
+    var transcribeAsk = document.getElementById('transcribeAsk');
+    if (transcribeAsk) transcribeAsk.addEventListener('click', function () {
+        if (!activeMessage || !openChat || transcribeAsk.disabled) return;
+        var prompt = document.getElementById('transcribePrompt');
+        var instruction = prompt ? prompt.value.trim() : '';
+        if (!instruction) { window.alert('Write what you want to ask about this message.'); return; }
+        var result = document.getElementById('transcribeResult');
+        var use = document.getElementById('transcribeUse');
+        var sheet = document.getElementById('transcribeSheet');
+        transcribeAsk.disabled = true;
+        transcribeAsk.textContent = 'Asking…';
+        var data = new FormData();
+        data.append('instruction', instruction);
+        data.append('_token', csrfToken());
+        fetch(chatPage + '/' + openChat + '/messages/' + activeMessage.getAttribute('data-id') + '/ask', {
+            method: 'POST',
+            body: data,
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
+        }).then(function (response) {
+            return response.json().then(function (payload) { payload._ok = response.ok; return payload; }).catch(function () { return { _ok: false }; });
+        }).then(function (payload) {
+            transcribeAsk.disabled = false;
+            transcribeAsk.textContent = 'Ask';
+            if (!payload || !payload._ok || !payload.answer) {
+                window.alert((payload && payload.error) || 'The assistant could not answer that.');
+                return;
+            }
+            var kind = sheet && sheet.getAttribute('data-kind') === 'audio' ? 'Voice note as text' : 'This message as text';
+            if (payload.text) fillTranscribe(kind, payload.text);
+            if (result) { result.hidden = false; result.textContent = payload.answer; }
+            if (use) use.hidden = false;
+        }).catch(function () {
+            transcribeAsk.disabled = false;
+            transcribeAsk.textContent = 'Ask';
+            window.alert('The assistant could not answer that.');
+        });
+    });
+    var transcribeUse = document.getElementById('transcribeUse');
+    if (transcribeUse) transcribeUse.addEventListener('click', function () {
+        var result = document.getElementById('transcribeResult');
+        var field = document.getElementById('chatBody');
+        if (field && result) {
+            field.value = result.textContent;
+            field.focus();
+        }
+        closeSheet('transcribeSheet');
+    });
     function openForwardList() {
         var list = document.getElementById('forwardList');
         var rows = document.querySelectorAll('.chat-row[data-kind="person"]');
@@ -1783,36 +1900,7 @@
             var id = activeMessage.getAttribute('data-id');
             var action = act.getAttribute('data-act');
             if (action === 'transcribe') {
-                if (act.getAttribute('data-busy') === '1') return;
-                act.setAttribute('data-busy', '1');
-                act.disabled = true;
-                act.textContent = 'Transcribing…';
-                var voiceData = new FormData();
-                voiceData.append('message', id);
-                voiceData.append('_token', csrfToken());
-                fetch(chatPage + '/' + openChat + '/voice', {
-                    method: 'POST',
-                    body: voiceData,
-                    credentials: 'same-origin',
-                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
-                }).then(function (response) {
-                    return response.json().then(function (payload) { payload._ok = response.ok; return payload; });
-                }).then(function (payload) {
-                    act.removeAttribute('data-busy');
-                    act.disabled = false;
-                    act.textContent = 'Transcribe';
-                    if (!payload || !payload._ok || !payload.message) {
-                        window.alert((payload && payload.error) || 'Could not hear that voice note.');
-                        return;
-                    }
-                    replaceBubble(payload.message);
-                    closeSheet('msgSheet');
-                }).catch(function () {
-                    act.removeAttribute('data-busy');
-                    act.disabled = false;
-                    act.textContent = 'Transcribe';
-                    window.alert('Could not hear that voice note.');
-                });
+                openTranscribe(activeMessage);
                 return;
             }
             if (action === 'reply') {

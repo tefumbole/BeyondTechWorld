@@ -878,6 +878,67 @@ class WhatsAppHubController extends Controller
         ]);
     }
 
+    public function askChatMessage(Request $request, $id, $message)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage', 'whatsapp.reply'])) {
+            return $deny;
+        }
+        @set_time_limit(90);
+        $row = WhatsAppMessage::where('conversation_id', $id)->where('id', (int) $message)->first();
+        if (! $row) {
+            return response()->json(['ok' => false, 'error' => 'That message is not in this chat.'], 404);
+        }
+        $instruction = trim((string) $request->input('instruction'));
+        if ($instruction === '') {
+            return response()->json(['ok' => false, 'error' => 'Write what you want to ask about this message.'], 422);
+        }
+        if (mb_strlen($instruction) > 2000) {
+            $instruction = mb_substr($instruction, 0, 2000);
+        }
+        if (strtoupper((string) $row->type) === 'AUDIO') {
+            $row = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->hearVoiceNote($row);
+        }
+        $text = trim($row->hubText());
+        $aside = trim($row->hubAside());
+        if ($aside !== '') {
+            $text = trim($text."\n".$aside);
+        }
+        if ($text === '' || app(\App\Services\WhatsApp\WhatsAppTranslator::class)->isVoicePlaceholder($text)) {
+            return response()->json(['ok' => false, 'error' => 'That message has no text to work from yet.'], 422);
+        }
+        $provider = app(\App\Contracts\Ai\AiProviderInterface::class);
+        if (! $provider->isConfigured()) {
+            return response()->json(['ok' => false, 'error' => 'The assistant is not available.'], 422);
+        }
+        $result = $provider->complete([
+            [
+                'role' => 'system',
+                'content' => 'You help staff with one WhatsApp message. Use only that message and the request. Do not invent facts, names, prices, or medical details. When the request asks for a reply, write only the message that can be sent. Otherwise answer in plain language.',
+            ],
+            [
+                'role' => 'user',
+                'content' => "Message:\n".$text."\n\nRequest:\n".$instruction,
+            ],
+        ], [
+            'temperature' => 0.4,
+            'max_tokens' => 700,
+        ]);
+        if (empty($result['ok']) || trim((string) (isset($result['content']) ? $result['content'] : '')) === '') {
+            $error = isset($result['error']) ? (string) $result['error'] : '';
+            if ($error === '' || stripos($error, 'sk-') !== false || strlen($error) > 180) {
+                $error = 'The assistant could not answer that.';
+            }
+
+            return response()->json(['ok' => false, 'error' => $error], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'text' => $text,
+            'answer' => trim((string) $result['content']),
+        ]);
+    }
+
     public function sendLetter(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage'])) {
