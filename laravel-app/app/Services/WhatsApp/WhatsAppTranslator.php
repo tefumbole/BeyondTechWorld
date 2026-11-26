@@ -567,26 +567,27 @@ class WhatsAppTranslator
         if ($known && ! empty($known['off'])) {
             return null;
         }
-        if ($known && ! empty($known['locked']) && $known['code'] !== '' && $known['code'] !== $staff) {
-            return $known;
-        }
-        if ($known && ! empty($known['enabled']) && $known['code'] !== '' && $known['code'] !== $staff) {
-            return $known;
-        }
-        if ($known && ! empty($known['enabled']) && $known['code'] === '') {
-            return $known;
-        }
         if ($known && empty($known['enabled'])) {
             return null;
         }
-        $default = $this->defaultReply();
-        if ($default && $default['code'] !== $staff) {
-            return [
-                'code' => $default['code'],
-                'name' => $default['name'],
-                'locked' => true,
-                'enabled' => true,
-            ];
+        if ($known && ! empty($known['locked']) && $known['code'] !== '' && $known['code'] !== $staff) {
+            return $known;
+        }
+        if ($known && ! empty($known['enabled']) && $known['code'] === '') {
+            $default = $this->defaultReply();
+            if ($default && $default['code'] !== $staff) {
+                return [
+                    'code' => $default['code'],
+                    'name' => $default['name'],
+                    'locked' => true,
+                    'enabled' => true,
+                ];
+            }
+
+            return $known;
+        }
+        if ($known) {
+            return null;
         }
 
         return null;
@@ -719,14 +720,15 @@ class WhatsAppTranslator
             return;
         }
         $existing = $this->languageFor($conversationId);
-        if ($existing && ! empty($existing['locked'])) {
+        if (! $existing || empty($existing['enabled']) || ! empty($existing['off']) || ! empty($existing['locked'])) {
             return;
         }
         $this->writeLanguage($conversationId, json_encode([
             'code' => $code,
             'name' => $name !== '' ? $name : $code,
-            'locked' => false,
+            'locked' => true,
             'enabled' => true,
+            'off' => false,
         ]));
     }
 

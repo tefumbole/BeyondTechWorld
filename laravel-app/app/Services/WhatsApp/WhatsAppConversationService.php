@@ -1808,12 +1808,36 @@ class WhatsAppConversationService
     }
 
     /**
-     * When AI is the default and the assistant is on, answer unassigned chats
-     * even if they were opened earlier in Human mode.
+     * A chat the staff already took, or already answered, stays on Human.
+     */
+    protected function staffKeepsHuman(WhatsAppConversation $conversation)
+    {
+        if (strtoupper((string) $conversation->mode) === WhatsAppConversation::MODE_AI) {
+            return false;
+        }
+        if ($conversation->assigned_user_id) {
+            return true;
+        }
+        if (strtoupper((string) $conversation->mode) !== WhatsAppConversation::MODE_HUMAN) {
+            return false;
+        }
+
+        return WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('direction', WhatsAppMessage::DIR_OUT)
+            ->where('sender_type', 'STAFF')
+            ->exists();
+    }
+
+    /**
+     * When AI is the default and the assistant is on, answer a chat that
+     * nobody on staff has taken. A chat set to Human stays on Human.
      */
     public function promoteToAiIfDefault(WhatsAppConversation $conversation)
     {
         if ($conversation->mode === WhatsAppConversation::MODE_AI) {
+            return $conversation;
+        }
+        if ($this->staffKeepsHuman($conversation)) {
             return $conversation;
         }
         try {

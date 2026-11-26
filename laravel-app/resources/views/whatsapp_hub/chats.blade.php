@@ -33,8 +33,8 @@
     .lang-card label { display: block; margin: 12px 0 6px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #6b7a99; }
     .lang-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: #f1f4fa; color: #16315c; font-size: 22px; cursor: pointer; }
     .lang-filter { width: 100%; border: 1px solid #d7e3f5; border-radius: 14px; min-height: 44px; padding: 0 14px; background: #f7f9fd; font-size: 15px; }
-    .lang-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; margin-top: 8px; }
-    .lang-option { border: 0; background: #f4f7fb; color: #16315c; border-radius: 12px; min-height: 42px; padding: 0 14px; text-align: left; font-weight: 700; cursor: pointer; }
+    .lang-list { display: flex; flex-direction: column; gap: 6px; max-height: min(46vh, 520px); overflow: auto; margin-top: 8px; -webkit-overflow-scrolling: touch; }
+    .lang-option { flex: none; width: 100%; border: 0; background: #f4f7fb; color: #16315c; border-radius: 12px; min-height: 42px; padding: 0 14px; text-align: left; font-weight: 700; cursor: pointer; }
     .lang-option.is-on { background: var(--wa-grad); color: #fff; }
     .lang-save { width: 100%; margin-top: 14px; border: 0; border-radius: 14px; min-height: 46px; background: var(--wa-grad); color: #fff; font-weight: 800; cursor: pointer; }
     @media (min-width: 801px) {
@@ -741,21 +741,17 @@
         </header>
         <p>You write in one language. Each person can receive your reply in another. That choice stays until you change it.</p>
         <label>I write in</label>
-        <input class="lang-filter" type="search" data-list="staffList" placeholder="Search languages" autocomplete="off">
+        <input class="lang-filter" type="search" data-list="staffList" placeholder="Search languages, including English" autocomplete="off">
         <input type="hidden" name="staff_language" id="staffLanguage" value="{{ $staffCode }}">
         <div class="lang-list" id="staffList">
-            @foreach($translatorLanguages as $code => $name)
-                <button type="button" class="lang-option {{ $staffCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="staffLanguage" data-search="{{ strtolower($name.' '.(isset($langHint[$code]) ? $langHint[$code] : '')) }}">{{ $name }}</button>
-            @endforeach
+            @include('whatsapp_hub.partials.language_options', ['target' => 'staffLanguage', 'selected' => $staffCode, 'blank' => null])
         </div>
         <label>Default reply language</label>
         <input class="lang-filter" type="search" data-list="defaultList" placeholder="Search languages" autocomplete="off">
         <input type="hidden" name="default_reply" id="defaultReply" value="{{ $defaultCode }}">
         <div class="lang-list" id="defaultList">
-            <button type="button" class="lang-option {{ $defaultCode === '' ? 'is-on' : '' }}" data-code="" data-target="defaultReply">No default</button>
-            @foreach($translatorLanguages as $code => $name)
-                <button type="button" class="lang-option {{ $defaultCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="defaultReply" data-search="{{ strtolower($name.' '.(isset($langHint[$code]) ? $langHint[$code] : '')) }}">{{ $name }}</button>
-            @endforeach
+            <button type="button" class="lang-option {{ $defaultCode === '' ? 'is-on' : '' }}" data-code="" data-target="defaultReply" data-search="none off no default">No default</button>
+            @include('whatsapp_hub.partials.language_options', ['target' => 'defaultReply', 'selected' => $defaultCode, 'blank' => null])
         </div>
         <label class="enter-choice"><input type="hidden" name="enter_sends" value="0"><input type="checkbox" name="enter_sends" value="1" {{ !empty($enterSends) ? 'checked' : '' }}> Enter key sends the message</label>
         <button type="submit" class="lang-save">Save</button>
@@ -772,11 +768,9 @@
         <p id="replyLangKept" @if($keptName === '') hidden @endif>{{ $keptName !== '' ? $keptName.' stays saved for this person. Turn translation on to use it again.' : '' }}</p>
         <input class="lang-filter" type="search" data-list="replyList" placeholder="Search languages" autocomplete="off">
         <div class="lang-list" id="replyList">
-            <button type="button" class="lang-option {{ $sheetCode === 'off' ? 'is-on' : '' }}" data-code="off" data-target="replyLangValue" data-submit="1">Off</button>
-            <button type="button" class="lang-option {{ $sheetCode === 'auto' ? 'is-on' : '' }}" data-code="auto" data-target="replyLangValue" data-submit="1">Detect their language</button>
-            @foreach($translatorLanguages as $code => $name)
-                <button type="button" class="lang-option {{ $sheetCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="replyLangValue" data-submit="1" data-search="{{ strtolower($name.' '.(isset($langHint[$code]) ? $langHint[$code] : '')) }}">{{ $name }}</button>
-            @endforeach
+            <button type="button" class="lang-option {{ $sheetCode === 'off' ? 'is-on' : '' }}" data-code="off" data-target="replyLangValue" data-submit="1" data-search="off stop">Off</button>
+            <button type="button" class="lang-option {{ $sheetCode === 'auto' ? 'is-on' : '' }}" data-code="auto" data-target="replyLangValue" data-submit="1" data-search="detect auto">Detect their language</button>
+            @include('whatsapp_hub.partials.language_options', ['target' => 'replyLangValue', 'selected' => $sheetCode, 'submit' => true])
         </div>
     </div>
 </div>
@@ -1049,8 +1043,13 @@
         var sheet = document.getElementById(id);
         if (!sheet) return;
         sheet.classList.add('is-on');
-        var search = sheet.querySelector('.lang-filter');
-        if (search) { search.value = ''; search.dispatchEvent(new Event('input')); search.focus(); }
+        var searches = sheet.querySelectorAll('.lang-filter');
+        searches.forEach(function (search) {
+            search.value = '';
+            search.dispatchEvent(new Event('input'));
+        });
+        if (searches.length) searches[0].focus();
+        sheet.querySelectorAll('.lang-option').forEach(function (option) { option.style.display = ''; });
     }
     function closeSheet(id) {
         var sheet = document.getElementById(id);

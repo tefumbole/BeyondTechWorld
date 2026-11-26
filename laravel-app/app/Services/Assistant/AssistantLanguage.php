@@ -75,9 +75,6 @@ class AssistantLanguage
         if ($english > 0 && $english >= $french && $english >= $spanish) {
             return $this->named('English', $raw);
         }
-        if (preg_match('/\p{L}/u', $raw)) {
-            return $this->named('match', $raw);
-        }
 
         return null;
     }
