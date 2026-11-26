@@ -462,6 +462,35 @@ class WhatsAppTranslator
     }
 
     /**
+     * Turn a voice note into words. Incoming notes are kept in the staff language.
+     * A note you sent keeps the words you spoke.
+     */
+    public function hearVoiceNote(WhatsAppMessage $message)
+    {
+        if (strtoupper((string) $message->type) !== 'AUDIO') {
+            return $message;
+        }
+        if ($message->direction === WhatsAppMessage::DIR_OUT) {
+            return $this->hearOutgoingVoice($message);
+        }
+
+        return $this->hearIncomingVoice($message);
+    }
+
+    /**
+     * Words already stored for this voice note, or an empty string when it is still only audio.
+     */
+    public function voiceTranscript(WhatsAppMessage $message)
+    {
+        $text = trim($message->hubText());
+        if ($this->isVoicePlaceholder($text)) {
+            return '';
+        }
+
+        return $text;
+    }
+
+    /**
      * Hear an incoming voice note and keep the English (or staff language) wording.
      * The spoken words stay on the message. This does not run from the chat poll.
      */
@@ -475,7 +504,7 @@ class WhatsAppTranslator
             return $message;
         }
         $body = trim((string) $message->body);
-        if ($body === '' || in_array(strtoupper($body), ['[AUDIO]', 'VOICE MESSAGE', 'AUDIO'], true)) {
+        if ($this->isVoicePlaceholder($body)) {
             $message->body = '';
             $message->save();
             app(WhatsAppVoiceTranscriber::class)->apply($message);
@@ -500,6 +529,44 @@ class WhatsAppTranslator
         $this->syncPreview($message, $heard['english']);
 
         return $message->fresh() ?: $message;
+    }
+
+    /**
+     * A voice note sent from this chat or the phone. Keep the spoken words on the bubble.
+     */
+    public function hearOutgoingVoice(WhatsAppMessage $message)
+    {
+        if (strtoupper((string) $message->type) !== 'AUDIO' || $message->direction !== WhatsAppMessage::DIR_OUT) {
+            return $message;
+        }
+        $meta = $message->translationMeta();
+        $staff = trim((string) (isset($meta['staff']) ? $meta['staff'] : ''));
+        $body = trim((string) $message->body);
+        if (! $this->isVoicePlaceholder($staff) || (! $this->isVoicePlaceholder($body) && $body !== '')) {
+            return $message;
+        }
+        $text = trim(app(WhatsAppVoiceTranscriber::class)->transcribe($message));
+        if ($text === '' || $this->isVoicePlaceholder($text)) {
+            return $message;
+        }
+        $message->body = $text;
+        $media = $message->media();
+        $translation = isset($media['translation']) && is_array($media['translation']) ? $media['translation'] : [];
+        $translation['staff'] = $text;
+        $translation['voice'] = true;
+        $media['translation'] = $translation;
+        $message->media_json = json_encode($media);
+        $message->save();
+        $this->syncPreview($message, $text);
+
+        return $message->fresh() ?: $message;
+    }
+
+    public function isVoicePlaceholder($text)
+    {
+        $text = strtoupper(trim((string) $text));
+
+        return $text === '' || in_array($text, ['[AUDIO]', 'VOICE MESSAGE', 'AUDIO', 'VOICE NOTE', 'VOICE MAIL', 'VOICEMAIL'], true);
     }
 
     /**

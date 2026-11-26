@@ -863,10 +863,14 @@ class WhatsAppHubController extends Controller
         }
         @set_time_limit(90);
         $message = WhatsAppMessage::where('conversation_id', $id)->where('id', (int) $request->input('message'))->first();
-        if (! $message) {
-            return response()->json(['ok' => false, 'error' => 'That voice note is not in this chat.'], 404);
+        if (! $message || strtoupper((string) $message->type) !== 'AUDIO') {
+            return response()->json(['ok' => false, 'error' => 'That message is not a voice note.'], 422);
         }
-        $message = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->hearIncomingVoice($message);
+        $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
+        $message = $translator->hearVoiceNote($message);
+        if ($translator->voiceTranscript($message) === '') {
+            return response()->json(['ok' => false, 'error' => 'Could not hear that voice note.'], 422);
+        }
 
         return response()->json([
             'ok' => true,

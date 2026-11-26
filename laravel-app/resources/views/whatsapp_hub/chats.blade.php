@@ -783,6 +783,7 @@
             <button type="button" class="lang-close" data-close="msgSheet" aria-label="Close">×</button>
         </header>
         <div class="msg-actions" id="msgActions">
+            <button type="button" data-act="transcribe" hidden>Transcribe</button>
             <button type="button" data-act="reply">Reply</button>
             <button type="button" data-act="copy">Copy</button>
             <button type="button" data-act="forward">Forward</button>
@@ -1145,6 +1146,7 @@
             + (message.can_drop ? ' data-drop="1"' : '')
             + (message.starred ? ' data-star="1"' : '')
             + (message.deleted ? ' data-deleted="1"' : '')
+            + (message.type === 'AUDIO' ? ' data-audio="1"' : '')
             + (message.needs_voice ? ' data-voice="' + message.id + '"' : '')
             + ' data-day="' + esc(dayKey) + '"' + (at ? ' data-at="' + esc(at) + '"' : '') + '>'
             + (message.who ? '<span class="who">' + esc(message.who) + '</span>' : '')
@@ -1720,12 +1722,19 @@
         resetMessageSheet();
         var deleted = bubble.getAttribute('data-deleted') === '1';
         var text = messageBody(bubble);
+        var isAudio = bubble.getAttribute('data-audio') === '1' || !!bubble.querySelector('audio');
         var title = document.getElementById('msgSheetText');
-        if (title) title.textContent = text ? text.slice(0, 80) : 'Message';
+        if (title) title.textContent = text ? text.slice(0, 80) : (isAudio ? 'Voice message' : 'Message');
         document.querySelectorAll('#msgActions button').forEach(function (button) {
             var act = button.getAttribute('data-act');
             var show = true;
             if (deleted && act !== 'delete-me') show = false;
+            if (act === 'transcribe') {
+                show = isAudio && !deleted;
+                button.disabled = false;
+                button.removeAttribute('data-busy');
+                button.textContent = 'Transcribe';
+            }
             if (act === 'delete-all' && bubble.getAttribute('data-drop') !== '1') show = false;
             if (act === 'edit' && bubble.getAttribute('data-edit') !== '1') show = false;
             if (act === 'copy' && !text) show = false;
@@ -1773,6 +1782,39 @@
         if (act && activeMessage) {
             var id = activeMessage.getAttribute('data-id');
             var action = act.getAttribute('data-act');
+            if (action === 'transcribe') {
+                if (act.getAttribute('data-busy') === '1') return;
+                act.setAttribute('data-busy', '1');
+                act.disabled = true;
+                act.textContent = 'Transcribing…';
+                var voiceData = new FormData();
+                voiceData.append('message', id);
+                voiceData.append('_token', csrfToken());
+                fetch(chatPage + '/' + openChat + '/voice', {
+                    method: 'POST',
+                    body: voiceData,
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
+                }).then(function (response) {
+                    return response.json().then(function (payload) { payload._ok = response.ok; return payload; });
+                }).then(function (payload) {
+                    act.removeAttribute('data-busy');
+                    act.disabled = false;
+                    act.textContent = 'Transcribe';
+                    if (!payload || !payload._ok || !payload.message) {
+                        window.alert((payload && payload.error) || 'Could not hear that voice note.');
+                        return;
+                    }
+                    replaceBubble(payload.message);
+                    closeSheet('msgSheet');
+                }).catch(function () {
+                    act.removeAttribute('data-busy');
+                    act.disabled = false;
+                    act.textContent = 'Transcribe';
+                    window.alert('Could not hear that voice note.');
+                });
+                return;
+            }
             if (action === 'reply') {
                 setQuote(id, messageBody(activeMessage));
                 closeSheet('msgSheet');

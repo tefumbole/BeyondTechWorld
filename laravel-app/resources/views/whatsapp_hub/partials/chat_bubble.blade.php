@@ -28,7 +28,7 @@
         return $html;
     };
 @endphp
-<div class="bubble {{ !empty($out) ? 'out' : 'in' }}{{ !empty($deleted) ? ' is-deleted' : '' }}{{ !empty($starred) ? ' is-star' : '' }}" @if(!empty($id)) data-id="{{ (int) $id }}" @endif @if(!empty($out)) data-out="1" @endif @if(!empty($canEdit)) data-edit="1" @endif @if(!empty($canDrop)) data-drop="1" @endif @if(!empty($starred)) data-star="1" @endif @if(!empty($deleted)) data-deleted="1" @endif @if(!empty($voicePending)) data-voice="{{ (int) $id }}" @endif @if(!empty($at)) data-at="{{ $at }}" @endif @if(!empty($day)) data-day="{{ $day }}" @endif>
+<div class="bubble {{ !empty($out) ? 'out' : 'in' }}{{ !empty($deleted) ? ' is-deleted' : '' }}{{ !empty($starred) ? ' is-star' : '' }}" @if(!empty($id)) data-id="{{ (int) $id }}" @endif @if(!empty($out)) data-out="1" @endif @if(!empty($canEdit)) data-edit="1" @endif @if(!empty($canDrop)) data-drop="1" @endif @if(!empty($starred)) data-star="1" @endif @if(!empty($deleted)) data-deleted="1" @endif @if(strtoupper((string) ($type ?? '')) === 'AUDIO') data-audio="1" @endif @if(!empty($voicePending)) data-voice="{{ (int) $id }}" @endif @if(!empty($at)) data-at="{{ $at }}" @endif @if(!empty($day)) data-day="{{ $day }}" @endif>
     @if(!empty($who))<span class="who">{{ $who }}</span>@endif
     @if(!empty($forwarded))<span class="forwarded">Forwarded</span>@endif
     @if(!empty($quote))<span class="quote">{!! $linkify($quote) !!}</span>@endif
