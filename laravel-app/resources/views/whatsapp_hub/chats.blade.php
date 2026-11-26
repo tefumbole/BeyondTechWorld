@@ -148,7 +148,22 @@
     .transcribe-text { background: #f4f7ff; min-height: 48px; margin-bottom: 8px; }
     #transcribeResult { background: #f3f6fb; margin-top: 12px; }
     #transcribeResult[hidden], #transcribeUse[hidden] { display: none !important; }
-    #transcribeAsk, #transcribeUse { min-height: 44px; width: 100%; margin-top: 8px; border: 0; border-radius: 14px; background: #0b3f90; color: #fff; font-weight: 800; cursor: pointer; }
+    #transcribeUse { min-height: 44px; width: 100%; margin-top: 8px; border: 0; border-radius: 14px; background: #0b3f90; color: #fff; font-weight: 800; cursor: pointer; }
+    #transcribeAsk { min-height: 44px; border: 0; border-radius: 14px; background: #0b3f90; color: #fff; font-weight: 800; cursor: pointer; }
+    .ask-card { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+    .ask-card > header { padding: 16px 16px 0; margin: 0; }
+    .ask-scope { margin: 2px 0 0; color: #6b7a99; font-size: 12px; font-weight: 700; }
+    .ask-thread { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 16px 12px; }
+    .ask-dock { flex: none; border-top: 1px solid #e6ecf6; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); background: #fff; }
+    .ask-file { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: #0b3f90; font-size: 12px; font-weight: 800; }
+    .ask-file[hidden] { display: none !important; }
+    .ask-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ask-file button { border: 0; background: transparent; color: #6b7a99; font-size: 18px; cursor: pointer; }
+    .ask-row { display: flex; align-items: flex-end; gap: 8px; }
+    .ask-clip { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: 0; border-radius: 50%; background: #eef2f9; color: #0b3f90; font-size: 26px; font-weight: 600; cursor: pointer; flex: none; }
+    .ask-clip input { display: none; }
+    .ask-row textarea { flex: 1; min-height: 44px; max-height: 120px; margin: 0; resize: none; }
+    .ask-row #transcribeAsk { width: auto; min-width: 72px; margin: 0; padding: 0 16px; }
     .ask-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
     .ask-chips button { border: 0; border-radius: 999px; min-height: 36px; padding: 0 12px; background: #eef2f9; color: #0b3f90; font-weight: 800; cursor: pointer; }
     .mode-switch .ask-ai { background: #0b3f90; color: #fff; }
@@ -818,23 +833,39 @@
     </div>
 </div>
 <div class="lang-sheet" id="transcribeSheet">
-    <div class="lang-card">
+    <div class="lang-card ask-card">
         <header>
-            <h3>Ask AI</h3>
+            <div>
+                <h3>Ask AI</h3>
+                <p class="ask-scope">This chat only</p>
+            </div>
             <button type="button" class="lang-close" data-close="transcribeSheet" aria-label="Close">×</button>
         </header>
-        <div class="ask-chips">
-            <button type="button" data-prompt="Summarize this in a few sentences.">Summarize</button>
-            <button type="button" data-prompt="List every question and the facts they asked for, in order.">List the questions</button>
-            <button type="button" data-prompt="Write a short reply I can send.">Write a reply</button>
+        <div class="ask-thread" id="askThread">
+            <div class="ask-chips">
+                <button type="button" data-prompt="Summarize this chat in a few sentences.">Summarize</button>
+                <button type="button" data-prompt="List every question and the facts they asked for, in order.">List the questions</button>
+                <button type="button" data-prompt="Write a short reply I can send.">Write a reply</button>
+            </div>
+            <p id="transcribeStatus">This chat only</p>
+            <div class="transcribe-text" id="transcribeText"></div>
+            <div id="transcribeResult" hidden></div>
+            <button type="button" id="transcribeUse" hidden>Use this reply</button>
         </div>
-        <label for="transcribePrompt">What do you want?</label>
-        <textarea id="transcribePrompt" maxlength="2000" placeholder="Summarize the voice note, list what they need, or ask for the details."></textarea>
-        <button type="button" id="transcribeAsk">Ask</button>
-        <p id="transcribeStatus">This chat</p>
-        <div class="transcribe-text" id="transcribeText"></div>
-        <div id="transcribeResult" hidden></div>
-        <button type="button" id="transcribeUse" hidden>Use this reply</button>
+        <div class="ask-dock">
+            <div class="ask-file" id="askFileName" hidden>
+                <span></span>
+                <button type="button" id="askFileClear" aria-label="Remove file">×</button>
+            </div>
+            <div class="ask-row">
+                <label class="ask-clip" aria-label="Add a file">
+                    <input type="file" id="askFile" accept=".txt,.csv,.md,.json,.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif">
+                    +
+                </label>
+                <textarea id="transcribePrompt" maxlength="2000" rows="1" placeholder="Ask about this chat"></textarea>
+                <button type="button" id="transcribeAsk">Ask</button>
+            </div>
+        </div>
     </div>
 </div>
 <div class="lang-sheet" id="forwardSheet">
@@ -1043,6 +1074,11 @@
         attachPasted(picked);
     });
     document.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !event.shiftKey && event.target && event.target.id === 'transcribePrompt') {
+            event.preventDefault();
+            runAsk('');
+            return;
+        }
         if (!enterSends || event.key !== 'Enter' || event.shiftKey) return;
         var field = event.target;
         if (!field || field.id !== 'chatBody') return;
@@ -1821,6 +1857,20 @@
         if (statusNode) statusNode.textContent = status || '';
         if (textNode) textNode.textContent = text || '';
     }
+    function clearAskFile() {
+        var input = document.getElementById('askFile');
+        var name = document.getElementById('askFileName');
+        if (input) input.value = '';
+        if (name) {
+            name.hidden = true;
+            var span = name.querySelector('span');
+            if (span) span.textContent = '';
+        }
+    }
+    function askAttachment() {
+        var input = document.getElementById('askFile');
+        return input && input.files && input.files[0] ? input.files[0] : null;
+    }
     function openTranscribe(bubble) {
         if (!bubble) return;
         activeMessage = bubble;
@@ -1835,6 +1885,7 @@
         if (result) { result.hidden = true; result.textContent = ''; }
         if (use) use.hidden = true;
         if (prompt) prompt.value = '';
+        clearAskFile();
         if (ask) { ask.disabled = isAudio && !existing; ask.textContent = 'Ask'; }
         closeSheet('msgSheet');
         openSheet('transcribeSheet');
@@ -1898,7 +1949,8 @@
         if (use) use.hidden = true;
         if (prompt) prompt.value = '';
         if (ask) { ask.disabled = false; ask.textContent = 'Ask'; }
-        fillTranscribe('This chat', threadExcerpt() || 'No messages in this chat yet.');
+        clearAskFile();
+        fillTranscribe('This chat only', threadExcerpt() || 'No messages in this chat yet.');
         openSheet('transcribeSheet');
         if (prompt) setTimeout(function () { prompt.focus(); }, 40);
     }
@@ -1906,8 +1958,14 @@
         var ask = document.getElementById('transcribeAsk');
         if (!openChat || (ask && ask.disabled)) return;
         var prompt = document.getElementById('transcribePrompt');
+        var file = askAttachment();
         instruction = (instruction || (prompt ? prompt.value : '')).trim();
-        if (!instruction) { window.alert('Write what you want the assistant to do.'); return; }
+        if (!instruction && !file) { window.alert('Write what you want the assistant to do.'); return; }
+        if (!instruction) instruction = 'Read the attached file and say what it means for this chat.';
+        if (file && file.size > ((/\.(png|jpe?g|webp|gif)$/i).test(file.name) ? 1500000 : 4000000)) {
+            window.alert('That file is too large.');
+            return;
+        }
         if (prompt) prompt.value = instruction;
         var result = document.getElementById('transcribeResult');
         var use = document.getElementById('transcribeUse');
@@ -1916,6 +1974,7 @@
         var data = new FormData();
         data.append('instruction', instruction);
         if (activeMessage) data.append('message', activeMessage.getAttribute('data-id'));
+        if (file) data.append('file', file);
         data.append('_token', csrfToken());
         fetch(chatPage + '/' + openChat + '/ask', {
             method: 'POST',
@@ -1934,6 +1993,8 @@
             if (payload.text && sheet && sheet.getAttribute('data-kind') !== 'chat') fillTranscribe(kindName, payload.text);
             if (result) { result.hidden = false; result.textContent = payload.answer; }
             if (use) use.hidden = false;
+            var thread = document.getElementById('askThread');
+            if (thread) thread.scrollTop = thread.scrollHeight;
         }).catch(function () {
             if (ask) { ask.disabled = false; ask.textContent = 'Ask'; }
             window.alert('The assistant could not answer that.');
@@ -1941,6 +2002,16 @@
     }
     var transcribeAsk = document.getElementById('transcribeAsk');
     if (transcribeAsk) transcribeAsk.addEventListener('click', function () { runAsk(''); });
+    var askFile = document.getElementById('askFile');
+    if (askFile) askFile.addEventListener('change', function () {
+        var picked = askAttachment();
+        var name = document.getElementById('askFileName');
+        if (!name) return;
+        var span = name.querySelector('span');
+        if (!picked) { name.hidden = true; if (span) span.textContent = ''; return; }
+        name.hidden = false;
+        if (span) span.textContent = picked.name;
+    });
     var transcribeUse = document.getElementById('transcribeUse');
     if (transcribeUse) transcribeUse.addEventListener('click', function () {
         var result = document.getElementById('transcribeResult');
@@ -1982,6 +2053,7 @@
         });
     }
     document.addEventListener('click', function (event) {
+        if (event.target && event.target.id === 'askFileClear') { clearAskFile(); return; }
         var askOpen = event.target.closest && event.target.closest('#openAsk');
         if (askOpen) { openAsk(null); return; }
         var chip = event.target.closest && event.target.closest('[data-prompt]');

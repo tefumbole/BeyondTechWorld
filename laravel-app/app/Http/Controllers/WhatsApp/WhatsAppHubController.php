@@ -909,11 +909,19 @@ class WhatsAppHubController extends Controller
         }
         @set_time_limit(90);
         $instruction = trim((string) $request->input('instruction'));
-        if ($instruction === '') {
+        $hasFile = $request->hasFile('file');
+        if ($instruction === '' && ! $hasFile) {
             return response()->json(['ok' => false, 'error' => 'Write what you want the assistant to do.'], 422);
+        }
+        if ($instruction === '') {
+            $instruction = 'Read the attached file and say what it means for this chat.';
         }
         if (mb_strlen($instruction) > 2000) {
             $instruction = mb_substr($instruction, 0, 2000);
+        }
+        $material = $this->attachedAskMaterial($request);
+        if (! empty($material['error'])) {
+            return response()->json(['ok' => false, 'error' => $material['error']], 422);
         }
         $messageId = (int) $request->input('message');
         if ($messageId > 0) {
@@ -922,7 +930,7 @@ class WhatsAppHubController extends Controller
                 return response()->json(['ok' => false, 'error' => 'That message is not in this chat.'], 404);
             }
 
-            return $this->answerAboutMessage($row, $instruction, false);
+            return $this->answerAboutMessage($row, $instruction, false, $material);
         }
         $rows = WhatsAppMessage::visible()->where('conversation_id', $id)->orderByDesc('id')->limit(40)->get()->reverse()->values();
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
@@ -956,11 +964,14 @@ class WhatsAppHubController extends Controller
         if (mb_strlen($text) > 6000) {
             $text = mb_substr($text, -6000);
         }
-        if ($text === '') {
+        if ($text === '' && $material['text'] === '' && empty($material['image'])) {
             return response()->json(['ok' => false, 'error' => 'This chat has no text to work from yet.'], 422);
         }
+        if ($text === '') {
+            $text = '(No text in this chat yet.)';
+        }
 
-        return $this->answerAbout($text, $instruction, 'You help staff with one WhatsApp conversation. Use only these messages and the request. Do not invent facts, names, prices, or medical details. When the request asks for a reply, write only the message that can be sent. When it asks for a summary or a list, write that clearly.', true);
+        return $this->answerAbout($text, $instruction, 'You answer only about the current WhatsApp chat. You cannot see the rest of the company system, other chats, accounts, or records. Use the messages from this chat, and a file only when one is attached to this question. If the answer is not in this chat or that file, say it is not in this chat. Do not invent facts, names, prices, or medical details. When the request asks for a reply, write only the message that can be sent. When it asks for a summary or a list, write that clearly.', true, $material);
     }
 
     public function askChatMessage(Request $request, $id, $message)
@@ -981,10 +992,10 @@ class WhatsAppHubController extends Controller
             $instruction = mb_substr($instruction, 0, 2000);
         }
 
-        return $this->answerAboutMessage($row, $instruction, false);
+        return $this->answerAboutMessage($row, $instruction, false, ['text' => '', 'image' => null, 'name' => '']);
     }
 
-    protected function answerAboutMessage(WhatsAppMessage $row, $instruction, $keepChatLabel)
+    protected function answerAboutMessage(WhatsAppMessage $row, $instruction, $keepChatLabel, array $material = [])
     {
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
         if (strtoupper((string) $row->type) === 'AUDIO') {
@@ -996,21 +1007,41 @@ class WhatsAppHubController extends Controller
             $text = trim($text."\n".$aside);
         }
         if ($text === '' || $translator->isVoicePlaceholder($text)) {
+            $text = '';
+        }
+        $fileText = isset($material['text']) ? (string) $material['text'] : '';
+        if ($text === '' && $fileText === '' && empty($material['image'])) {
             return response()->json(['ok' => false, 'error' => 'That message has no text to work from yet.'], 422);
         }
+        if ($text === '') {
+            $text = '(This message has no text yet.)';
+        }
 
-        return $this->answerAbout($text, $instruction, 'You help staff with one WhatsApp message. Use only that message and the request. Do not invent facts, names, prices, or medical details. When the request asks for a reply, write only the message that can be sent. Otherwise answer in plain language.', $keepChatLabel);
+        return $this->answerAbout($text, $instruction, 'You answer only about this one message from the current WhatsApp chat. You cannot see the rest of the company system, other chats, accounts, or records. Use this message, and a file only when one is attached to this question. If the answer is not in this message or that file, say so. Do not invent facts, names, prices, or medical details. When the request asks for a reply, write only the message that can be sent. Otherwise answer in plain language.', $keepChatLabel, $material);
     }
 
-    protected function answerAbout($text, $instruction, $system, $hideSource)
+    protected function answerAbout($text, $instruction, $system, $hideSource, array $material = [])
     {
         $provider = app(\App\Contracts\Ai\AiProviderInterface::class);
         if (! $provider->isConfigured()) {
             return response()->json(['ok' => false, 'error' => 'The assistant is not available.'], 422);
         }
+        $fileText = isset($material['text']) ? trim((string) $material['text']) : '';
+        $fileName = isset($material['name']) ? trim((string) $material['name']) : '';
+        $body = "Current chat:\n".$text."\n\nRequest:\n".$instruction;
+        if ($fileText !== '') {
+            $body .= "\n\nAttached file".($fileName !== '' ? ' ('.$fileName.')' : '').":\n".$fileText;
+        }
+        $content = $body;
+        if (! empty($material['image'])) {
+            $content = [
+                ['type' => 'text', 'text' => $body."\n\nAn image was attached for this question about the current chat. Read that image only."],
+                ['type' => 'image_url', 'image_url' => ['url' => $material['image']]],
+            ];
+        }
         $result = $provider->complete([
             ['role' => 'system', 'content' => $system],
-            ['role' => 'user', 'content' => "Messages:\n".$text."\n\nRequest:\n".$instruction],
+            ['role' => 'user', 'content' => $content],
         ], [
             'temperature' => 0.4,
             'max_tokens' => 700,
@@ -1029,6 +1060,169 @@ class WhatsAppHubController extends Controller
             'text' => $hideSource ? '' : $text,
             'answer' => trim((string) $result['content']),
         ]);
+    }
+
+    protected function attachedAskMaterial(Request $request)
+    {
+        $empty = ['text' => '', 'image' => null, 'name' => '', 'error' => ''];
+        $file = $request->file('file');
+        if (! $file) {
+            return $empty;
+        }
+        if (! $file->isValid()) {
+            $empty['error'] = 'That file could not be read.';
+
+            return $empty;
+        }
+        $ext = strtolower((string) $file->getClientOriginalExtension());
+        $name = trim((string) $file->getClientOriginalName());
+        if (strlen($name) > 120) {
+            $name = substr($name, 0, 120);
+        }
+        $images = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+        $docs = ['txt', 'csv', 'md', 'json', 'pdf', 'docx'];
+        if (! in_array($ext, $images, true) && ! in_array($ext, $docs, true)) {
+            $empty['error'] = 'Add a text file, PDF, Word document, or a photo.';
+
+            return $empty;
+        }
+        $max = in_array($ext, $images, true) ? 1500000 : 4000000;
+        if ((int) $file->getSize() > $max) {
+            $empty['error'] = 'That file is too large.';
+
+            return $empty;
+        }
+        $path = $file->getRealPath();
+        if (! is_string($path) || $path === '' || ! is_readable($path)) {
+            $empty['error'] = 'That file could not be read.';
+
+            return $empty;
+        }
+        if (in_array($ext, $images, true)) {
+            $raw = file_get_contents($path);
+            if (! is_string($raw) || $raw === '') {
+                $empty['error'] = 'That photo could not be read.';
+
+                return $empty;
+            }
+            $mime = $ext === 'png' ? 'image/png' : ($ext === 'webp' ? 'image/webp' : ($ext === 'gif' ? 'image/gif' : 'image/jpeg'));
+
+            return ['text' => '', 'image' => 'data:'.$mime.';base64,'.base64_encode($raw), 'name' => $name, 'error' => ''];
+        }
+        $text = trim($this->readAskFileText($path, $ext));
+        if ($text === '') {
+            $empty['error'] = 'That file has no readable text. Try a photo of the page.';
+
+            return $empty;
+        }
+        if (mb_strlen($text) > 8000) {
+            $text = mb_substr($text, 0, 8000);
+        }
+
+        return ['text' => $text, 'image' => null, 'name' => $name, 'error' => ''];
+    }
+
+    protected function readAskFileText($path, $ext)
+    {
+        if (in_array($ext, ['txt', 'csv', 'md', 'json'], true)) {
+            return $this->plainAskText(file_get_contents($path));
+        }
+        if ($ext === 'docx') {
+            if (! class_exists('ZipArchive')) {
+                return '';
+            }
+            $zip = new \ZipArchive();
+            if ($zip->open($path) !== true) {
+                return '';
+            }
+            $xml = $zip->getFromName('word/document.xml');
+            $zip->close();
+            if (! is_string($xml) || $xml === '') {
+                return '';
+            }
+            $xml = str_replace(['</w:p>', '</w:tr>'], "\n", $xml);
+            $xml = preg_replace('/<w:tab[^>]*\/>/', "\t", $xml);
+
+            return $this->plainAskText(strip_tags($xml));
+        }
+        if ($ext === 'pdf') {
+            return $this->plainAskText($this->pdfAskText($path));
+        }
+
+        return '';
+    }
+
+    protected function plainAskText($raw)
+    {
+        if (! is_string($raw) || $raw === '') {
+            return '';
+        }
+        if (function_exists('mb_convert_encoding')) {
+            $raw = mb_convert_encoding($raw, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+        }
+        $clean = preg_replace('/[^\P{C}\n\t]+/u', ' ', $raw);
+
+        return trim(is_string($clean) ? $clean : $raw);
+    }
+
+    protected function pdfAskText($path)
+    {
+        $raw = file_get_contents($path);
+        if (! is_string($raw) || $raw === '') {
+            return '';
+        }
+        $parts = [];
+        if (preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $raw, $matches)) {
+            foreach ($matches[1] as $stream) {
+                $decoded = @gzuncompress($stream);
+                if ($decoded === false) {
+                    $decoded = @gzinflate($stream);
+                }
+                $chunk = is_string($decoded) ? $decoded : $stream;
+                $parts[] = $this->pdfOperatorsToText($chunk);
+            }
+        }
+        $joined = trim(implode("\n", $parts));
+        if ($joined !== '') {
+            return $joined;
+        }
+
+        return $this->pdfOperatorsToText($raw);
+    }
+
+    protected function pdfOperatorsToText($chunk)
+    {
+        $out = [];
+        if (preg_match_all('/\((?:\\\\.|[^\\\\)])*\)\s*Tj/s', $chunk, $found)) {
+            foreach ($found[0] as $hit) {
+                if (preg_match('/\((.*)\)/s', $hit, $inner)) {
+                    $out[] = $this->pdfUnescape($inner[1]);
+                }
+            }
+        }
+        if (preg_match_all('/\[(.*?)\]\s*TJ/s', $chunk, $arrays)) {
+            foreach ($arrays[1] as $array) {
+                if (! preg_match_all('/\((?:\\\\.|[^\\\\)])*\)/s', $array, $bits)) {
+                    continue;
+                }
+                $line = '';
+                foreach ($bits[0] as $bit) {
+                    $line .= $this->pdfUnescape(substr($bit, 1, -1));
+                }
+                $out[] = $line;
+            }
+        }
+
+        return trim(implode("\n", $out));
+    }
+
+    protected function pdfUnescape($text)
+    {
+        $text = str_replace(['\\n', '\\r', '\\t', '\\(', '\\)', '\\\\'], ["\n", '', "\t", '(', ')', '\\'], $text);
+
+        return preg_replace_callback('/\\\\([0-7]{1,3})/', function ($match) {
+            return chr(octdec($match[1]));
+        }, $text);
     }
 
     public function sendLetter(Request $request)
