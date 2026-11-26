@@ -444,6 +444,95 @@ class WhatsAppTranslator
         return ['code' => $code, 'name' => $languages[$code]];
     }
 
+    public function enterSends()
+    {
+        return $this->setting('hub_enter_sends', '1') !== '0';
+    }
+
+    public function setEnterSends($on)
+    {
+        $this->putSetting('hub_enter_sends', $on ? '1' : '0');
+    }
+
+    /**
+     * Hear an incoming voice note and keep the English (or staff language) wording.
+     * The spoken words stay on the message. This does not run from the chat poll.
+     */
+    public function hearIncomingVoice(WhatsAppMessage $message)
+    {
+        if (strtoupper((string) $message->type) !== 'AUDIO' || $message->direction !== WhatsAppMessage::DIR_IN) {
+            return $message;
+        }
+        $meta = $message->translationMeta();
+        if (! empty($meta['english'])) {
+            return $message;
+        }
+        $body = trim((string) $message->body);
+        if ($body === '' || in_array(strtoupper($body), ['[AUDIO]', 'VOICE MESSAGE', 'AUDIO'], true)) {
+            $message->body = '';
+            $message->save();
+            app(WhatsAppVoiceTranscriber::class)->apply($message);
+            $message = $message->fresh() ?: $message;
+            $body = trim((string) $message->body);
+        }
+        if ($body === '') {
+            return $message;
+        }
+        $heard = $this->toStaffText($body);
+        if (! $heard) {
+            return $message;
+        }
+        $this->mergeTranslation($message, [
+            'english' => $heard['english'],
+            'language' => $heard['language'],
+            'language_name' => $heard['language_name'],
+            'style' => 'basic',
+            'verified' => true,
+            'voice' => true,
+        ]);
+        $this->syncPreview($message, $heard['english']);
+
+        return $message->fresh() ?: $message;
+    }
+
+    /**
+     * Rewrite spoken or typed words into the staff language.
+     *
+     * @return array{english:string,language:string,language_name:string}|null
+     */
+    public function toStaffText($text)
+    {
+        $text = trim((string) $text);
+        if ($text === '') {
+            return null;
+        }
+        if (mb_strlen($text) > 4000) {
+            $text = mb_substr($text, 0, 4000);
+        }
+        $staff = $this->staffLanguage();
+        $parsed = $this->ask(
+            'You rewrite a WhatsApp voice note into very basic, fluent '.$staff['name'].', the way people talk in daily life. Use short, simple words. Do not translate word for word and do not use formal or complicated language. If a sentence is confused, rewrite it so the meaning is clear. Do not add facts that are not in the message. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the language","is_english":true,"english":"the simple '.$staff['name'].'"}. If it is already simple '.$staff['name'].', set is_english true and copy it into english. Keep names, phone numbers, amounts, and dates unchanged.',
+            $text
+        );
+        if (! $parsed || ! isset($parsed['english'])) {
+            return null;
+        }
+        $english = trim((string) $parsed['english']);
+        if ($english === '') {
+            return null;
+        }
+        $code = $this->languageCode(isset($parsed['language']) ? $parsed['language'] : '');
+        $name = $this->languageName(isset($parsed['language_name']) ? $parsed['language_name'] : '', $code);
+        $staffCode = $staff['code'];
+        $already = ! empty($parsed['is_english']) || $code === $staffCode || $code === 'en';
+
+        return [
+            'english' => $already && ($code === $staffCode || $code === 'en' || ! empty($parsed['is_english'])) ? $text : $english,
+            'language' => $already ? $staffCode : ($code !== '' ? $code : 'und'),
+            'language_name' => $already ? $staff['name'] : ($name !== '' ? $name : 'original'),
+        ];
+    }
+
     public function setDefaultReply($code)
     {
         $languages = $this->languages();

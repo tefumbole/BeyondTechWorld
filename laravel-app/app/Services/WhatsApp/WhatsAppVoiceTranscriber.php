@@ -67,4 +67,42 @@ class WhatsAppVoiceTranscriber
 
         return isset($decoded['text']) ? trim((string) $decoded['text']) : '';
     }
+
+    public function transcribePath($path, $mime = 'audio/webm')
+    {
+        if (! AssistantAiConfig::isConfigured() || ! is_file($path)) {
+            return '';
+        }
+        $mime = strtolower(trim(strtok((string) $mime, ';')));
+        if ($mime === '') {
+            $mime = 'audio/webm';
+        }
+        $name = basename($path);
+        if (pathinfo($name, PATHINFO_EXTENSION) === '') {
+            $name .= '.webm';
+        }
+        $upload = curl_file_create($path, $mime, $name);
+        $ch = curl_init('https://api.openai.com/v1/audio/transcriptions');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 45,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.AssistantAiConfig::apiKey(),
+            ],
+            CURLOPT_POSTFIELDS => [
+                'model' => 'whisper-1',
+                'file' => $upload,
+            ],
+        ]);
+        $raw = curl_exec($ch);
+        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($raw === false || $http >= 400) {
+            return '';
+        }
+        $decoded = json_decode($raw, true);
+
+        return isset($decoded['text']) ? trim((string) $decoded['text']) : '';
+    }
 }

@@ -434,6 +434,86 @@ class BeyondWasenderService
         }
     }
 
+    /**
+     * Send a voice note. $localPath should already be a WhatsApp-friendly audio file.
+     *
+     * @return array{success:bool,error?:string,msg_id?:mixed,publicUrl?:string}
+     */
+    public function sendAudio($phone, $localPath)
+    {
+        $blocked = $this->messagingBlocked();
+        if ($blocked) {
+            return $blocked;
+        }
+        if (! $this->isConfigured()) {
+            if (app()->environment('local')) {
+                return ['success' => true, 'dev' => true];
+            }
+
+            return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
+        }
+        if (! is_file($localPath)) {
+            return ['success' => false, 'error' => 'Voice note was not stored.'];
+        }
+
+        try {
+            $to = $this->formatPhone($phone);
+            if (! $to) {
+                return ['success' => false, 'error' => 'Invalid WhatsApp number'];
+            }
+            $publicUrl = $this->uploadLocalFile($localPath);
+            if (empty($publicUrl)) {
+                return ['success' => false, 'error' => 'Wasender upload did not return a public URL.'];
+            }
+            $posted = $this->postSendMessage([
+                'to' => $to,
+                'audioUrl' => $publicUrl,
+            ], 60);
+            if (empty($posted['success'])) {
+                return ['success' => false, 'error' => $posted['error'] ?? 'send failed'];
+            }
+            $decoded = $posted['decoded'];
+
+            return [
+                'success' => true,
+                'publicUrl' => $publicUrl,
+                'msg_id' => is_array($decoded) ? ($decoded['data']['msgId'] ?? null) : null,
+            ];
+        } catch (\Throwable $e) {
+            \Log::warning('[beyond-whatsapp] audio send exception', ['error' => $e->getMessage()]);
+
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function sendGroupAudio($groupJid, $localPath)
+    {
+        $blocked = $this->messagingBlocked();
+        if ($blocked) {
+            return $blocked;
+        }
+        if (! is_file($localPath)) {
+            return ['success' => false, 'error' => 'Voice note was not stored.'];
+        }
+        $publicUrl = $this->uploadLocalFile($localPath);
+        if (empty($publicUrl)) {
+            return ['success' => false, 'error' => 'Wasender upload did not return a public URL.'];
+        }
+        $posted = $this->postSendMessage([
+            'to' => (string) $groupJid,
+            'audioUrl' => $publicUrl,
+        ], 60);
+        if (empty($posted['success'])) {
+            return ['success' => false, 'error' => isset($posted['error']) ? $posted['error'] : 'send failed'];
+        }
+        $decoded = isset($posted['decoded']) ? $posted['decoded'] : [];
+
+        return [
+            'success' => true,
+            'msg_id' => is_array($decoded) && isset($decoded['data']['msgId']) ? $decoded['data']['msgId'] : null,
+        ];
+    }
+
     protected function uploadLocalFile($path)
     {
         $mime = self::mimeTypeForPath($path);
@@ -511,6 +591,13 @@ class BeyondWasenderService
             'jpeg' => 'image/jpeg',
             'gif' => 'image/gif',
             'webp' => 'image/webp',
+            'ogg' => 'audio/ogg',
+            'opus' => 'audio/ogg',
+            'mp3' => 'audio/mpeg',
+            'm4a' => 'audio/mp4',
+            'aac' => 'audio/aac',
+            'wav' => 'audio/wav',
+            'webm' => 'audio/webm',
             'txt' => 'text/plain',
             'csv' => 'text/csv',
             'zip' => 'application/zip',

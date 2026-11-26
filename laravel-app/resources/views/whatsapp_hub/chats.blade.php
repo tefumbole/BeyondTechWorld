@@ -135,12 +135,31 @@
     .clip { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; border: 0; background: #eef2f9; color: #1565c0; font-size: 24px; font-weight: 600; cursor: pointer; flex: none; overflow: hidden; position: relative; transition: background .18s, transform .18s; }
     .clip:hover { background: #e2e9f6; transform: rotate(90deg); }
     .clip input { display: none; }
-    .file-name { align-self: center; color: var(--wa-muted); font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .chats-compose { display: flex; align-items: center; flex-wrap: nowrap; gap: 10px; padding: 12px 18px; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); }
+    .paste-preview { width: 44px; height: 44px; object-fit: cover; border-radius: 12px; flex: none; border: 1px solid var(--wa-line); }
+    .file-name { align-self: center; color: var(--wa-muted); font-size: 12px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chats-compose { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; padding: 12px 18px; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); position: relative; }
     .chats-compose textarea { flex: 1; border: 1px solid transparent; border-radius: 22px; background: #f1f4fa; color: var(--wa-ink); min-height: 44px; max-height: 120px; padding: 11px 16px; resize: none; font-size: 16px; transition: border-color .18s, box-shadow .18s, background-color .18s; }
     .chats-compose textarea:focus { outline: none; background: #fff; border-color: #9cc2ff; box-shadow: 0 0 0 4px rgba(21, 101, 192, .12); }
-    .chats-compose button { border: 0; border-radius: 50%; width: 46px; height: 46px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; flex: none; box-shadow: 0 6px 16px rgba(18, 140, 126, .35); transition: transform .15s, box-shadow .15s; }
-    .chats-compose button:hover { transform: scale(1.06); box-shadow: 0 8px 20px rgba(18, 140, 126, .45); }
+    .chats-compose button[type="submit"] { border: 0; border-radius: 50%; width: 46px; height: 46px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; flex: none; box-shadow: 0 6px 16px rgba(18, 140, 126, .35); transition: transform .15s, box-shadow .15s; }
+    .chats-compose button[type="submit"]:hover { transform: scale(1.06); box-shadow: 0 8px 20px rgba(18, 140, 126, .45); }
+    .chats-compose .tool { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #eef2f9; color: #1565c0; cursor: pointer; flex: none; }
+    .chats-compose .tool.is-on { background: #e5484d; color: #fff; }
+    .emoji-box { position: fixed; z-index: 40; right: 18px; bottom: 84px; width: min(360px, calc(100vw - 24px)); max-height: 280px; overflow: auto; background: #fff; border: 1px solid #d5deee; border-radius: 16px; box-shadow: 0 16px 40px rgba(15, 31, 61, .16); padding: 10px; }
+    .emoji-box[hidden] { display: none; }
+    .emoji-box h4 { margin: 8px 4px 4px; color: #0b3f90; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+    .emoji-box button { border: 0; background: transparent; font-size: 22px; line-height: 1; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; }
+    .emoji-box button:hover { background: #f3f6fb; }
+    .enter-choice { display: flex; align-items: center; gap: 8px; margin: 8px 0 14px; color: #1f2a44; font-weight: 700; }
+    .letter-card { margin: 24px auto; width: min(640px, calc(100% - 28px)); background: #fff; border: 1px solid #d5deee; border-radius: 18px; padding: 18px; box-shadow: 0 1px 2px rgba(11, 63, 144, .04); }
+    .letter-card h2 { margin: 0 0 6px; color: #072f6b; }
+    .letter-card p { margin: 0 0 14px; color: #6f7b91; }
+    .letter-card label { display: block; margin: 12px 0 6px; color: #0b3f90; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .letter-card input, .letter-card textarea, .letter-card select { width: 100%; border: 1px solid #d5deee; border-radius: 12px; min-height: 42px; padding: 10px 12px; color: #1f2a44; background: #fff; }
+    .letter-card textarea { min-height: 140px; resize: vertical; }
+    .letter-row { display: flex; gap: 8px; }
+    .letter-row button { flex: 1; min-height: 40px; border: 1px solid #d5deee; border-radius: 999px; background: #f3f6fb; color: #0b3f90; font-weight: 800; cursor: pointer; }
+    .letter-row button.is-on { background: #0b3f90; color: #fff; border-color: #0b3f90; }
+    .letter-card .send-letter { margin-top: 14px; min-height: 46px; border: 0; border-radius: 999px; background: #c6ab47; color: #072f6b; font-weight: 800; padding: 0 18px; cursor: pointer; }
     .send-lang { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 18px 0; background: rgba(255,255,255,.94); color: #3b4a68; font-size: 13px; font-weight: 700; }
     .send-lang select { border: 1px solid #d5deee; border-radius: 999px; min-height: 34px; padding: 0 12px; background: #fff; color: #1d2a44; font-weight: 700; }
     .chats-empty { margin: auto; text-align: center; color: var(--wa-muted); max-width: 440px; padding: 28px; }
@@ -194,7 +213,7 @@
 @php
     $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
-<div class="chats-app {{ ($open || $group) ? 'has-open' : '' }}">
+<div class="chats-app {{ ($open || $group || $pane === 'announcements') ? 'has-open' : '' }}">
     <aside class="chats-side">
         <nav class="hub-screens">
             <a class="{{ $screen === 'chats' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}">Chats</a>
@@ -309,7 +328,7 @@
                         ['People', 'Names and numbers', route('whatsapp.people')],
                         ['Groups', 'WhatsApp groups', route('whatsapp.groups')],
                         ['Leads', 'Enquiries from chats', route('whatsapp.leads')],
-                        ['Announcements', 'Write and send an update', route('announcements.compose')],
+                        ['Announcements', 'Send a letter to a group or a person', route('whatsapp.chats', ['pane' => 'announcements'])],
                     ];
                 @endphp
                 @foreach($more as $item)
@@ -427,6 +446,7 @@
                         'mediaName' => $message->chatMediaName(),
                         'who' => null,
                         'choices' => app(\App\Services\Event\EventOptionPresentation::class)->displayChoices($message->body, $message->media_json),
+                        'voicePending' => $message->direction === \App\WhatsApp\WhatsAppMessage::DIR_IN && strtoupper((string) $message->type) === 'AUDIO' && trim((string) (isset($message->translationMeta()['english']) ? $message->translationMeta()['english'] : '')) === '',
                     ])
                 @empty
                     <div class="chats-empty"><strong>No messages yet</strong>Send the first message below.</div>
@@ -467,9 +487,12 @@
                 </form>
                 <form class="chats-compose" id="chatCompose" method="POST" action="{{ route('whatsapp.chats.reply', $open->id) }}" enctype="multipart/form-data">
                     @csrf
-                    <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
+                    <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
+                    <img class="paste-preview" id="chatPaste" alt="" hidden>
                     <span class="file-name" id="chatFileName"></span>
-                    <textarea name="body" id="chatBody" placeholder="{{ $replyCode !== 'off' && $replyCode !== '' ? ('Type in '.$writeName.'. It is sent in '.$replyName.'.') : 'Type a message' }}"></textarea>
+                    <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
+                    <textarea name="body" id="chatBody" placeholder="{{ $replyCode !== 'off' && $replyCode !== '' ? ('Type in '.$writeName.'. It is sent in '.$replyName.'.') : 'Type a message. Paste an image here.' }}"></textarea>
+                    <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
             @endif
@@ -532,13 +555,67 @@
                 @endforelse
             </div>
             @if($canReply)
-                <form class="chats-compose" method="POST" action="{{ route('whatsapp.chats.group') }}">
+                <form class="chats-compose" id="chatCompose" method="POST" action="{{ route('whatsapp.chats.group') }}" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="jid" value="{{ $group['jid'] }}">
-                    <textarea name="body" id="chatBody" placeholder="Message the group"></textarea>
+                    <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
+                    <img class="paste-preview" id="chatPaste" alt="" hidden>
+                    <span class="file-name" id="chatFileName"></span>
+                    <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
+                    <textarea name="body" id="chatBody" placeholder="Message the group. Paste an image here."></textarea>
+                    <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
             @endif
+        @elseif($pane === 'announcements')
+            <header class="chats-head">
+                <div class="chats-head-person">
+                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back">‹ Back</a>
+                    <div>
+                        <h2>Announcements</h2>
+                        <p>Send a letter to one group or one person</p>
+                    </div>
+                </div>
+            </header>
+            @if(session('message'))<div class="chat-note">{{ session('message') }}</div>@endif
+            @if(session('not_permitted'))<div class="chat-note">{{ session('not_permitted') }}</div>@endif
+            <form class="letter-card" method="POST" action="{{ route('whatsapp.chats.letter') }}" enctype="multipart/form-data">
+                @csrf
+                <h2>Letter</h2>
+                <p>It goes out on WhatsApp to the group or the person you pick. A file is sent with the letter.</p>
+                <input type="hidden" name="audience" id="letterAudience" value="group">
+                <div class="letter-row">
+                    <button type="button" class="is-on" data-audience="group">Group</button>
+                    <button type="button" data-audience="person">Person</button>
+                </div>
+                <div id="letterGroup">
+                    <label>WhatsApp group</label>
+                    <select name="group">
+                        <option value="">Choose a group</option>
+                        @foreach($groups as $row)
+                            <option value="{{ $row['jid'] }}">{{ $row['name'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div id="letterPerson" hidden>
+                    <label>Person</label>
+                    <input type="search" id="letterSearch" placeholder="Search a name" autocomplete="off">
+                    <select name="person" id="letterPeople" style="margin-top:8px">
+                        <option value="">Choose a person</option>
+                        @foreach($conversations as $row)
+                            @php $person = optional($row->contact)->displayName() ?: 'WhatsApp'; @endphp
+                            <option value="{{ $row->id }}" data-name="{{ strtolower($person.' '.optional($row->contact)->display_phone) }}">{{ $person }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <label>Subject</label>
+                <input type="text" name="subject" maxlength="180" placeholder="Subject">
+                <label>Letter</label>
+                <textarea name="body" placeholder="Write the letter"></textarea>
+                <label>File</label>
+                <input type="file" name="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx">
+                <button type="submit" class="send-letter">Send letter</button>
+            </form>
         @else
             <div class="chats-empty">
                 <strong>Chats</strong>
@@ -572,9 +649,12 @@
     <form id="replyLangForm" method="POST" action="" hidden>@csrf<input type="hidden" name="language" id="replyLangValue" value="off"></form>
     <form class="chats-compose" id="chatCompose" method="POST" action="" enctype="multipart/form-data">
         @csrf
-        <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
+        <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
+        <img class="paste-preview" id="chatPaste" alt="" hidden>
         <span class="file-name" id="chatFileName"></span>
-        <textarea name="body" id="chatBody" placeholder="Type a message"></textarea>
+        <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
+        <textarea name="body" id="chatBody" placeholder="Type a message. Paste an image here."></textarea>
+        <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
         <button type="submit" aria-label="Send">➤</button>
     </form>
     @endif
@@ -609,6 +689,7 @@
                 <button type="button" class="lang-option {{ $defaultCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="defaultReply">{{ $name }}</button>
             @endforeach
         </div>
+        <label class="enter-choice"><input type="hidden" name="enter_sends" value="0"><input type="checkbox" name="enter_sends" value="1" {{ !empty($enterSends) ? 'checked' : '' }}> Enter key sends the message</label>
         <button type="submit" class="lang-save">Save</button>
     </form>
 </div>
@@ -632,6 +713,7 @@
 </div>
 @endif
 @include('whatsapp_hub.partials.local_time')
+<div class="emoji-box" id="emojiBox" hidden></div>
 <script>
 (function () {
     var search = document.getElementById('chatSearch');
@@ -711,45 +793,78 @@
     }
     var stream = document.getElementById('chatStream');
     if (stream) stream.scrollTop = stream.scrollHeight;
-    var body = document.getElementById('chatBody');
-    var file = document.getElementById('chatFile');
-    var fileName = document.getElementById('chatFileName');
-    function canSend() {
-        var typed = body && body.value.trim() !== '';
-        var picked = file && file.files && file.files.length;
-        return typed || picked;
+    var enterSends = @json(!empty($enterSends));
+    var voiceHeard = 0;
+    function showPicked(file) {
+        var name = document.getElementById('chatFileName');
+        var preview = document.getElementById('chatPaste');
+        if (name) name.textContent = file ? (file.name || 'Pasted image') : '';
+        if (!preview) return;
+        if (preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
+        if (file && file.type && file.type.indexOf('image/') === 0) {
+            var url = URL.createObjectURL(file);
+            preview.dataset.url = url;
+            preview.src = url;
+            preview.hidden = false;
+        } else {
+            preview.hidden = true;
+            preview.removeAttribute('src');
+        }
     }
-    if (file) {
-        file.addEventListener('change', function () {
-            var picked = file.files && file.files[0];
-            if (fileName) fileName.textContent = picked ? picked.name : '';
-        });
+    function attachImage(picked) {
+        if (!picked) return;
+        if (!picked.name) {
+            var named = new File([picked], 'pasted-image.png', { type: picked.type || 'image/png' });
+            picked = named;
+        }
+        var input = document.getElementById('chatFile');
+        if (input) {
+            try {
+                var list = new DataTransfer();
+                list.items.add(picked);
+                input.files = list.files;
+            } catch (e) {}
+        }
+        showPicked(picked);
     }
-    if (body && file) {
-        body.addEventListener('paste', function (event) {
-            var items = event.clipboardData && event.clipboardData.items;
-            if (!items) return;
-            for (var i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf('image') !== 0) continue;
-                var picked = items[i].getAsFile();
-                if (!picked) return;
-                event.preventDefault();
-                try {
-                    var list = new DataTransfer();
-                    list.items.add(picked);
-                    file.files = list.files;
-                } catch (e) {}
-                if (fileName) fileName.textContent = picked.name || 'Pasted image';
-                return;
-            }
-        });
-    }
-    document.addEventListener('keydown', function (event) {
-        if (event.key !== 'Enter' || event.shiftKey) return;
+    document.addEventListener('change', function (event) {
+        if (!event.target || event.target.id !== 'chatFile') return;
+        var picked = event.target.files && event.target.files[0];
+        showPicked(picked || null);
+    });
+    document.addEventListener('paste', function (event) {
         var field = event.target;
         if (!field || field.id !== 'chatBody') return;
+        var data = event.clipboardData;
+        if (!data) return;
+        var picked = null;
+        var items = data.items || [];
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].type && items[i].type.indexOf('image') === 0) {
+                picked = items[i].getAsFile();
+                break;
+            }
+        }
+        if (!picked && data.files && data.files.length) {
+            for (var j = 0; j < data.files.length; j++) {
+                if (data.files[j].type && data.files[j].type.indexOf('image') === 0) {
+                    picked = data.files[j];
+                    break;
+                }
+            }
+        }
+        if (!picked) return;
         event.preventDefault();
-        if (field.form && field.form.getAttribute('data-sending') !== '1' && field.value.trim() !== '') {
+        attachImage(picked);
+    });
+    document.addEventListener('keydown', function (event) {
+        if (!enterSends || event.key !== 'Enter' || event.shiftKey) return;
+        var field = event.target;
+        if (!field || field.id !== 'chatBody') return;
+        var picked = document.getElementById('chatFile');
+        var hasFile = picked && picked.files && picked.files.length;
+        if (field.form && field.form.getAttribute('data-sending') !== '1' && (field.value.trim() !== '' || hasFile)) {
+            event.preventDefault();
             if (field.form.requestSubmit) field.form.requestSubmit();
             else field.form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
         }
@@ -845,7 +960,7 @@
         var at = message.at || '';
         var dayKey = at && window.hubDayKey ? window.hubDayKey(at) : (message.day || '');
         var clock = at && window.hubClock ? window.hubClock(at) : (message.time || '');
-        return '<div class="bubble ' + (message.out ? 'out' : 'in') + '" data-id="' + message.id + '" data-day="' + esc(dayKey) + '"' + (at ? ' data-at="' + esc(at) + '"' : '') + '>'
+        return '<div class="bubble ' + (message.out ? 'out' : 'in') + '" data-id="' + message.id + '"' + (message.needs_voice ? ' data-voice="' + message.id + '"' : '') + ' data-day="' + esc(dayKey) + '"' + (at ? ' data-at="' + esc(at) + '"' : '') + '>'
             + (message.who ? '<span class="who">' + esc(message.who) + '</span>' : '')
             + media
             + (message.text ? '<span class="body">' + esc(message.text) + '</span>' : '')
@@ -892,6 +1007,30 @@
             stream.insertAdjacentHTML('beforeend', html);
             if (stick) stream.scrollTop = stream.scrollHeight;
         }
+        drainVoice();
+    }
+    function drainVoice() {
+        if (drainVoice.busy || voiceHeard >= 6 || !openChat) return;
+        var nodes = document.querySelectorAll('#chatStream .bubble[data-voice]');
+        if (!nodes.length) return;
+        var node = nodes[nodes.length - 1];
+        drainVoice.busy = true;
+        voiceHeard += 1;
+        var data = new FormData();
+        data.append('message', node.getAttribute('data-voice'));
+        data.append('_token', csrfToken());
+        fetch(@json(url('/admin/whatsapp/chats')) + '/' + openChat + '/voice', {
+            method: 'POST',
+            body: data,
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
+        }).then(function (response) { return response.json(); })
+            .then(function (payload) {
+                node.removeAttribute('data-voice');
+                if (payload && payload.message) node.outerHTML = bubbleHtml(payload.message);
+            })
+            .catch(function () { node.removeAttribute('data-voice'); })
+            .then(function () { drainVoice.busy = false; drainVoice(); });
     }
     function paintList(items) {
         if (!list || !filters || !items) return;
@@ -1125,8 +1264,7 @@
         }
         if (field) field.value = '';
         if (picker) picker.value = '';
-        var fileName = document.getElementById('chatFileName');
-        if (fileName) fileName.textContent = '';
+        showPicked(null);
         fetch(form.getAttribute('action'), {
             method: 'POST',
             body: data,
@@ -1274,12 +1412,141 @@
         var replyPick = event.target.closest && event.target.closest('#openReplyLang');
         if (replyPick) openSheet('replyLang');
     });
-    document.addEventListener('change', function (event) {
-        if (!event.target || event.target.id !== 'chatFile') return;
-        var picked = event.target.files && event.target.files[0];
-        var name = document.getElementById('chatFileName');
-        if (name) name.textContent = picked ? picked.name : '';
+    var recorder = null;
+    var recordChunks = [];
+    var emojiBox = document.getElementById('emojiBox');
+    var emojiSets = {
+        'Smileys': ['😀','😁','😂','🤣','😊','😍','😘','😎','🤔','😢','😭','😡','🙏','👍','👎','👏','🔥','💯','✅','❤️'],
+        'Hands': ['👋','🤝','✌️','🤞','👌','✋','💪','🙌','👐','👊','✊','🫶','✍️','🖐️','👇','👆','👉','👈'],
+        'Hearts': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❣️','💕','💞','💓','💗','💖','💘'],
+        'Work': ['📞','📷','📄','📝','📌','📎','📅','⏰','💰','📦','🚚','🏠','🚗','🎉','⭐','⚡','🔔','🔒']
+    };
+    if (emojiBox) {
+        Object.keys(emojiSets).forEach(function (title) {
+            var heading = document.createElement('h4');
+            heading.textContent = title;
+            emojiBox.appendChild(heading);
+            emojiSets[title].forEach(function (face) {
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = face;
+                emojiBox.appendChild(button);
+            });
+        });
+    }
+    function insertEmoji(face) {
+        var field = document.getElementById('chatBody');
+        if (!field) return;
+        var start = field.selectionStart || field.value.length;
+        var end = field.selectionEnd || field.value.length;
+        field.value = field.value.slice(0, start) + face + field.value.slice(end);
+        var caret = start + face.length;
+        field.focus();
+        field.selectionStart = caret;
+        field.selectionEnd = caret;
+    }
+    function sendVoice(form, blob) {
+        if (!form || form.getAttribute('data-sending') === '1') return;
+        form.setAttribute('data-sending', '1');
+        var button = form.querySelector('button[type="submit"]');
+        if (button) button.disabled = true;
+        var token = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        var pendingId = 'pending-' + token;
+        var data = new FormData(form);
+        var mime = blob.type || 'audio/webm';
+        var ext = mime.indexOf('mp4') !== -1 ? 'm4a' : (mime.indexOf('ogg') !== -1 ? 'ogg' : 'webm');
+        data.append('voice', blob, 'voice.' + ext);
+        data.append('send_token', token);
+        placeMessages([{ id: pendingId, out: true, text: 'Voice note', time: '', at: new Date().toISOString(), tick: 'queued', type: 'AUDIO', media: '', name: '', aside: '', day: '', needs_voice: false }], false);
+        var field = form.querySelector('#chatBody');
+        if (field) field.value = '';
+        fetch(form.getAttribute('action'), {
+            method: 'POST',
+            body: data,
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
+        }).then(function (response) { return response.json().then(function (payload) { payload._ok = response.ok; return payload; }); })
+            .then(function (payload) {
+                var node = document.querySelector('.bubble[data-id="' + pendingId + '"]');
+                if (payload && payload.message && node) node.outerHTML = bubbleHtml(payload.message);
+                else if (node && (!payload || !payload.ok)) node.querySelector('.tick').textContent = payload && payload.error ? payload.error : 'Not sent';
+            })
+            .catch(function () {
+                var node = document.querySelector('.bubble[data-id="' + pendingId + '"]');
+                if (node && node.querySelector('.tick')) node.querySelector('.tick').textContent = 'Not sent';
+            })
+            .then(function () {
+                form.removeAttribute('data-sending');
+                if (button) button.disabled = false;
+            });
+    }
+    document.addEventListener('click', function (event) {
+        var audience = event.target.closest && event.target.closest('[data-audience]');
+        if (audience) {
+            var kind = audience.getAttribute('data-audience');
+            var holder = document.getElementById('letterAudience');
+            if (holder) holder.value = kind;
+            audience.parentNode.querySelectorAll('button').forEach(function (button) { button.classList.remove('is-on'); });
+            audience.classList.add('is-on');
+            var group = document.getElementById('letterGroup');
+            var person = document.getElementById('letterPerson');
+            if (group) group.hidden = kind !== 'group';
+            if (person) person.hidden = kind !== 'person';
+            return;
+        }
+        var face = event.target.closest && event.target.closest('#emojiBox button');
+        if (face) {
+            insertEmoji(face.textContent);
+            return;
+        }
+        var emojiBtn = event.target.closest && event.target.closest('.js-emoji');
+        if (emojiBtn && emojiBox) {
+            emojiBox.hidden = !emojiBox.hidden;
+            return;
+        }
+        if (emojiBox && !event.target.closest('#emojiBox')) emojiBox.hidden = true;
+        var mic = event.target.closest && event.target.closest('.js-mic');
+        if (!mic) return;
+        event.preventDefault();
+        var form = mic.closest('form');
+        if (!navigator.mediaDevices || !window.MediaRecorder) {
+            window.alert('This browser cannot record a voice note.');
+            return;
+        }
+        if (recorder) {
+            recorder.stop();
+            return;
+        }
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+            var options = MediaRecorder.isTypeSupported('audio/webm') ? { mimeType: 'audio/webm' } : {};
+            recorder = new MediaRecorder(stream, options);
+            recordChunks = [];
+            recorder.ondataavailable = function (item) { if (item.data && item.data.size) recordChunks.push(item.data); };
+            recorder.onstop = function () {
+                stream.getTracks().forEach(function (track) { track.stop(); });
+                var blob = new Blob(recordChunks, { type: recorder.mimeType || 'audio/webm' });
+                recorder = null;
+                document.querySelectorAll('.js-mic').forEach(function (button) { button.classList.remove('is-on'); });
+                sendVoice(form, blob);
+            };
+            recorder.start();
+            mic.classList.add('is-on');
+        }).catch(function () {
+            window.alert('Allow the microphone to record a voice note.');
+        });
     });
+    var letterSearch = document.getElementById('letterSearch');
+    if (letterSearch) {
+        letterSearch.addEventListener('input', function () {
+            var query = letterSearch.value.trim().toLowerCase();
+            var list = document.getElementById('letterPeople');
+            if (!list) return;
+            list.querySelectorAll('option').forEach(function (option) {
+                var name = option.getAttribute('data-name') || '';
+                option.hidden = query !== '' && name.indexOf(query) === -1;
+            });
+        });
+    }
     window.addEventListener('popstate', function () {
         var params = new URL(window.location.href).searchParams;
         if (params.get('group')) {
@@ -1291,6 +1558,7 @@
         else showChatList(true);
     });
     if (window.applyLocalHubTimes) window.applyLocalHubTimes();
+    drainVoice();
     poll();
     setTimeout(function () {
         fetch(chatPage + '?poll=1&names=1', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })

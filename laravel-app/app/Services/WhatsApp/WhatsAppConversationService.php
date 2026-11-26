@@ -285,26 +285,52 @@ class WhatsAppConversationService
      */
     protected function absorbPhoneEcho(WhatsAppConversation $conversation, array $parsed)
     {
-        $body = isset($parsed['body']) ? trim((string) $parsed['body']) : '';
+        $incomingId = isset($parsed['message_id']) ? (string) $parsed['message_id'] : '';
+        if ($incomingId !== '') {
+            $same = WhatsAppMessage::where('provider_message_id', $incomingId)
+                ->where('direction', WhatsAppMessage::DIR_OUT)
+                ->first();
+            if ($same) {
+                return true;
+            }
+        }
+        $body = $this->echoText(isset($parsed['body']) ? $parsed['body'] : '');
         if ($body === '') {
             return false;
         }
-        $echo = WhatsAppMessage::where('conversation_id', $conversation->id)
+        $recent = WhatsAppMessage::where('conversation_id', $conversation->id)
             ->where('direction', WhatsAppMessage::DIR_OUT)
             ->whereIn('sender_type', ['ASSISTANT', 'STAFF'])
-            ->where('created_at', '>=', now()->subSeconds(45))
+            ->where('created_at', '>=', now()->subMinutes(3))
             ->orderByDesc('id')
-            ->first();
-        if (! $echo || trim((string) $echo->body) !== $body) {
-            return false;
-        }
-        $incomingId = isset($parsed['message_id']) ? (string) $parsed['message_id'] : '';
-        if ($incomingId !== '' && (string) $echo->provider_message_id !== $incomingId && preg_match('/^\d+$/', (string) $echo->provider_message_id)) {
-            $echo->provider_message_id = $incomingId;
-            $echo->save();
+            ->limit(5)
+            ->get();
+        foreach ($recent as $echo) {
+            $candidates = [$this->echoText($echo->body), $this->echoText($echo->hubText())];
+            $meta = $echo->translationMeta();
+            if (! empty($meta['staff'])) {
+                $candidates[] = $this->echoText($meta['staff']);
+            }
+            if (! in_array($body, $candidates, true)) {
+                continue;
+            }
+            if ($incomingId !== '' && (string) $echo->provider_message_id !== $incomingId && preg_match('/^\d+$/', (string) $echo->provider_message_id)) {
+                $echo->provider_message_id = $incomingId;
+                $echo->save();
+            }
+
+            return true;
         }
 
-        return true;
+        return false;
+    }
+
+    protected function echoText($value)
+    {
+        $value = trim((string) $value);
+        $value = preg_replace('/\s+/u', ' ', $value);
+
+        return trim($value);
     }
 
     /**
@@ -663,6 +689,166 @@ class WhatsAppConversationService
         $result['message'] = $message;
 
         return $result;
+    }
+
+    /**
+     * A recorded voice note. The client receives the words in their language,
+     * and the voice note itself when the file can be sent.
+     */
+    public function replyVoice(WhatsAppConversation $conversation, $localPath, $originalName, $mime, $userId = null)
+    {
+        if (! is_file($localPath)) {
+            return ['success' => false, 'error' => 'The voice note was empty.'];
+        }
+        if (AssistantRuntimeSettings::manualReplyTakesOver() && $conversation->mode === WhatsAppConversation::MODE_AI) {
+            $conversation->mode = WhatsAppConversation::MODE_HUMAN;
+            if ($userId) {
+                $conversation->assigned_user_id = $userId;
+            }
+            $conversation->save();
+            $this->event($conversation, WhatsAppConversationEvent::TAKEOVER, 'HUMAN_TAKEOVER_BY_REPLY', $userId);
+        }
+        $contact = $conversation->contact;
+        if (! $contact || $contact->isBlocked()) {
+            return ['success' => false, 'error' => 'Contact is blocked or missing.'];
+        }
+
+        $heard = app(WhatsAppVoiceTranscriber::class)->transcribePath($localPath, $mime);
+        if ($heard === '') {
+            return ['success' => false, 'error' => 'Could not hear that voice note. Try again, or type the message.'];
+        }
+        $translator = app(WhatsAppTranslator::class);
+        $sendBody = $heard;
+        $translation = $translator->forClient($conversation, $heard);
+        if (is_array($translation) && ! empty($translation['failed'])) {
+            $name = ! empty($translation['language_name']) ? $translation['language_name'] : 'the client’s language';
+
+            return [
+                'success' => false,
+                'error' => 'Not sent. This chat stays in '.$name.', and the translation did not finish.',
+            ];
+        }
+        if (is_array($translation) && ! empty($translation['text'])) {
+            $sendBody = $translation['text'];
+        } else {
+            $translation = null;
+        }
+
+        $storedPath = $this->storeChatFile($localPath, $originalName, 'voice.webm');
+        if ($storedPath === '') {
+            return ['success' => false, 'error' => 'Could not store the voice note.'];
+        }
+        $playable = $this->voiceFileForWhatsApp($localPath);
+
+        $message = WhatsAppMessage::create([
+            'conversation_id' => $conversation->id,
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIR_OUT,
+            'type' => 'AUDIO',
+            'body' => $sendBody,
+            'media_json' => json_encode(array_filter([
+                'url' => $storedPath,
+                'file_name' => (string) $originalName,
+                'type' => 'AUDIO',
+                'mimetype' => (string) $mime,
+                'translation' => $translation ? [
+                    'staff' => $heard,
+                    'language' => $translation['language'],
+                    'language_name' => $translation['language_name'],
+                ] : [
+                    'staff' => $heard,
+                    'language' => $translator->staffLanguage()['code'],
+                    'language_name' => $translator->staffLanguage()['name'],
+                ],
+            ])),
+            'status' => WhatsAppMessage::STATUS_QUEUED,
+            'sender_type' => 'STAFF',
+            'sender_user_id' => $userId,
+            'queued_at' => now(),
+        ]);
+
+        $textResult = ['success' => false, 'error' => 'Send failed.'];
+        $audioResult = ['success' => false];
+        if ($conversation->isWebsite()) {
+            $message->provider_message_id = 'webmsg:'.uniqid('', true);
+            $textResult = ['success' => true];
+        } else {
+            if ($playable) {
+                $audioResult = $this->provider->sendAudio($contact->normalized_phone, $playable);
+            }
+            if ($translation || empty($audioResult['success'])) {
+                $textResult = $this->provider->sendText($contact->normalized_phone, $sendBody);
+            }
+        }
+        if (! empty($textResult['success']) || ! empty($audioResult['success'])) {
+            $msgId = ! empty($textResult['msg_id']) ? (string) $textResult['msg_id'] : (! empty($audioResult['msg_id']) ? (string) $audioResult['msg_id'] : null);
+            $message->provider_message_id = $msgId ?: null;
+            $message->status = WhatsAppMessage::STATUS_SENT;
+            $message->sent_at = now();
+            $message->save();
+        } else {
+            $message->status = WhatsAppMessage::STATUS_FAILED;
+            $message->failed_at = now();
+            $message->error = isset($textResult['error']) ? substr((string) $textResult['error'], 0, 500) : 'send failed';
+            $message->save();
+            $textResult['message'] = $message;
+
+            return $textResult;
+        }
+
+        $preview = $this->preview($message->hubText(), 'AUDIO');
+        if (! $conversation->first_message) {
+            $conversation->first_message = $preview;
+        }
+        $conversation->last_message = $preview;
+        $conversation->last_activity_at = now();
+        $conversation->last_outgoing_at = now();
+        $conversation->unread_count = 0;
+        if ($conversation->status !== WhatsAppConversation::STATUS_CLOSED) {
+            $conversation->status = WhatsAppConversation::STATUS_WAITING_CUSTOMER;
+        }
+        $conversation->save();
+
+        return ['success' => true, 'message' => $message];
+    }
+
+    protected function storeChatFile($localPath, $originalName, $fallback)
+    {
+        $dir = public_path('whatsapp-chat');
+        if (! is_dir($dir) && ! @mkdir($dir, 0755, true)) {
+            return '';
+        }
+        $safe = preg_replace('/[^A-Za-z0-9._-]/', '', (string) $originalName);
+        if ($safe === '' || $safe === '.' || $safe === '..') {
+            $safe = $fallback;
+        }
+        $stored = date('YmdHis').'-'.substr(md5(uniqid('', true)), 0, 8).'-'.$safe;
+        $dest = $dir.DIRECTORY_SEPARATOR.$stored;
+        if (! @copy($localPath, $dest)) {
+            return '';
+        }
+
+        return 'whatsapp-chat/'.$stored;
+    }
+
+    public function voiceFileForWhatsApp($path)
+    {
+        $ext = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
+        if (in_array($ext, ['ogg', 'opus', 'mp3', 'm4a', 'aac'], true)) {
+            return $path;
+        }
+        $ffmpeg = trim((string) @shell_exec('command -v ffmpeg 2>/dev/null'));
+        if ($ffmpeg === '' || ! is_file($ffmpeg)) {
+            return null;
+        }
+        $out = sys_get_temp_dir().'/wa-voice-'.substr(md5($path.microtime(true)), 0, 10).'.ogg';
+        $cmd = escapeshellarg($ffmpeg).' -y -i '.escapeshellarg($path).' -vn -c:a libopus -b:a 32k -ac 1 '.escapeshellarg($out).' 2>/dev/null';
+        exec($cmd, $lines, $code);
+        if ($code !== 0 || ! is_file($out) || filesize($out) < 32) {
+            return null;
+        }
+
+        return $out;
     }
 
     public function replyFile(WhatsAppConversation $conversation, $localPath, $originalName, $mime, $caption, $userId = null)

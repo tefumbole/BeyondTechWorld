@@ -289,7 +289,7 @@ class WhatsAppHubController extends Controller
         }
         $canReply = $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
         $pane = (string) $request->get('pane', 'chats');
-        if (! in_array($pane, ['chats', 'updates', 'calls', 'media', 'more'], true)) {
+        if (! in_array($pane, ['chats', 'updates', 'calls', 'media', 'more', 'announcements'], true)) {
             $pane = 'chats';
         }
         $calls = collect();
@@ -332,11 +332,12 @@ class WhatsAppHubController extends Controller
         $destination = $open ? $translator->destinationFor($open->id) : null;
         $staffLanguage = $translator->staffLanguage();
         $defaultReply = $translator->defaultReply();
+        $enterSends = $translator->enterSends();
 
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
             'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn',
-            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply'
+            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends'
         ));
     }
 
@@ -568,6 +569,9 @@ class WhatsAppHubController extends Controller
             'type' => (string) $message->type,
             'media' => $message->chatMediaUrl(),
             'name' => $message->chatMediaName(),
+            'needs_voice' => strtoupper((string) $message->type) === 'AUDIO'
+                && $message->direction === WhatsAppMessage::DIR_IN
+                && trim((string) (isset($message->translationMeta()['english']) ? $message->translationMeta()['english'] : '')) === '',
         ];
     }
 
@@ -639,6 +643,29 @@ class WhatsAppHubController extends Controller
                 ]);
             }
         }
+        $voice = $request->file('voice');
+        if ($voice) {
+            $allowedVoice = ['webm', 'ogg', 'opus', 'mp3', 'm4a', 'mp4', 'wav', 'aac'];
+            $ext = strtolower((string) $voice->getClientOriginalExtension());
+            if (! in_array($ext, $allowedVoice, true) || $voice->getSize() > 8 * 1024 * 1024) {
+                if ($tokenKey !== '') {
+                    \Illuminate\Support\Facades\Cache::forget($tokenKey);
+                }
+                if ($json) {
+                    return response()->json(['ok' => false, 'error' => 'Record a voice note up to 8 MB.'], 422);
+                }
+
+                return redirect()->to($back)->with('not_permitted', 'Record a voice note up to 8 MB.');
+            }
+            @set_time_limit(90);
+            $result = $this->conversations->replyVoice(
+                $conversation,
+                $voice->getRealPath(),
+                $voice->getClientOriginalName(),
+                (string) $voice->getMimeType(),
+                Auth::id()
+            );
+        } else {
         $file = $request->file('file');
         if ($file) {
             $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx'];
@@ -663,6 +690,7 @@ class WhatsAppHubController extends Controller
             );
         } else {
             $result = $this->conversations->reply($conversation, $request->input('body'), Auth::id());
+        }
         }
         if (empty($result['success'])) {
             if ($tokenKey !== '') {
@@ -741,7 +769,11 @@ class WhatsAppHubController extends Controller
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
         $staff = $translator->setStaffLanguage($request->input('staff_language', 'en'));
         $reply = $translator->setDefaultReply($request->input('default_reply', ''));
+        $translator->setEnterSends($request->input('enter_sends') === '1');
         $notice = 'You write in '.$staff.'.';
+        $notice .= $request->input('enter_sends') === '1'
+            ? ' Enter sends the message.'
+            : ' Enter starts a new line.';
         if ($reply) {
             $notice .= ' Chats without their own reply language are sent in '.$reply.'.';
         } else {
@@ -751,6 +783,93 @@ class WhatsAppHubController extends Controller
         $query = $chat > 0 ? ['chat' => $chat] : [];
 
         return redirect()->route('whatsapp.chats', $query)->with('message', $notice);
+    }
+
+    public function hearVoice(Request $request, $id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage', 'whatsapp.reply'])) {
+            return $deny;
+        }
+        @set_time_limit(90);
+        $message = WhatsAppMessage::where('conversation_id', $id)->where('id', (int) $request->input('message'))->first();
+        if (! $message) {
+            return response()->json(['ok' => false, 'error' => 'That voice note is not in this chat.'], 404);
+        }
+        $message = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->hearIncomingVoice($message);
+
+        return response()->json([
+            'ok' => true,
+            'message' => $this->chatFeedMessage($message),
+        ]);
+    }
+
+    public function sendLetter(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $subject = trim((string) $request->input('subject'));
+        $body = trim((string) $request->input('body'));
+        $letter = $subject;
+        if ($body !== '') {
+            $letter = $letter === '' ? $body : ($subject."\n\n".$body);
+        }
+        $file = $request->file('file');
+        $back = route('whatsapp.chats', ['pane' => 'announcements']);
+        if ($file) {
+            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx'];
+            $ext = strtolower((string) $file->getClientOriginalExtension());
+            if (! in_array($ext, $allowed, true) || $file->getSize() > 8 * 1024 * 1024) {
+                return redirect()->to($back)->with('not_permitted', 'Attach a photo or document up to 8 MB.');
+            }
+        }
+        if ($letter === '' && ! $file) {
+            return redirect()->to($back)->with('not_permitted', 'Write the letter, or attach the file.');
+        }
+        $audience = (string) $request->input('audience');
+        if ($audience === 'group') {
+            $jid = trim((string) $request->input('group'));
+            if (substr($jid, -5) !== '@g.us') {
+                return redirect()->to($back)->with('not_permitted', 'Choose a WhatsApp group.');
+            }
+            if ($file) {
+                $result = $this->provider->sendGroupDocument(
+                    $jid,
+                    $file->getRealPath(),
+                    $file->getClientOriginalName(),
+                    $letter !== '' ? $letter : $file->getClientOriginalName()
+                );
+            } else {
+                $result = $this->provider->sendGroupText($jid, $letter);
+            }
+            if (empty($result['success'])) {
+                return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'The letter was not sent.');
+            }
+
+            return redirect()->to($back)->with('message', 'The letter was sent to the group.');
+        }
+
+        $conversation = WhatsAppConversation::with('contact')->find((int) $request->input('person'));
+        if (! $conversation) {
+            return redirect()->to($back)->with('not_permitted', 'Choose a person.');
+        }
+        if ($file) {
+            $result = $this->conversations->replyFile(
+                $conversation,
+                $file->getRealPath(),
+                $file->getClientOriginalName(),
+                (string) $file->getMimeType(),
+                $letter,
+                Auth::id()
+            );
+        } else {
+            $result = $this->conversations->reply($conversation, $letter, Auth::id());
+        }
+        if (empty($result['success'])) {
+            return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'The letter was not sent.');
+        }
+
+        return redirect()->route('whatsapp.chats', ['chat' => $conversation->id])->with('message', 'The letter was sent.');
     }
 
     public function chatMedia($id)
@@ -780,13 +899,58 @@ class WhatsAppHubController extends Controller
         $body = trim((string) $request->input('body'));
         $back = route('whatsapp.chats', ['group' => $jid]);
         $json = $request->ajax() || $request->wantsJson() || $request->filled('send_token');
-        if (substr($jid, -5) !== '@g.us' || $body === '') {
+        $voice = $request->file('voice');
+        if ($voice && substr($jid, -5) === '@g.us') {
+            @set_time_limit(90);
+            $heard = app(\App\Services\WhatsApp\WhatsAppVoiceTranscriber::class)->transcribePath(
+                $voice->getRealPath(),
+                (string) $voice->getMimeType()
+            );
+            if ($heard === '') {
+                if ($json) {
+                    return response()->json(['ok' => false, 'error' => 'Could not hear that voice note.'], 422);
+                }
+
+                return redirect()->to($back)->with('not_permitted', 'Could not hear that voice note.');
+            }
+            $body = $body === '' ? $heard : ($body."\n".$heard);
+            $playable = $this->conversations->voiceFileForWhatsApp($voice->getRealPath());
+            if ($playable) {
+                $this->provider->sendGroupAudio($jid, $playable);
+            }
+        }
+        $file = $request->file('file');
+        $sentFile = false;
+        if ($file && substr($jid, -5) === '@g.us') {
+            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx'];
+            $ext = strtolower((string) $file->getClientOriginalExtension());
+            if (! in_array($ext, $allowed, true) || $file->getSize() > 8 * 1024 * 1024) {
+                if ($json) {
+                    return response()->json(['ok' => false, 'error' => 'Send a photo or document up to 8 MB.'], 422);
+                }
+
+                return redirect()->to($back)->with('not_permitted', 'Send a photo or document up to 8 MB.');
+            }
+            $caption = $body !== '' ? $body : (string) $file->getClientOriginalName();
+            $result = $this->provider->sendGroupDocument($jid, $file->getRealPath(), $file->getClientOriginalName(), $caption);
+            if (empty($result['success'])) {
+                if ($json) {
+                    return response()->json(['ok' => false, 'error' => isset($result['error']) ? $result['error'] : 'Send failed.'], 422);
+                }
+
+                return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'Send failed.');
+            }
+            $body = $caption;
+            $sentFile = true;
+        }
+        if (! $sentFile && (substr($jid, -5) !== '@g.us' || $body === '')) {
             if ($json) {
                 return response()->json(['ok' => false, 'error' => 'Type a message for the group.'], 422);
             }
 
             return redirect()->to($back)->with('not_permitted', 'Type a message for the group.');
         }
+        if (! $sentFile) {
         $result = $this->provider->sendGroupText($jid, $body);
         if (empty($result['success'])) {
             if ($json) {
@@ -794,6 +958,7 @@ class WhatsAppHubController extends Controller
             }
 
             return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'Send failed.');
+        }
         }
         if (Schema::hasTable('whatsapp_groups') && Schema::hasTable('whatsapp_group_messages')) {
             $record = \App\WhatsApp\WhatsAppGroup::firstOrCreate(
