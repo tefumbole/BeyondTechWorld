@@ -902,6 +902,67 @@ class WhatsAppHubController extends Controller
         ]);
     }
 
+    public function askChat(Request $request, $id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage', 'whatsapp.reply'])) {
+            return $deny;
+        }
+        @set_time_limit(90);
+        $instruction = trim((string) $request->input('instruction'));
+        if ($instruction === '') {
+            return response()->json(['ok' => false, 'error' => 'Write what you want the assistant to do.'], 422);
+        }
+        if (mb_strlen($instruction) > 2000) {
+            $instruction = mb_substr($instruction, 0, 2000);
+        }
+        $messageId = (int) $request->input('message');
+        if ($messageId > 0) {
+            $row = WhatsAppMessage::where('conversation_id', $id)->where('id', $messageId)->first();
+            if (! $row) {
+                return response()->json(['ok' => false, 'error' => 'That message is not in this chat.'], 404);
+            }
+
+            return $this->answerAboutMessage($row, $instruction, false);
+        }
+        $rows = WhatsAppMessage::visible()->where('conversation_id', $id)->orderByDesc('id')->limit(40)->get()->reverse()->values();
+        $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
+        $latestAudio = null;
+        foreach ($rows as $row) {
+            if (strtoupper((string) $row->type) === 'AUDIO' && $translator->voiceTranscript($row) === '') {
+                $latestAudio = $row;
+            }
+        }
+        if ($latestAudio) {
+            $translator->hearVoiceNote($latestAudio);
+            $rows = WhatsAppMessage::visible()->where('conversation_id', $id)->orderByDesc('id')->limit(40)->get()->reverse()->values();
+        }
+        $lines = [];
+        foreach ($rows as $row) {
+            $line = trim($row->hubText());
+            $aside = trim($row->hubAside());
+            if ($aside !== '') {
+                $line = trim($line."\n".$aside);
+            }
+            if ($line === '' || $translator->isVoicePlaceholder($line)) {
+                $line = strtoupper((string) $row->type) === 'AUDIO' ? 'Voice note' : '';
+            }
+            if ($line === '') {
+                continue;
+            }
+            $who = $row->direction === WhatsAppMessage::DIR_OUT ? 'You' : 'Them';
+            $lines[] = $who.': '.$line;
+        }
+        $text = trim(implode("\n", $lines));
+        if (mb_strlen($text) > 6000) {
+            $text = mb_substr($text, -6000);
+        }
+        if ($text === '') {
+            return response()->json(['ok' => false, 'error' => 'This chat has no text to work from yet.'], 422);
+        }
+
+        return $this->answerAbout($text, $instruction, 'You help staff with one WhatsApp conversation. Use only these messages and the request. Do not invent facts, names, prices, or medical details. When the request asks for a reply, write only the message that can be sent. When it asks for a summary or a list, write that clearly.', true);
+    }
+
     public function askChatMessage(Request $request, $id, $message)
     {
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage', 'whatsapp.reply'])) {
@@ -919,30 +980,37 @@ class WhatsAppHubController extends Controller
         if (mb_strlen($instruction) > 2000) {
             $instruction = mb_substr($instruction, 0, 2000);
         }
+
+        return $this->answerAboutMessage($row, $instruction, false);
+    }
+
+    protected function answerAboutMessage(WhatsAppMessage $row, $instruction, $keepChatLabel)
+    {
+        $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
         if (strtoupper((string) $row->type) === 'AUDIO') {
-            $row = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->hearVoiceNote($row);
+            $row = $translator->hearVoiceNote($row);
         }
         $text = trim($row->hubText());
         $aside = trim($row->hubAside());
         if ($aside !== '') {
             $text = trim($text."\n".$aside);
         }
-        if ($text === '' || app(\App\Services\WhatsApp\WhatsAppTranslator::class)->isVoicePlaceholder($text)) {
+        if ($text === '' || $translator->isVoicePlaceholder($text)) {
             return response()->json(['ok' => false, 'error' => 'That message has no text to work from yet.'], 422);
         }
+
+        return $this->answerAbout($text, $instruction, 'You help staff with one WhatsApp message. Use only that message and the request. Do not invent facts, names, prices, or medical details. When the request asks for a reply, write only the message that can be sent. Otherwise answer in plain language.', $keepChatLabel);
+    }
+
+    protected function answerAbout($text, $instruction, $system, $hideSource)
+    {
         $provider = app(\App\Contracts\Ai\AiProviderInterface::class);
         if (! $provider->isConfigured()) {
             return response()->json(['ok' => false, 'error' => 'The assistant is not available.'], 422);
         }
         $result = $provider->complete([
-            [
-                'role' => 'system',
-                'content' => 'You help staff with one WhatsApp message. Use only that message and the request. Do not invent facts, names, prices, or medical details. When the request asks for a reply, write only the message that can be sent. Otherwise answer in plain language.',
-            ],
-            [
-                'role' => 'user',
-                'content' => "Message:\n".$text."\n\nRequest:\n".$instruction,
-            ],
+            ['role' => 'system', 'content' => $system],
+            ['role' => 'user', 'content' => "Messages:\n".$text."\n\nRequest:\n".$instruction],
         ], [
             'temperature' => 0.4,
             'max_tokens' => 700,
@@ -958,7 +1026,7 @@ class WhatsAppHubController extends Controller
 
         return response()->json([
             'ok' => true,
-            'text' => $text,
+            'text' => $hideSource ? '' : $text,
             'answer' => trim((string) $result['content']),
         ]);
     }

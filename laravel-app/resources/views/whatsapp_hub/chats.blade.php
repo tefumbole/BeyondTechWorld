@@ -149,6 +149,9 @@
     #transcribeResult { background: #f3f6fb; margin-top: 12px; }
     #transcribeResult[hidden], #transcribeUse[hidden] { display: none !important; }
     #transcribeAsk, #transcribeUse { min-height: 44px; width: 100%; margin-top: 8px; border: 0; border-radius: 14px; background: #0b3f90; color: #fff; font-weight: 800; cursor: pointer; }
+    .ask-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+    .ask-chips button { border: 0; border-radius: 999px; min-height: 36px; padding: 0 12px; background: #eef2f9; color: #0b3f90; font-weight: 800; cursor: pointer; }
+    .mode-switch .ask-ai { background: #0b3f90; color: #fff; }
     .msg-edit { display: flex; flex-direction: column; gap: 8px; }
     .forward-list { max-height: 320px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
     .forward-list button { text-align: left; min-height: 42px; border: 0; border-radius: 12px; background: #f3f6fb; color: #16315c; font-weight: 700; padding: 0 12px; cursor: pointer; }
@@ -429,6 +432,7 @@
                         @csrf
                         <button type="submit" class="is-translate {{ !empty($destination['enabled']) ? 'is-on' : '' }}" title="Translation for this chat only. Other chats keep their own language.">Translate</button>
                     </form>
+                    <button type="button" id="openAsk" class="ask-ai">Ask</button>
                     <form method="POST" id="threadAi" action="{{ route('whatsapp.conversation.enable_ai', $open->id) }}">
                         @csrf
                         <button type="submit" class="{{ $open->mode === 'AI' ? 'is-on' : '' }}">AI</button>
@@ -692,6 +696,7 @@
             <a class="call-btn" id="threadCall" href="#" hidden><i class="fa fa-phone"></i> Call</a>
             <button type="button" class="chat-gear js-lang-settings" aria-label="Language settings">⚙</button>
             <form method="POST" id="threadTranslate" action="">@csrf<button type="submit" class="is-translate">Translate</button></form>
+            <button type="button" id="openAsk" class="ask-ai">Ask</button>
             <form method="POST" id="threadAi" action="">@csrf<button type="submit">AI</button></form>
             <form method="POST" id="threadHuman" action="">@csrf<button type="submit">Human</button></form>
         </div>
@@ -815,14 +820,19 @@
 <div class="lang-sheet" id="transcribeSheet">
     <div class="lang-card">
         <header>
-            <h3>Transcribe</h3>
+            <h3>Ask AI</h3>
             <button type="button" class="lang-close" data-close="transcribeSheet" aria-label="Close">×</button>
         </header>
-        <p id="transcribeStatus">The message as text.</p>
-        <div class="transcribe-text" id="transcribeText"></div>
-        <label for="transcribePrompt">Ask about this message</label>
-        <textarea id="transcribePrompt" maxlength="2000" placeholder="Ask for a reply, a summary, or what to do next."></textarea>
+        <div class="ask-chips">
+            <button type="button" data-prompt="Summarize this in a few sentences.">Summarize</button>
+            <button type="button" data-prompt="List every question and the facts they asked for, in order.">List the questions</button>
+            <button type="button" data-prompt="Write a short reply I can send.">Write a reply</button>
+        </div>
+        <label for="transcribePrompt">What do you want?</label>
+        <textarea id="transcribePrompt" maxlength="2000" placeholder="Summarize the voice note, list what they need, or ask for the details."></textarea>
         <button type="button" id="transcribeAsk">Ask</button>
+        <p id="transcribeStatus">This chat</p>
+        <div class="transcribe-text" id="transcribeText"></div>
         <div id="transcribeResult" hidden></div>
         <button type="button" id="transcribeUse" hidden>Use this reply</button>
     </div>
@@ -1828,6 +1838,7 @@
         if (ask) { ask.disabled = isAudio && !existing; ask.textContent = 'Ask'; }
         closeSheet('msgSheet');
         openSheet('transcribeSheet');
+        if (prompt) setTimeout(function () { prompt.focus(); }, 40);
         if (!isAudio) {
             fillTranscribe(existing ? 'This message as text' : 'This message has no text.', existing);
             return;
@@ -1859,21 +1870,54 @@
             if (!existing) fillTranscribe('Could not hear that voice note.', '');
         });
     }
-    var transcribeAsk = document.getElementById('transcribeAsk');
-    if (transcribeAsk) transcribeAsk.addEventListener('click', function () {
-        if (!activeMessage || !openChat || transcribeAsk.disabled) return;
+    function threadExcerpt() {
+        var lines = [];
+        document.querySelectorAll('#chatStream .bubble').forEach(function (bubble) {
+            var who = bubble.getAttribute('data-out') === '1' ? 'You' : 'Them';
+            var text = messageBody(bubble);
+            if ((bubble.getAttribute('data-audio') === '1' || bubble.querySelector('audio')) && !text) text = 'Voice note';
+            if (text) lines.push(who + ': ' + text);
+        });
+        var joined = lines.join('\n');
+        return joined.length > 1800 ? joined.slice(joined.length - 1800) : joined;
+    }
+    function openAsk(bubble) {
+        if (bubble) {
+            openTranscribe(bubble);
+            return;
+        }
+        if (!openChat) return;
+        activeMessage = null;
+        var sheet = document.getElementById('transcribeSheet');
+        var result = document.getElementById('transcribeResult');
+        var use = document.getElementById('transcribeUse');
         var prompt = document.getElementById('transcribePrompt');
-        var instruction = prompt ? prompt.value.trim() : '';
-        if (!instruction) { window.alert('Write what you want to ask about this message.'); return; }
+        var ask = document.getElementById('transcribeAsk');
+        if (sheet) sheet.setAttribute('data-kind', 'chat');
+        if (result) { result.hidden = true; result.textContent = ''; }
+        if (use) use.hidden = true;
+        if (prompt) prompt.value = '';
+        if (ask) { ask.disabled = false; ask.textContent = 'Ask'; }
+        fillTranscribe('This chat', threadExcerpt() || 'No messages in this chat yet.');
+        openSheet('transcribeSheet');
+        if (prompt) setTimeout(function () { prompt.focus(); }, 40);
+    }
+    function runAsk(instruction) {
+        var ask = document.getElementById('transcribeAsk');
+        if (!openChat || (ask && ask.disabled)) return;
+        var prompt = document.getElementById('transcribePrompt');
+        instruction = (instruction || (prompt ? prompt.value : '')).trim();
+        if (!instruction) { window.alert('Write what you want the assistant to do.'); return; }
+        if (prompt) prompt.value = instruction;
         var result = document.getElementById('transcribeResult');
         var use = document.getElementById('transcribeUse');
         var sheet = document.getElementById('transcribeSheet');
-        transcribeAsk.disabled = true;
-        transcribeAsk.textContent = 'Asking…';
+        if (ask) { ask.disabled = true; ask.textContent = 'Asking…'; }
         var data = new FormData();
         data.append('instruction', instruction);
+        if (activeMessage) data.append('message', activeMessage.getAttribute('data-id'));
         data.append('_token', csrfToken());
-        fetch(chatPage + '/' + openChat + '/messages/' + activeMessage.getAttribute('data-id') + '/ask', {
+        fetch(chatPage + '/' + openChat + '/ask', {
             method: 'POST',
             body: data,
             credentials: 'same-origin',
@@ -1881,22 +1925,22 @@
         }).then(function (response) {
             return response.json().then(function (payload) { payload._ok = response.ok; return payload; }).catch(function () { return { _ok: false }; });
         }).then(function (payload) {
-            transcribeAsk.disabled = false;
-            transcribeAsk.textContent = 'Ask';
+            if (ask) { ask.disabled = false; ask.textContent = 'Ask'; }
             if (!payload || !payload._ok || !payload.answer) {
                 window.alert((payload && payload.error) || 'The assistant could not answer that.');
                 return;
             }
-            var kind = sheet && sheet.getAttribute('data-kind') === 'audio' ? 'Voice note as text' : 'This message as text';
-            if (payload.text) fillTranscribe(kind, payload.text);
+            var kindName = sheet && sheet.getAttribute('data-kind') === 'audio' ? 'Voice note as text' : (sheet && sheet.getAttribute('data-kind') === 'chat' ? 'This chat' : 'This message as text');
+            if (payload.text && sheet && sheet.getAttribute('data-kind') !== 'chat') fillTranscribe(kindName, payload.text);
             if (result) { result.hidden = false; result.textContent = payload.answer; }
             if (use) use.hidden = false;
         }).catch(function () {
-            transcribeAsk.disabled = false;
-            transcribeAsk.textContent = 'Ask';
+            if (ask) { ask.disabled = false; ask.textContent = 'Ask'; }
             window.alert('The assistant could not answer that.');
         });
-    });
+    }
+    var transcribeAsk = document.getElementById('transcribeAsk');
+    if (transcribeAsk) transcribeAsk.addEventListener('click', function () { runAsk(''); });
     var transcribeUse = document.getElementById('transcribeUse');
     if (transcribeUse) transcribeUse.addEventListener('click', function () {
         var result = document.getElementById('transcribeResult');
@@ -1938,6 +1982,10 @@
         });
     }
     document.addEventListener('click', function (event) {
+        var askOpen = event.target.closest && event.target.closest('#openAsk');
+        if (askOpen) { openAsk(null); return; }
+        var chip = event.target.closest && event.target.closest('[data-prompt]');
+        if (chip) { runAsk(chip.getAttribute('data-prompt') || ''); return; }
         var quoteClear = event.target.closest && event.target.closest('#quoteClear');
         if (quoteClear) { clearQuote(); return; }
         var act = event.target.closest && event.target.closest('[data-act]');
