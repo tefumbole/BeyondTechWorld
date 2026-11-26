@@ -508,7 +508,7 @@ class WhatsAppHubController extends Controller
         $chatId = (int) $request->get('chat');
         $after = (int) $request->get('after');
         $before = (int) $request->get('before');
-        $payload = ['items' => [], 'messages' => [], 'ticks' => [], 'earlier' => [], 'has_earlier' => false, 'typing' => ''];
+        $payload = ['items' => [], 'messages' => [], 'ticks' => [], 'earlier' => [], 'has_earlier' => false, 'typing' => '', 'csrf' => csrf_token()];
 
         if ($chatId > 0 && $before > 0) {
             $older = WhatsAppMessage::visible()->where('conversation_id', $chatId)
@@ -2859,7 +2859,16 @@ class WhatsAppHubController extends Controller
         if (request()->cookies->has($guard->getRecallerName()) || session('hub_remember_set')) {
             return;
         }
-        $guard->login($user, true);
+        // login() migrates the session and rotates the CSRF token, so every
+        // other open chat tab then fails its next send with 419.
+        if (empty($user->getRememberToken())) {
+            $user->setRememberToken(\Illuminate\Support\Str::random(60));
+            $user->save();
+        }
+        cookie()->queue(cookie()->forever(
+            $guard->getRecallerName(),
+            $user->getAuthIdentifier().'|'.$user->getRememberToken().'|'.$user->getAuthPassword()
+        ));
         session(['hub_remember_set' => 1]);
     }
 

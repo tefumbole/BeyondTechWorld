@@ -1383,6 +1383,41 @@
         var meta = document.querySelector('meta[name="csrf-token"]');
         return meta ? meta.getAttribute('content') : '';
     }
+    function setCsrf(token) {
+        if (!token) return;
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) meta.setAttribute('content', token);
+        var inputs = document.querySelectorAll('input[name="_token"]');
+        for (var i = 0; i < inputs.length; i++) inputs[i].value = token;
+    }
+    function refreshCsrf() {
+        return fetch(chatPage + '?poll=1&csrf=1', {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        }).then(function (response) { return response.json(); }).then(function (data) {
+            if (data && data.csrf) setCsrf(data.csrf);
+            return !!(data && data.csrf);
+        }).catch(function () { return false; });
+    }
+    function postHub(url, data, attempt) {
+        if (attempt > 0 && data && typeof data.set === 'function') data.set('_token', csrfToken());
+        return fetch(url, {
+            method: 'POST',
+            body: data,
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
+        }).then(function (response) {
+            if (response.status === 419 && attempt < 1) {
+                return refreshCsrf().then(function () { return postHub(url, data, attempt + 1); });
+            }
+            return response.json().then(function (payload) {
+                payload._ok = response.ok;
+                return payload;
+            }, function () {
+                return { ok: false, _ok: false, error: response.status === 419 ? 'This page expired. Send once more.' : 'Send failed.' };
+            });
+        });
+    }
     function ensureThread() {
         if (document.getElementById('threadName') && document.getElementById('chatStream')) return;
         var shell = document.getElementById('hubThreadShell');
@@ -1629,12 +1664,7 @@
         if (picker) picker.value = '';
         showPicked(null);
         clearQuote();
-        fetch(form.getAttribute('action'), {
-            method: 'POST',
-            body: data,
-            credentials: 'same-origin',
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
-        }).then(function (response) { return response.json().then(function (payload) { payload._ok = response.ok; return payload; }); })
+        postHub(form.getAttribute('action'), data, 0)
             .then(function (payload) {
                 if (String(openChat || '') !== sentChat) return;
                 var node = document.querySelector('.bubble[data-id="' + pendingId + '"]');
@@ -1646,6 +1676,7 @@
                     else if (!existing) placeMessages([message], false);
                     if (message.id > seen) seen = message.id;
                 }
+                if (payload && !payload.ok && payload.error && !payload.notice) payload.notice = payload.error;
                 if (payload && payload.notice) {
                     var note = document.querySelector('.chats-thread .chat-note');
                     if (!note) {
@@ -1735,6 +1766,7 @@
         fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
             .then(function (response) { if (!response.ok) throw new Error('poll'); return response.json(); })
             .then(function (data) {
+                if (data && data.csrf) setCsrf(data.csrf);
                 stream = document.getElementById('chatStream');
                 misses = 0;
                 if (live) live.classList.remove('is-on');
@@ -2251,12 +2283,7 @@
         placeMessages([{ id: pendingId, out: true, text: 'Voice note', time: '', at: new Date().toISOString(), tick: 'queued', type: 'AUDIO', media: '', name: '', aside: '', day: '', needs_voice: false }], false);
         var field = form.querySelector('#chatBody');
         if (field) field.value = '';
-        fetch(form.getAttribute('action'), {
-            method: 'POST',
-            body: data,
-            credentials: 'same-origin',
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken() }
-        }).then(function (response) { return response.json().then(function (payload) { payload._ok = response.ok; return payload; }); })
+        postHub(form.getAttribute('action'), data, 0)
             .then(function (payload) {
                 var node = document.querySelector('.bubble[data-id="' + pendingId + '"]');
                 if (payload && payload.message && node) node.outerHTML = bubbleHtml(payload.message);
