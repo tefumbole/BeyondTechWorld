@@ -1801,7 +1801,7 @@
         if (deferredInstall) { deferredInstall.prompt(); return; }
         var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
         window.alert(ios
-            ? 'On iPhone, tap Share, then Add to Home Screen. It opens like an app. No App Store.'
+            ? 'On iPhone, tap Share, then Add to Home Screen. The icon is Whats MAI.'
             : 'On a Mac, Chrome shows Install in the address bar. Safari: File, then Add to Dock. No App Store.');
     });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });

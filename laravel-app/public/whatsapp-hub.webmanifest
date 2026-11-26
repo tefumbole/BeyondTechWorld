@@ -1,22 +1,28 @@
 {
   "id": "/admin/whatsapp/chats",
-  "name": "WhatsApp Hub",
-  "short_name": "WhatsApp Hub",
+  "name": "Whats MAI",
+  "short_name": "Whats MAI",
   "start_url": "/admin/whatsapp/chats",
   "scope": "/admin/whatsapp/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0b3d91",
-  "theme_color": "#0b3d91",
+  "background_color": "#072f6b",
+  "theme_color": "#072f6b",
   "icons": [
     {
-      "src": "whatsapp-hub/icon-192.png",
+      "src": "whatsapp-hub/mai-180.png",
+      "type": "image/png",
+      "sizes": "180x180",
+      "purpose": "any"
+    },
+    {
+      "src": "whatsapp-hub/mai-192.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "whatsapp-hub/icon-512.png",
+      "src": "whatsapp-hub/mai-512.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"

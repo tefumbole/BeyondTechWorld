@@ -3,8 +3,12 @@
       <head>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        @if(!Route::is('whatsapp.chats'))
         <link rel="icon" type="image/png" href="{{url('public/logo', $general_setting->site_logo)}}" />
-          @if(!Route::is('report.customer'))
+        @endif
+          @if(Route::is('whatsapp.chats'))
+            <title>Whats MAI</title>
+          @elseif(!Route::is('report.customer'))
             <title>{{$general_setting->site_title}}</title>
           @else
               <title>Customer Name: {{ $customer_name }}</title>
@@ -17,9 +21,12 @@
         <meta name="theme-color" content="#0b3d91">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-title" content="WhatsApp Hub">
+        <meta name="apple-mobile-web-app-title" content="Whats MAI">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <link rel="apple-touch-icon" href="{{ url('public/whatsapp-hub/icon-180.png') }}">
+        <meta property="og:title" content="Whats MAI">
+        <meta property="og:image" content="{{ url('public/whatsapp-hub/mai-512.png') }}">
+        <link rel="icon" type="image/png" href="{{ url('public/whatsapp-hub/mai-192.png') }}">
+        <link rel="apple-touch-icon" sizes="180x180" href="{{ url('public/whatsapp-hub/mai-180.png') }}">
         <link rel="manifest" href="{{ url('public/whatsapp-hub.webmanifest') }}">
         @else
         <link rel="manifest" href="{{url('manifest.json')}}">
