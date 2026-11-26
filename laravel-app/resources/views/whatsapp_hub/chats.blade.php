@@ -144,29 +144,41 @@
     .msg-actions button, .msg-edit button { min-height: 44px; border: 0; border-radius: 14px; background: #f3f6fb; color: #0b3f90; font-weight: 800; cursor: pointer; }
     .msg-actions button.danger { background: #fde8e8; color: #9b1c1c; }
     .msg-edit textarea, #transcribePrompt { width: 100%; min-height: 90px; border: 1px solid #d5deee; border-radius: 14px; padding: 10px; font: inherit; }
-    .transcribe-text, #transcribeResult { white-space: pre-wrap; border-radius: 14px; padding: 12px; color: #16315c; }
-    .transcribe-text { background: #f4f7ff; min-height: 48px; margin-bottom: 8px; }
-    #transcribeResult { background: #f3f6fb; margin-top: 12px; }
+    #transcribeResult { white-space: pre-wrap; margin-top: 12px; padding: 12px 14px; border-radius: 16px; border: 1px solid #ead89a; border-left: 4px solid #c6ab47; background: #fffdf6; color: #16315c; }
     #transcribeResult[hidden], #transcribeUse[hidden] { display: none !important; }
     #transcribeUse { min-height: 44px; width: 100%; margin-top: 8px; border: 0; border-radius: 14px; background: #0b3f90; color: #fff; font-weight: 800; cursor: pointer; }
-    #transcribeAsk { min-height: 44px; border: 0; border-radius: 14px; background: #0b3f90; color: #fff; font-weight: 800; cursor: pointer; }
-    .ask-card { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
-    .ask-card > header { padding: 16px 16px 0; margin: 0; }
-    .ask-scope { margin: 2px 0 0; color: #6b7a99; font-size: 12px; font-weight: 700; }
-    .ask-thread { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 16px 12px; }
-    .ask-dock { flex: none; border-top: 1px solid #e6ecf6; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); background: #fff; }
-    .ask-file { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: #0b3f90; font-size: 12px; font-weight: 800; }
+    #transcribeAsk { min-height: 44px; border: 0; border-radius: 14px; color: #fff; font-weight: 800; cursor: pointer; }
+    .ask-card { display: flex; flex-direction: column; overflow: hidden; min-height: min(70vh, 560px); padding: 0; background: linear-gradient(180deg, #f4f7fd 0%, #fff 140px); }
+    .ask-card > header { align-items: center; padding: 14px 16px 8px; margin: 0; }
+    .ask-brand { display: flex; align-items: center; gap: 10px; }
+    .ask-mark, .mai-open { position: relative; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 14px; background: linear-gradient(145deg, #0b3f90, #072f6b); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .04em; box-shadow: 0 8px 18px rgba(11, 63, 144, .28); }
+    .ask-mark { width: 40px; height: 40px; flex: none; }
+    .ask-mark i, .mai-open i { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: #c6ab47; }
+    .ask-scope { margin: 1px 0 0; color: #6b7a99; font-size: 12px; font-weight: 700; }
+    .ask-chips { display: flex; gap: 8px; flex: none; overflow-x: auto; padding: 4px 16px 10px; background: linear-gradient(180deg, #f4f7fd, #fff); border-bottom: 1px solid #e7eef8; }
+    .ask-chips button { flex: none; border: 0; border-radius: 999px; min-height: 34px; padding: 0 14px; background: #fff; color: #0b3f90; font-weight: 800; cursor: pointer; box-shadow: 0 1px 2px rgba(15, 31, 61, .06), inset 0 0 0 1px #d7e2f4; }
+    .ask-thread { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px 16px; }
+    .ask-note { margin: 0 0 10px; color: #6b7a99; font-size: 12px; font-weight: 700; }
+    .ask-preview { display: flex; flex-direction: column; gap: 8px; }
+    .ask-empty { margin: 0; color: #6b7a99; font-size: 13px; }
+    .ask-line { max-width: 88%; padding: 8px 12px; }
+    .ask-line span { display: block; margin-bottom: 2px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .ask-line p { margin: 0; font-size: 14px; line-height: 1.35; }
+    .ask-line.is-them { align-self: flex-start; background: #fff; color: #16315c; border: 1px solid #e3ebf7; border-radius: 6px 16px 16px 16px; }
+    .ask-line.is-them span { color: #0b3f90; }
+    .ask-line.is-mine { align-self: flex-end; background: linear-gradient(145deg, #0b3f90, #124eaa); color: #fff; border-radius: 16px 6px 16px 16px; }
+    .ask-line.is-mine span { color: #c6ab47; }
+    .ask-dock { flex: none; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); background: #fff; box-shadow: 0 -8px 24px rgba(15, 31, 61, .05); }
+    .ask-file { display: flex; align-items: center; gap: 8px; margin: 0 4px 8px; color: #0b3f90; font-size: 12px; font-weight: 800; }
     .ask-file[hidden] { display: none !important; }
     .ask-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ask-file button { border: 0; background: transparent; color: #6b7a99; font-size: 18px; cursor: pointer; }
-    .ask-row { display: flex; align-items: flex-end; gap: 8px; }
-    .ask-clip { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: 0; border-radius: 50%; background: #eef2f9; color: #0b3f90; font-size: 26px; font-weight: 600; cursor: pointer; flex: none; }
+    .ask-row { display: flex; align-items: flex-end; gap: 8px; padding: 6px 6px 6px 8px; border-radius: 22px; background: #f4f7fd; box-shadow: inset 0 0 0 1px #e1e8f4; }
+    .ask-clip { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; margin: 0; border-radius: 50%; background: #fff; color: #0b3f90; font-size: 22px; font-weight: 600; cursor: pointer; flex: none; box-shadow: 0 1px 2px rgba(15, 31, 61, .06); }
     .ask-clip input { display: none; }
-    .ask-row textarea { flex: 1; min-height: 44px; max-height: 120px; margin: 0; resize: none; }
-    .ask-row #transcribeAsk { width: auto; min-width: 72px; margin: 0; padding: 0 16px; }
-    .ask-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
-    .ask-chips button { border: 0; border-radius: 999px; min-height: 36px; padding: 0 12px; background: #eef2f9; color: #0b3f90; font-weight: 800; cursor: pointer; }
-    .mode-switch .ask-ai { background: #0b3f90; color: #fff; }
+    .ask-row #transcribePrompt { flex: 1; width: auto; min-height: 36px; max-height: 96px; margin: 0; padding: 8px 4px; border: 0; border-radius: 0; background: transparent; resize: none; box-shadow: none; }
+    .ask-row #transcribeAsk { width: auto; min-width: 64px; height: 40px; margin: 0; padding: 0 14px; border-radius: 16px; background: linear-gradient(145deg, #0b3f90, #072f6b); }
+    .mai-open { width: 46px; height: 46px; flex: none; cursor: pointer; }
     .msg-edit { display: flex; flex-direction: column; gap: 8px; }
     .forward-list { max-height: 320px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
     .forward-list button { text-align: left; min-height: 42px; border: 0; border-radius: 12px; background: #f3f6fb; color: #16315c; font-weight: 700; padding: 0 12px; cursor: pointer; }
@@ -447,7 +459,6 @@
                         @csrf
                         <button type="submit" class="is-translate {{ !empty($destination['enabled']) ? 'is-on' : '' }}" title="Translation for this chat only. Other chats keep their own language.">Translate</button>
                     </form>
-                    <button type="button" id="openAsk" class="ask-ai">Ask</button>
                     <form method="POST" id="threadAi" action="{{ route('whatsapp.conversation.enable_ai', $open->id) }}">
                         @csrf
                         <button type="submit" class="{{ $open->mode === 'AI' ? 'is-on' : '' }}">AI</button>
@@ -562,6 +573,7 @@
                     </span>
                     <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
                     <textarea name="body" id="chatBody" placeholder="{{ $replyCode !== 'off' && $replyCode !== '' ? ('Type in '.$writeName.'. Paste a photo or a document. It is sent in '.$replyName.'.') : 'Type a message. Paste a photo or a document.' }}"></textarea>
+                    <button type="button" id="openAsk" class="mai-open" aria-label="MAI, Mbole AI" title="MAI"><i></i>MAI</button>
                     <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
@@ -711,7 +723,6 @@
             <a class="call-btn" id="threadCall" href="#" hidden><i class="fa fa-phone"></i> Call</a>
             <button type="button" class="chat-gear js-lang-settings" aria-label="Language settings">⚙</button>
             <form method="POST" id="threadTranslate" action="">@csrf<button type="submit" class="is-translate">Translate</button></form>
-            <button type="button" id="openAsk" class="ask-ai">Ask</button>
             <form method="POST" id="threadAi" action="">@csrf<button type="submit">AI</button></form>
             <form method="POST" id="threadHuman" action="">@csrf<button type="submit">Human</button></form>
         </div>
@@ -732,6 +743,7 @@
         </span>
         <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
         <textarea name="body" id="chatBody" placeholder="Type a message. Paste a photo or a document."></textarea>
+        <button type="button" id="openAsk" class="mai-open" aria-label="MAI, Mbole AI" title="MAI"><i></i>MAI</button>
         <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
         <button type="submit" aria-label="Send">➤</button>
     </form>
@@ -835,20 +847,23 @@
 <div class="lang-sheet" id="transcribeSheet">
     <div class="lang-card ask-card">
         <header>
-            <div>
-                <h3>Ask AI</h3>
-                <p class="ask-scope">This chat only</p>
+            <div class="ask-brand">
+                <span class="ask-mark" aria-hidden="true"><i></i>MAI</span>
+                <div>
+                    <h3>MAI</h3>
+                    <p class="ask-scope">Mbole AI · this chat only</p>
+                </div>
             </div>
             <button type="button" class="lang-close" data-close="transcribeSheet" aria-label="Close">×</button>
         </header>
+        <div class="ask-chips">
+            <button type="button" data-prompt="Summarize this chat in a few sentences.">Summarize</button>
+            <button type="button" data-prompt="Write a short reply I can send.">Suggest a reply</button>
+            <button type="button" data-prompt="List every question and the facts they asked for, in order.">List the questions</button>
+        </div>
         <div class="ask-thread" id="askThread">
-            <div class="ask-chips">
-                <button type="button" data-prompt="Summarize this chat in a few sentences.">Summarize</button>
-                <button type="button" data-prompt="List every question and the facts they asked for, in order.">List the questions</button>
-                <button type="button" data-prompt="Write a short reply I can send.">Write a reply</button>
-            </div>
-            <p id="transcribeStatus">This chat only</p>
-            <div class="transcribe-text" id="transcribeText"></div>
+            <p class="ask-note" id="transcribeStatus">Latest messages. MAI reads this chat.</p>
+            <div class="ask-preview" id="askPreview"></div>
             <div id="transcribeResult" hidden></div>
             <button type="button" id="transcribeUse" hidden>Use this reply</button>
         </div>
@@ -862,8 +877,8 @@
                     <input type="file" id="askFile" accept=".txt,.csv,.md,.json,.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif">
                     +
                 </label>
-                <textarea id="transcribePrompt" maxlength="2000" rows="1" placeholder="Ask about this chat"></textarea>
-                <button type="button" id="transcribeAsk">Ask</button>
+                <textarea id="transcribePrompt" maxlength="2000" rows="1" placeholder="Ask MAI about this chat"></textarea>
+                <button type="button" id="transcribeAsk">MAI</button>
             </div>
         </div>
     </div>
@@ -1851,11 +1866,53 @@
         if (everyone) everyone.hidden = bubble.getAttribute('data-drop') !== '1';
         openSheet('msgSheet');
     }
+    function askLine(mine, text) {
+        var row = document.createElement('div');
+        row.className = 'ask-line ' + (mine ? 'is-mine' : 'is-them');
+        var who = document.createElement('span');
+        who.textContent = mine ? 'You' : 'Them';
+        var body = document.createElement('p');
+        body.textContent = text.length > 180 ? text.slice(0, 177) + '…' : text;
+        row.appendChild(who);
+        row.appendChild(body);
+        return row;
+    }
+    function bubbleAskText(bubble) {
+        var text = messageBody(bubble);
+        if ((bubble.getAttribute('data-audio') === '1' || bubble.querySelector('audio')) && !text) text = 'Voice note';
+        return text;
+    }
+    function paintAskPreview(bubbles) {
+        var box = document.getElementById('askPreview');
+        if (!box) return;
+        box.innerHTML = '';
+        var shown = 0;
+        (bubbles || []).forEach(function (bubble) {
+            var text = bubbleAskText(bubble);
+            if (!text) return;
+            box.appendChild(askLine(bubble.getAttribute('data-out') === '1', text));
+            shown += 1;
+        });
+        if (!shown) box.innerHTML = '<p class="ask-empty">No messages in this chat yet.</p>';
+    }
+    function paintRecentChat() {
+        var bubbles = Array.prototype.slice.call(document.querySelectorAll('#chatStream .bubble'));
+        paintAskPreview(bubbles.slice(Math.max(0, bubbles.length - 3)));
+    }
     function fillTranscribe(status, text) {
         var statusNode = document.getElementById('transcribeStatus');
-        var textNode = document.getElementById('transcribeText');
         if (statusNode) statusNode.textContent = status || '';
-        if (textNode) textNode.textContent = text || '';
+        var box = document.getElementById('askPreview');
+        if (!box) return;
+        if (!text) {
+            box.innerHTML = '<p class="ask-empty"></p>';
+            var empty = box.querySelector('.ask-empty');
+            if (empty) empty.textContent = status || 'Nothing to show yet.';
+            return;
+        }
+        var mine = activeMessage && activeMessage.getAttribute('data-out') === '1';
+        box.innerHTML = '';
+        box.appendChild(askLine(mine, text));
     }
     function clearAskFile() {
         var input = document.getElementById('askFile');
@@ -1886,7 +1943,7 @@
         if (use) use.hidden = true;
         if (prompt) prompt.value = '';
         clearAskFile();
-        if (ask) { ask.disabled = isAudio && !existing; ask.textContent = 'Ask'; }
+        if (ask) { ask.disabled = isAudio && !existing; ask.textContent = 'MAI'; }
         closeSheet('msgSheet');
         openSheet('transcribeSheet');
         if (prompt) setTimeout(function () { prompt.focus(); }, 40);
@@ -1921,17 +1978,6 @@
             if (!existing) fillTranscribe('Could not hear that voice note.', '');
         });
     }
-    function threadExcerpt() {
-        var lines = [];
-        document.querySelectorAll('#chatStream .bubble').forEach(function (bubble) {
-            var who = bubble.getAttribute('data-out') === '1' ? 'You' : 'Them';
-            var text = messageBody(bubble);
-            if ((bubble.getAttribute('data-audio') === '1' || bubble.querySelector('audio')) && !text) text = 'Voice note';
-            if (text) lines.push(who + ': ' + text);
-        });
-        var joined = lines.join('\n');
-        return joined.length > 1800 ? joined.slice(joined.length - 1800) : joined;
-    }
     function openAsk(bubble) {
         if (bubble) {
             openTranscribe(bubble);
@@ -1948,9 +1994,11 @@
         if (result) { result.hidden = true; result.textContent = ''; }
         if (use) use.hidden = true;
         if (prompt) prompt.value = '';
-        if (ask) { ask.disabled = false; ask.textContent = 'Ask'; }
+        if (ask) { ask.disabled = false; ask.textContent = 'MAI'; }
         clearAskFile();
-        fillTranscribe('This chat only', threadExcerpt() || 'No messages in this chat yet.');
+        var statusNode = document.getElementById('transcribeStatus');
+        if (statusNode) statusNode.textContent = 'Latest messages. MAI reads this chat.';
+        paintRecentChat();
         openSheet('transcribeSheet');
         if (prompt) setTimeout(function () { prompt.focus(); }, 40);
     }
@@ -1970,7 +2018,7 @@
         var result = document.getElementById('transcribeResult');
         var use = document.getElementById('transcribeUse');
         var sheet = document.getElementById('transcribeSheet');
-        if (ask) { ask.disabled = true; ask.textContent = 'Asking…'; }
+        if (ask) { ask.disabled = true; ask.textContent = '…'; }
         var data = new FormData();
         data.append('instruction', instruction);
         if (activeMessage) data.append('message', activeMessage.getAttribute('data-id'));
@@ -1984,7 +2032,7 @@
         }).then(function (response) {
             return response.json().then(function (payload) { payload._ok = response.ok; return payload; }).catch(function () { return { _ok: false }; });
         }).then(function (payload) {
-            if (ask) { ask.disabled = false; ask.textContent = 'Ask'; }
+            if (ask) { ask.disabled = false; ask.textContent = 'MAI'; }
             if (!payload || !payload._ok || !payload.answer) {
                 window.alert((payload && payload.error) || 'The assistant could not answer that.');
                 return;
@@ -1996,7 +2044,7 @@
             var thread = document.getElementById('askThread');
             if (thread) thread.scrollTop = thread.scrollHeight;
         }).catch(function () {
-            if (ask) { ask.disabled = false; ask.textContent = 'Ask'; }
+            if (ask) { ask.disabled = false; ask.textContent = 'MAI'; }
             window.alert('The assistant could not answer that.');
         });
     }
