@@ -663,6 +663,24 @@
 @php
     $staffCode = !empty($staffLanguage['code']) ? $staffLanguage['code'] : 'en';
     $defaultCode = !empty($defaultReply['code']) ? $defaultReply['code'] : '';
+    $sheetTitle = ($open && isset($title)) ? $title : 'this chat';
+    $sheetWrite = isset($writeName) ? $writeName : (!empty($staffLanguage['name']) ? $staffLanguage['name'] : 'English');
+    $sheetCode = isset($replyCode) ? $replyCode : 'off';
+    $keptName = (is_array($destination) && !empty($destination['name']) && (!empty($destination['off']) || empty($destination['enabled']))) ? $destination['name'] : '';
+    $langHint = [
+        'ur' => 'pakistan urdu',
+        'pa' => 'pakistan punjabi',
+        'ps' => 'pakistan pashto',
+        'sd' => 'pakistan sindhi',
+        'zh' => 'china chinese mandarin',
+        'hi' => 'india hindi',
+        'bn' => 'bangladesh bengali',
+        'ar' => 'arabic',
+        'fr' => 'french cameroon',
+        'sw' => 'swahili kenya tanzania',
+        'rw' => 'kinyarwanda rwanda',
+        'am' => 'amharic ethiopia',
+    ];
 @endphp
 <div class="lang-sheet" id="langSettings">
     <form class="lang-card" method="POST" action="{{ route('whatsapp.chats.settings') }}">
@@ -678,7 +696,7 @@
         <input type="hidden" name="staff_language" id="staffLanguage" value="{{ $staffCode }}">
         <div class="lang-list" id="staffList">
             @foreach($translatorLanguages as $code => $name)
-                <button type="button" class="lang-option {{ $staffCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="staffLanguage">{{ $name }}</button>
+                <button type="button" class="lang-option {{ $staffCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="staffLanguage" data-search="{{ strtolower($name.' '.(isset($langHint[$code]) ? $langHint[$code] : '')) }}">{{ $name }}</button>
             @endforeach
         </div>
         <label>Default reply language</label>
@@ -687,27 +705,28 @@
         <div class="lang-list" id="defaultList">
             <button type="button" class="lang-option {{ $defaultCode === '' ? 'is-on' : '' }}" data-code="" data-target="defaultReply">No default</button>
             @foreach($translatorLanguages as $code => $name)
-                <button type="button" class="lang-option {{ $defaultCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="defaultReply">{{ $name }}</button>
+                <button type="button" class="lang-option {{ $defaultCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="defaultReply" data-search="{{ strtolower($name.' '.(isset($langHint[$code]) ? $langHint[$code] : '')) }}">{{ $name }}</button>
             @endforeach
         </div>
         <label class="enter-choice"><input type="hidden" name="enter_sends" value="0"><input type="checkbox" name="enter_sends" value="1" {{ !empty($enterSends) ? 'checked' : '' }}> Enter key sends the message</label>
         <button type="submit" class="lang-save">Save</button>
     </form>
 </div>
-@if($open && $canReply)
+@if($canReply)
 <div class="lang-sheet" id="replyLang">
     <div class="lang-card">
         <header>
-            <h3>Reply to {{ $title }}</h3>
+            <h3 id="replyLangTitle">Reply to {{ $sheetTitle }}</h3>
             <button type="button" class="lang-close" data-close="replyLang" aria-label="Close">×</button>
         </header>
-        <p>Everything you send in this chat goes out in the language you pick, until you change it. A message they write in {{ $writeName }} still arrives in {{ $writeName }}.</p>
+        <p>Everything you send in this chat goes out in the language you pick. Turning translation off pauses it, and turning it on again uses the same language. A message they write in {{ $sheetWrite }} still arrives in {{ $sheetWrite }}.</p>
+        <p id="replyLangKept" @if($keptName === '') hidden @endif>{{ $keptName !== '' ? $keptName.' stays saved for this person. Turn translation on to use it again.' : '' }}</p>
         <input class="lang-filter" type="search" data-list="replyList" placeholder="Search languages" autocomplete="off">
         <div class="lang-list" id="replyList">
-            <button type="button" class="lang-option {{ $replyCode === 'off' ? 'is-on' : '' }}" data-code="off" data-target="replyLangValue" data-submit="1">Off</button>
-            <button type="button" class="lang-option {{ $replyCode === 'auto' ? 'is-on' : '' }}" data-code="auto" data-target="replyLangValue" data-submit="1">Detect their language</button>
+            <button type="button" class="lang-option {{ $sheetCode === 'off' ? 'is-on' : '' }}" data-code="off" data-target="replyLangValue" data-submit="1">Off</button>
+            <button type="button" class="lang-option {{ $sheetCode === 'auto' ? 'is-on' : '' }}" data-code="auto" data-target="replyLangValue" data-submit="1">Detect their language</button>
             @foreach($translatorLanguages as $code => $name)
-                <button type="button" class="lang-option {{ $replyCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="replyLangValue" data-submit="1">{{ $name }}</button>
+                <button type="button" class="lang-option {{ $sheetCode === $code ? 'is-on' : '' }}" data-code="{{ $code }}" data-target="replyLangValue" data-submit="1" data-search="{{ strtolower($name.' '.(isset($langHint[$code]) ? $langHint[$code] : '')) }}">{{ $name }}</button>
             @endforeach
         </div>
     </div>
@@ -950,7 +969,8 @@
             var list = document.getElementById(input.getAttribute('data-list'));
             if (!list) return;
             list.querySelectorAll('.lang-option').forEach(function (option) {
-                option.style.display = option.textContent.toLowerCase().indexOf(query) === -1 ? 'none' : '';
+                var hay = ((option.getAttribute('data-search') || '') + ' ' + option.textContent).toLowerCase();
+                option.style.display = hay.indexOf(query) === -1 ? 'none' : '';
             });
         });
     });
@@ -1215,15 +1235,39 @@
             });
         }
         var replyName = document.getElementById('threadReplyName');
-        if (replyName) {
-            var label = 'Off';
-            var dest = chat.destination || {};
-            if (dest.off) label = 'Off';
-            else if (dest.locked && dest.name) label = dest.name;
-            else if (dest.enabled && !dest.code) label = 'Detect';
-            else if (chat.default_reply && chat.default_reply.name) label = chat.default_reply.name;
-            replyName.textContent = label;
+        var dest = chat.destination || {};
+        var replyCode = 'off';
+        var label = 'Off';
+        if (dest.off || (dest.code && !dest.enabled)) {
+            replyCode = 'off';
+            label = 'Off';
+        } else if (dest.locked && dest.name) {
+            replyCode = dest.code || 'off';
+            label = dest.name;
+        } else if (dest.enabled && !dest.code) {
+            replyCode = 'auto';
+            label = 'Detect';
+        } else if (chat.default_reply && chat.default_reply.name) {
+            replyCode = chat.default_reply.code || '';
+            label = chat.default_reply.name;
         }
+        if (replyName) replyName.textContent = label;
+        var replyTitle = document.getElementById('replyLangTitle');
+        if (replyTitle) replyTitle.textContent = 'Reply to ' + (chat.name || 'this chat');
+        var kept = document.getElementById('replyLangKept');
+        if (kept) {
+            if ((dest.off || (dest.code && !dest.enabled)) && dest.name) {
+                kept.hidden = false;
+                kept.textContent = dest.name + ' stays saved for this person. Turn translation on to use it again.';
+            } else {
+                kept.hidden = true;
+            }
+        }
+        var replyValue = document.getElementById('replyLangValue');
+        if (replyValue) replyValue.value = replyCode;
+        document.querySelectorAll('#replyList .lang-option').forEach(function (option) {
+            option.classList.toggle('is-on', (option.getAttribute('data-code') || '') === replyCode);
+        });
         var composeField = document.getElementById('chatBody');
         if (composeField && !composeField.value) {
             var writeIn = (chat.staff && chat.staff.name) ? chat.staff.name : '';
