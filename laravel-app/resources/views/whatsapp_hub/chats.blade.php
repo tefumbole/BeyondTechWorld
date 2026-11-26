@@ -168,13 +168,13 @@
     .ask-line.is-them span { color: #0b3f90; }
     .ask-line.is-mine { align-self: flex-end; background: linear-gradient(145deg, #0b3f90, #124eaa); color: #fff; border-radius: 16px 6px 16px 16px; }
     .ask-line.is-mine span { color: #c6ab47; }
-    .ask-dock { flex: none; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); background: #fff; box-shadow: 0 -8px 24px rgba(15, 31, 61, .05); }
-    .ask-file { display: flex; align-items: center; gap: 8px; margin: 0 4px 8px; color: #0b3f90; font-size: 12px; font-weight: 800; }
+    .ask-dock { flex: none; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); background: #fff; box-shadow: 0 -8px 24px rgba(15, 31, 61, .05); }
+    .ask-file { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 8px 10px; border-radius: 14px; background: #fff8e6; color: #0b3f90; font-size: 13px; font-weight: 800; box-shadow: inset 0 0 0 1px #c6ab47; }
     .ask-file[hidden] { display: none !important; }
-    .ask-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ask-file button { border: 0; background: transparent; color: #6b7a99; font-size: 18px; cursor: pointer; }
-    .ask-row { display: flex; align-items: flex-end; gap: 8px; padding: 6px 6px 6px 8px; border-radius: 22px; background: #f4f7fd; box-shadow: inset 0 0 0 1px #e1e8f4; }
-    .ask-clip { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; margin: 0; border-radius: 50%; background: #fff; color: #0b3f90; font-size: 22px; font-weight: 600; cursor: pointer; flex: none; box-shadow: 0 1px 2px rgba(15, 31, 61, .06); }
+    .ask-file span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ask-file button { border: 0; background: transparent; color: #0b3f90; font-size: 20px; font-weight: 800; cursor: pointer; }
+    .ask-row { display: flex; align-items: flex-end; gap: 8px; padding: 6px; border-radius: 22px; background: #f4f7fd; box-shadow: inset 0 0 0 1px #e1e8f4; }
+    .ask-card .ask-clip { display: flex; align-items: center; justify-content: center; width: auto; min-width: 76px; height: 40px; margin: 0; padding: 0 12px; border-radius: 14px; background: #c6ab47; color: #072f6b; font-size: 13px; font-weight: 800; letter-spacing: 0; text-transform: none; cursor: pointer; flex: none; }
     .ask-clip input { display: none; }
     .ask-row #transcribePrompt { flex: 1; width: auto; min-height: 36px; max-height: 96px; margin: 0; padding: 8px 4px; border: 0; border-radius: 0; background: transparent; resize: none; box-shadow: none; }
     .ask-row #transcribeAsk { width: auto; min-width: 64px; height: 40px; margin: 0; padding: 0 14px; border-radius: 16px; background: linear-gradient(145deg, #0b3f90, #072f6b); }
@@ -873,9 +873,9 @@
                 <button type="button" id="askFileClear" aria-label="Remove file">×</button>
             </div>
             <div class="ask-row">
-                <label class="ask-clip" aria-label="Add a file">
+                <label class="ask-clip" aria-label="Attach a file">
                     <input type="file" id="askFile" accept=".txt,.csv,.md,.json,.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif">
-                    +
+                    Attach
                 </label>
                 <textarea id="transcribePrompt" maxlength="2000" rows="1" placeholder="Ask MAI about this chat"></textarea>
                 <button type="button" id="transcribeAsk">MAI</button>
