@@ -65,7 +65,7 @@ class CloudSubscribeController extends Controller
             'code' => 'required|string|max:12',
         ]);
         try {
-            $phone = app(CloudSignupOtp::class)->verify($data['phone'], $data['code']);
+            $phone = app(CloudSignupOtp::class)->verify($data['phone'], $data['code'], true);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

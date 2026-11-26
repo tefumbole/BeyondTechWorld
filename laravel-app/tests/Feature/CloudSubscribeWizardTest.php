@@ -375,8 +375,13 @@ class CloudSubscribeWizardTest extends TestCase
         $page = $this->get('/whatsapp-mai');
         $page->assertOk()
             ->assertSee('What should we call you?')
+            ->assertSee('Try Whats MAI free for 3 days.')
+            ->assertSee('Plan summary')
+            ->assertSee('No payment required.')
             ->assertSee('Free')
-            ->assertDontSee('The app link was sent');
+            ->assertDontSee('The app link was sent')
+            ->assertDontSee('Selected modules')
+            ->assertDontSee('24 HOUR');
         preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
         $sent = $this->postJson('/cloud/register/otp', [
             'phone' => '670000309',
@@ -391,6 +396,17 @@ class CloudSubscribeWizardTest extends TestCase
         ]);
         $verified->assertOk();
         $this->assertArrayNotHasKey('app_url', $verified->json());
+        $this->postJson('/cloud/register/otp/verify', [
+            'phone' => '670000309',
+            'dial' => '237',
+            'code' => '000000',
+            'mai' => '1',
+        ])->assertOk();
+        $this->postJson('/cloud/register/otp', [
+            'phone' => '670000309',
+            'dial' => '237',
+            'account_kind' => 'personal',
+        ])->assertOk();
         $this->post('/cloud/register', [
             'first_name' => 'Amina',
             'last_name' => 'Ndi',

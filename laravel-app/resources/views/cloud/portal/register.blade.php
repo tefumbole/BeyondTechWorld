@@ -237,6 +237,13 @@
     .subscribe-panel label.duration-card span { color: #fff !important; }
     .duration-card strong { display: block; color: #F5D76E !important; }
     .duration-card:has(input:checked) { background: rgba(212,175,55,.18); border-color: #F5D76E; }
+    .mai-shell #price-summary, .mai-shell .service-grid { display: none !important; }
+    .mai-shell .is-off { display: none !important; }
+    .mai-shell .plan-summary { text-align: left; border: 1px solid rgba(212,175,55,.55); border-radius: 16px; padding: 0.85rem 1rem; margin-top: 1rem; }
+    .mai-shell .plan-summary strong { display: block; margin-bottom: 0.45rem; color: #fff; }
+    .mai-shell .plan-summary div { display: flex; justify-content: space-between; gap: 1rem; margin-top: 0.3rem; }
+    .mai-shell .pay-card { border-radius: 999px; border: 1px solid rgba(212,175,55,.9); background: rgba(8,24,64,.45); }
+    .mai-shell .pay-card:has(input:checked) { background: rgba(212,175,55,.28); border-color: #F5D76E; box-shadow: 0 0 0 1px #F5D76E; }
     .otp-boxes { display: flex; gap: 8px; justify-content: space-between; margin-top: 0.6rem; }
     .otp-boxes input { width: 44px; height: 52px; text-align: center; font-size: 1.25rem; border-radius: 12px !important; padding: 0 !important; }
     .signature-prompt,
@@ -431,8 +438,8 @@
                 </div>
                 @endif
                 <button type="button" id="check-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">{{ ($selected ?? '') === 'MESSAGING' ? 'Verify code' : 'Verify and continue' }}</button>
-                <p class="hint mt-3" id="resend-wait">You can resend the code in 2:00</p>
-                <button type="button" id="resend-code" class="mt-2 bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5" disabled>Resend code</button>
+                <p class="hint mt-3" id="resend-wait">You can resend the code.</p>
+                <button type="button" id="resend-code" class="mt-2 bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5">Resend code</button>
                 <p class="form-error mt-3 rounded-xl px-3 py-2" id="code-error" hidden></p>
             </section>
 
@@ -492,16 +499,21 @@
                 <button type="button" class="back-step" data-back="services">Back</button>
                 @if(($selected ?? '') === 'MESSAGING')
                     <h2 class="text-xl font-bold">Choose a plan</h2>
-                    <p class="hint mt-1">The 3-day trial is free. Longer plans are paid.</p>
+                    <p class="hint mt-1">Try Whats MAI free for 3 days.</p>
                     <input type="checkbox" name="modules[]" value="MESSAGING" checked hidden>
                     <div class="duration-grid">
                         @foreach(app(\App\Services\Cloud\CloudMbolePrice::class)->periods() as $period)
                             <label class="duration-card">
-                                <input type="radio" name="mai_days" value="{{ $period['days'] }}" {{ (int) old('mai_days', 3) === (int) $period['days'] ? 'checked' : '' }}>
+                                <input type="radio" name="mai_days" value="{{ $period['days'] }}" data-title="{{ $period['title'] }}" data-amount="{{ (int) $period['days'] === 3 ? '0' : number_format((float) $period['amount'], 0) }}" {{ (int) old('mai_days', 3) === (int) $period['days'] ? 'checked' : '' }}>
                                 <strong>{{ $period['title'] }}</strong>
                                 <span>{{ (int) $period['days'] === 3 ? 'Free' : number_format((float) $period['amount'], 0).' XAF' }}</span>
                             </label>
                         @endforeach
+                    </div>
+                    <div class="plan-summary" id="plan-summary">
+                        <strong>Plan summary</strong>
+                        <div><span>Selected plan</span><span id="plan-name">3-day trial</span></div>
+                        <div><span>Due today</span><span id="plan-due">0 XAF</span></div>
                     </div>
                 @else
                 <h2 class="text-xl font-bold">Services</h2>
@@ -523,7 +535,8 @@
                 @endforeach
                 </div>
                 @endif
-                <div class="service-grid" @if(($selected ?? '') === 'MESSAGING') hidden @endif>
+                @if(($selected ?? '') !== 'MESSAGING')
+                <div class="service-grid">
                 <div class="rounded-2xl border border-gray-200 p-4" id="price-summary">
                     <strong>Selected modules</strong>
                     <div id="price-lines"></div>
@@ -531,7 +544,6 @@
                     <div class="flex justify-between"><span>Free trial</span><span>{{ $quote['trial'] }}</span></div>
                     <p class="text-sm mt-2">Pay now with MTN, Orange, VISA, or crypto. The free trial does not charge you.</p>
                 </div>
-                @if(($selected ?? '') !== 'MESSAGING')
                 <div>
                     <h3 class="text-left font-semibold mb-2">Digital Signature</h3>
                     <div id="signature-prompt" class="signature-prompt">
@@ -545,14 +557,12 @@
                         <button type="button" id="resign-signature" class="signature-add mt-3">Re-sign</button>
                     </div>
                 </div>
-                @endif
                 </div>
-                <input type="hidden" name="signature" id="signature" value="">
-                @if(($selected ?? '') !== 'MESSAGING')
                 <p class="form-error mt-3 rounded-xl px-3 py-2" id="signature-error" hidden>Add your signature before continuing.</p>
                 @endif
-                <fieldset class="mt-4 text-left">
-                    <legend class="font-semibold mb-2">Payment method, if you pay now</legend>
+                <input type="hidden" name="signature" id="signature" value="">
+                <fieldset class="mt-4 text-left" id="pay-block">
+                    <legend class="font-semibold mb-2">{{ ($selected ?? '') === 'MESSAGING' ? 'Payment options for paid plans' : 'Payment method, if you pay now' }}</legend>
                     <div class="{{ ($selected ?? '') === 'MESSAGING' ? 'pay-grid' : 'flex flex-wrap gap-2' }}">
                         @foreach(['MTN' => 'MTN MoMo', 'ORANGE' => 'Orange Money', 'VISA' => 'VISA'] + ((($selected ?? '') === 'MESSAGING') ? [] : ['CRYPTO' => 'Crypto']) as $code => $label)
                             <label class="{{ ($selected ?? '') === 'MESSAGING' ? 'pay-card' : 'rounded-full border border-brand-gold px-4 py-2 font-bold' }} {{ in_array($code, ['MTN', 'ORANGE'], true) ? 'pay-local' : '' }}">
@@ -562,12 +572,15 @@
                         @endforeach
                     </div>
                     @if(($selected ?? '') === 'MESSAGING')
-                        <p class="hint mt-2">Cameroon can pay with MTN or Orange. Every country can pay by card or crypto.</p>
+                        <p class="hint mt-2">Mobile money is available in Cameroon. Card and crypto are available internationally.</p>
                     @endif
                 </fieldset>
                 <p class="form-error mt-3 rounded-xl px-3 py-2" id="pay-method-error" hidden>Choose MTN, Orange, VISA, or crypto before paying.</p>
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
-                    <button type="submit" name="start_mode" value="trial" class="bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Start free trial</button>
+                    <button type="submit" name="start_mode" value="trial" id="start-trial" class="bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Start free trial</button>
+                    @if(($selected ?? '') === 'MESSAGING')
+                    <p class="hint" id="trial-note">No payment required.</p>
+                    @endif
                     <button type="submit" name="start_mode" value="pay" id="pay-now" class="bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">{{ ($selected ?? '') === 'MESSAGING' ? 'Continue' : 'Pay' }}</button>
                 </div>
             </section>
@@ -616,6 +629,7 @@
             }
         }
         function paint() {
+            if (!lines || !total) return;
             var sum = 0;
             var html = '';
             var boxes = form.querySelectorAll('input[name="modules[]"]');
@@ -655,7 +669,7 @@
         }
         var resendTimer = null;
         function startResendWait() {
-            var left = 120;
+            var left = 20;
             var button = document.getElementById('resend-code');
             var label = document.getElementById('resend-wait');
             if (resendTimer) clearInterval(resendTimer);
@@ -743,11 +757,19 @@
             show(2);
         };
         document.getElementById('send-code').onclick = function () { sendCode('send-error'); };
-        document.getElementById('resend-code').onclick = function () { sendCode('code-error'); };
+        document.getElementById('resend-code').onclick = function () {
+            if (this.disabled) return;
+            sendCode('code-error');
+        };
+        var verifyingCode = false;
         document.getElementById('check-code').onclick = function () {
+            if (verifyingCode) return;
             var error = document.getElementById('code-error');
             error.hidden = true;
             var fields = phoneFields();
+            verifyingCode = true;
+            this.disabled = true;
+            var button = this;
             post('{{ route('cloud.register.otp.verify') }}', {
                 phone: fields.phone,
                 dial: fields.dial,
@@ -755,6 +777,8 @@
                 mai: form.getAttribute('data-mai') === '1' ? '1' : ''
             }, function (ok, json) {
                 if (!ok) {
+                    verifyingCode = false;
+                    button.disabled = false;
                     error.hidden = false;
                     error.textContent = json.message || 'That code does not match.';
                     return;
@@ -864,7 +888,29 @@
                 show(target);
             };
         }
-        form.addEventListener('change', paint);
+        function paintPlan() {
+            if (form.getAttribute('data-mai') !== '1') return;
+            var picked = document.querySelector('input[name="mai_days"]:checked');
+            var free = !picked || String(picked.value) === '3';
+            var block = document.getElementById('pay-block');
+            var trialBtn = document.getElementById('start-trial');
+            var payBtn = document.getElementById('pay-now');
+            var note = document.getElementById('trial-note');
+            var name = document.getElementById('plan-name');
+            var due = document.getElementById('plan-due');
+            if (block) block.classList.toggle('is-off', free);
+            if (trialBtn) trialBtn.classList.toggle('is-off', !free);
+            if (payBtn) payBtn.classList.toggle('is-off', free);
+            if (note) note.classList.toggle('is-off', !free);
+            if (picked && name) name.textContent = picked.getAttribute('data-title') || '';
+            if (picked && due) due.textContent = (picked.getAttribute('data-amount') || '0') + ' XAF';
+            var payError = document.getElementById('pay-method-error');
+            if (free && payError) payError.hidden = true;
+        }
+        form.addEventListener('change', function () {
+            paint();
+            paintPlan();
+        });
         form.addEventListener('submit', function (event) {
             applyKnownCompany();
             if (form.getAttribute('data-mai') === '1') return;
@@ -942,11 +988,22 @@
                 for (var i = 0; i < boxes.length; i++) code += boxes[i].value || '';
                 codeField.value = code;
             };
+            function fillBoxes(digits) {
+                for (var i = 0; i < boxes.length; i++) boxes[i].value = digits.charAt(i) || '';
+                writeCode();
+            }
             for (var b = 0; b < boxes.length; b++) {
                 boxes[b].oninput = function () {
-                    this.value = (this.value || '').replace(/\D/g, '').slice(-1);
+                    var digits = (this.value || '').replace(/\D/g, '');
+                    if (digits.length > 1) {
+                        fillBoxes(digits);
+                        var focusAt = boxes[Math.min(digits.length, boxes.length) - 1];
+                        if (focusAt) focusAt.focus();
+                        return;
+                    }
+                    this.value = digits;
                     writeCode();
-                    if (this.value && this.nextElementSibling) this.nextElementSibling.focus();
+                    if (this.value && this.nextElementSibling && this.nextElementSibling.className.indexOf('otp-box') !== -1) this.nextElementSibling.focus();
                 };
                 boxes[b].onkeydown = function (event) {
                     if (event.key === 'Backspace' && !this.value && this.previousElementSibling) this.previousElementSibling.focus();
@@ -962,6 +1019,7 @@
         }
         paintPay();
         paint();
+        paintPlan();
         @php
             $resume = 1;
             if ($errors->any()) {
@@ -990,6 +1048,10 @@
         var payNow = document.getElementById('pay-now');
         if (payNow) {
             payNow.addEventListener('click', function (event) {
+                if (form.getAttribute('data-mai') === '1') {
+                    var days = document.querySelector('input[name="mai_days"]:checked');
+                    if (!days || String(days.value) === '3') return;
+                }
                 var picked = document.querySelector('input[name="payment_method"]:checked');
                 var note = document.getElementById('pay-method-error');
                 if (picked) {

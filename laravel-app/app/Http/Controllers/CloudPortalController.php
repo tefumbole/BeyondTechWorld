@@ -266,6 +266,10 @@ class CloudPortalController extends Controller
     {
         $fromMai = (string) $request->input('mai') === '1' || (string) $request->input('mai_join') === '1';
         $back = (string) $request->input('mai_join') === '1' ? 'whatsapp.mai.open' : ($fromMai ? 'whatsapp.mai' : 'cloud.register');
+        $phone = app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial'));
+        if ($phone !== '') {
+            $request->merge(['phone' => $phone]);
+        }
         if (! $this->registrationOpen($request)) {
             return redirect()->route($back)->with('not_permitted', 'Company signup is not open yet.');
         }

@@ -19,14 +19,15 @@ class CloudSignupOtp
         }
         $countKey = 'cloud-signup-otp-count:'.$normalized;
         $count = (int) Cache::get($countKey, 0);
-        if ($count >= 5) {
+        if ($count >= 15) {
             throw new \RuntimeException('Too many codes were sent to this phone. Wait and try again.');
         }
         $sentKey = 'cloud-signup-otp-sent:'.$normalized;
+        $pending = Cache::get($this->key($normalized));
         $sentAt = (int) Cache::get($sentKey, 0);
         $elapsed = now()->getTimestamp() - $sentAt;
-        if ($sentAt && $elapsed < 120) {
-            throw new \RuntimeException('You can request another code in '.(120 - $elapsed).' seconds.');
+        if (is_array($pending) && ! empty($pending['hash']) && $sentAt && $elapsed < 20) {
+            throw new \RuntimeException('You can request another code in '.(20 - $elapsed).' seconds.');
         }
         $code = \App\Support\MemorableOtp::code();
         Cache::put($this->key($normalized), [
@@ -50,11 +51,14 @@ class CloudSignupOtp
         return $code;
     }
 
-    public function verify($phone, $code)
+    public function verify($phone, $code, $once = false)
     {
         $normalized = app(CloudTrialEligibility::class)->normalizePhone($phone);
         $row = Cache::get($this->key($normalized));
         if (! is_array($row) || empty($row['hash'])) {
+            if ($once && $this->matches($normalized)) {
+                return $normalized;
+            }
             throw new \RuntimeException('Request a new code.');
         }
         $attempts = isset($row['attempts']) ? (int) $row['attempts'] : 0;
