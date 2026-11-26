@@ -10,7 +10,7 @@ class RecountWhatsAppUnread extends Command
 {
     protected $signature = 'whatsapp:recount-unread';
 
-    protected $description = 'Set each chat badge to the messages the phone has not read';
+    protected $description = 'Set each chat badge to incoming messages the staff has not read';
 
     public function handle(WhatsAppConversationService $conversations)
     {

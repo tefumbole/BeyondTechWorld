@@ -8,7 +8,7 @@
     .chats-app {
         --wa-green: #25d366; --wa-teal: #128c7e; --wa-ink: #0f1f3d; --wa-muted: #6b7a99; --wa-line: #e6ebf5;
         --wa-grad: linear-gradient(135deg, #0b3d91 0%, #1565c0 45%, #12a4a4 100%);
-        display: flex; height: calc(100vh - 220px); min-height: 640px; color: var(--wa-ink); overflow: hidden;
+        display: flex; flex-wrap: nowrap; align-items: stretch; height: calc(100vh - 220px); min-height: 640px; color: var(--wa-ink); overflow: hidden;
         background: #fff; border-radius: 18px; margin: 10px 14px 14px; box-shadow: 0 18px 48px rgba(15, 31, 61, .12), 0 2px 6px rgba(15, 31, 61, .06);
         font-feature-settings: "tnum" 1;
     }
@@ -42,7 +42,7 @@
         .lang-card { border-radius: 24px; }
     }
     .hub-label { padding: 14px 16px 4px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--wa-muted); }
-    .chats-side { width: 360px; max-width: 40vw; flex: none; display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden; border-right: 1px solid var(--wa-line); background: #fff; }
+    .chats-side { position: relative; z-index: 1; width: 360px; max-width: 40vw; flex: 0 0 360px; display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden; border-right: 1px solid var(--wa-line); background: #fff; }
     .call-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; min-height: 34px; padding: 0 14px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff !important; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(18, 140, 126, .3); }
     .chats-search { flex: none; padding: 14px 14px 8px; background: #fff; }
     .chats-search input { width: 100%; border: 1px solid transparent; border-radius: 999px; background: #f1f4fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7a99' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 14px center; color: var(--wa-ink); min-height: 40px; padding: 0 14px 0 40px; transition: border-color .18s, box-shadow .18s, background-color .18s; }
@@ -87,7 +87,7 @@
     .chat-row[data-read="0"] .chat-time { color: #0d8a45; font-weight: 800; }
     .chat-badge { background: #18a957; color: #fff; border-radius: 999px; min-width: 24px; height: 24px; font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; padding: 0 7px; flex: none; box-shadow: 0 3px 8px rgba(24, 169, 87, .45); }
     .chat-ai { display: inline-block; color: #fff; background: linear-gradient(135deg, #7c5cff, #4f46e5); font-size: 10px; font-weight: 800; border-radius: 6px; padding: 1px 6px; margin-right: 4px; letter-spacing: .3px; }
-    .chats-thread { flex: 1 1 auto; min-width: 0; min-height: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column;
+    .chats-thread { position: relative; z-index: 2; flex: 1 1 auto; min-width: 0; min-height: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column;
         background-color: #eef3fb;
         background-image: radial-gradient(circle at 12px 12px, rgba(21,101,192,.07) 2px, transparent 2.5px), radial-gradient(circle at 36px 36px, rgba(18,164,164,.07) 2px, transparent 2.5px), linear-gradient(180deg, #f4f8ff 0%, #e9f1fb 100%);
         background-size: 48px 48px, 48px 48px, 100% 100%; }
@@ -837,9 +837,8 @@
             var name = row.getAttribute('data-name') || '';
             var kind = row.getAttribute('data-kind') || 'person';
             var read = row.getAttribute('data-read') === '1';
-            var isOpen = openId && row.getAttribute('data-id') === String(openId);
             var ok = !q || name.indexOf(q) !== -1;
-            if (filter === 'unread') ok = ok && kind === 'person' && (!read || isOpen);
+            if (filter === 'unread') ok = ok && kind === 'person' && !read;
             if (filter === 'read') ok = ok && kind === 'person' && read;
             if (filter === 'groups') ok = ok && kind === 'group';
             row.style.display = ok ? '' : 'none';
@@ -1247,11 +1246,12 @@
                 row.setAttribute('data-id', item.id);
             }
             row.href = chatPage + '?chat=' + item.id;
-            row.setAttribute('data-read', item.unread > 0 ? '0' : '1');
+            var unread = (openChat && String(item.id) === String(openChat)) ? 0 : (item.unread > 0 ? item.unread : 0);
+            row.setAttribute('data-read', unread > 0 ? '0' : '1');
             row.setAttribute('data-name', (item.name + ' ' + (item.phone || '')).toLowerCase());
             if (openChat && item.id === openChat) row.classList.add('is-on');
-            var badge = item.unread > 0 ? '<span class="chat-badge">' + item.unread + '</span>' : '';
-            var state = item.unread > 0 ? '<span class="chat-state">Unread</span>' : '';
+            var badge = unread > 0 ? '<span class="chat-badge">' + unread + '</span>' : '';
+            var state = unread > 0 ? '<span class="chat-state">Unread</span>' : '';
             var ai = item.mode === 'AI' ? '<span class="chat-ai">AI </span>' : '';
             var initial = (item.name || 'W').charAt(0).toUpperCase();
             var when = item.at && window.hubListTime ? window.hubListTime(item.at) : (item.time || '');
@@ -1270,6 +1270,7 @@
         var readBtn = filters.querySelector('[data-filter="read"] span');
         if (unreadBtn) unreadBtn.textContent = unread;
         if (readBtn) readBtn.textContent = read;
+        document.querySelectorAll('.chats-thread .chat-row').forEach(function (row) { row.remove(); });
         applyList();
     }
     function paintTicks(ticks) {
@@ -1442,6 +1443,8 @@
         paintThread(data);
         var app = document.querySelector('.chats-app');
         if (app) app.classList.add('has-open');
+        openId = openChat;
+        document.querySelectorAll('.chats-thread .chat-row').forEach(function (row) { row.remove(); });
         if (list) {
             list.querySelectorAll('.chat-row.is-on').forEach(function (row) { row.classList.remove('is-on'); });
             var current = list.querySelector('.chat-row[data-id="' + openChat + '"]');
@@ -1453,7 +1456,18 @@
                 var state = current.querySelector('.chat-state');
                 if (state) state.remove();
             }
+            var unread = 0;
+            var read = 0;
+            list.querySelectorAll('.chat-row[data-kind="person"]').forEach(function (row) {
+                if (row.getAttribute('data-read') === '1') read += 1;
+                else unread += 1;
+            });
+            var unreadBtn = document.querySelector('#chatFilters [data-filter="unread"] span');
+            var readBtn = document.querySelector('#chatFilters [data-filter="read"] span');
+            if (unreadBtn) unreadBtn.textContent = unread;
+            if (readBtn) readBtn.textContent = read;
         }
+        applyList();
     }
     function showChatList(fromHistory) {
         var app = document.querySelector('.chats-app');

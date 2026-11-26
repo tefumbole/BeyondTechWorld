@@ -445,19 +445,18 @@ class WhatsAppHubController extends Controller
                 ? WhatsAppMessage::visible()->where('conversation_id', $chatId)->where('id', '<', $first->id)->exists()
                 : false;
         } elseif ($chatId > 0) {
+            $current = WhatsAppConversation::find($chatId);
+            if ($current) {
+                $this->conversations->touchStaffView($current);
+                if ((int) $current->unread_count > 0) {
+                    $this->conversations->readOnWeb($current);
+                }
+            }
             $fresh = WhatsAppMessage::visible()->where('conversation_id', $chatId)
                 ->where('id', '>', $after)
                 ->orderBy('id')
                 ->limit(30)
                 ->get();
-            if ($fresh->first(function ($message) {
-                return $message->direction === WhatsAppMessage::DIR_IN;
-            })) {
-                $current = WhatsAppConversation::find($chatId);
-                if ($current) {
-                    $this->conversations->readOnWeb($current);
-                }
-            }
             $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
             if ($translator->activeFor($chatId)) {
                 $latestIn = null;

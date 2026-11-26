@@ -190,7 +190,7 @@ class WhatsAppConversationService
         $message = $message->fresh() ?: $message;
         $preview = $this->preview($message->hubText(), $parsed['message_type'] ?? 'TEXT');
 
-        if ($this->phoneAlreadyRead($conversation, $parsed)) {
+        if ($this->phoneAlreadyRead($conversation, $parsed) || $this->staffIsViewing($conversation)) {
             $message->read_at = $message->read_at ?: now();
             $message->save();
         }
@@ -434,7 +434,9 @@ class WhatsAppConversationService
             }
         }
         $outgoing = ! empty($parsed['from_me']);
-        if ($outgoing && $this->absorbPhoneEcho($conversation, $parsed)) {
+        // A copy of a message we sent must not become an incoming unread row.
+        // The client's own read receipt is not our unread.
+        if ($this->absorbPhoneEcho($conversation, $parsed)) {
             return false;
         }
         $message = new WhatsAppMessage([
@@ -697,6 +699,7 @@ class WhatsAppConversationService
         $conversation->last_message = $preview;
         $conversation->last_activity_at = now();
         $conversation->last_outgoing_at = now();
+        $this->stampIncomingRead($conversation);
         $conversation->unread_count = 0;
         if ($conversation->status !== WhatsAppConversation::STATUS_CLOSED) {
             $conversation->status = WhatsAppConversation::STATUS_WAITING_CUSTOMER;
@@ -1008,6 +1011,7 @@ class WhatsAppConversationService
         $conversation->last_message = $preview;
         $conversation->last_activity_at = now();
         $conversation->last_outgoing_at = now();
+        $this->stampIncomingRead($conversation);
         $conversation->unread_count = 0;
         if ($conversation->status !== WhatsAppConversation::STATUS_CLOSED) {
             $conversation->status = WhatsAppConversation::STATUS_WAITING_CUSTOMER;
@@ -1166,6 +1170,7 @@ class WhatsAppConversationService
         $conversation->last_message = $preview;
         $conversation->last_activity_at = now();
         $conversation->last_outgoing_at = now();
+        $this->stampIncomingRead($conversation);
         $conversation->unread_count = 0;
         if ($conversation->status !== WhatsAppConversation::STATUS_CLOSED) {
             $conversation->status = WhatsAppConversation::STATUS_WAITING_CUSTOMER;
@@ -1232,27 +1237,67 @@ class WhatsAppConversationService
 
     public function markRead(WhatsAppConversation $conversation)
     {
+        $this->stampIncomingRead($conversation);
         $conversation->unread_count = 0;
         $conversation->save();
+        $this->touchStaffView($conversation);
     }
 
     /**
-     * Badge equals incoming messages the phone has not marked read.
+     * Incoming messages from the contact that this staff member has not opened.
+     * A client's Sent / Delivered / Read tick on our own message is not unread.
      */
     public function recountUnread(WhatsAppConversation $conversation)
     {
-        $left = (int) WhatsAppMessage::where('conversation_id', $conversation->id)
-            ->where('direction', WhatsAppMessage::DIR_IN)
-            ->whereNull('read_at')
-            ->count();
+        $repliedAt = WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('direction', WhatsAppMessage::DIR_OUT)
+            ->where('sender_type', 'STAFF')
+            ->max('created_at');
+        if ($repliedAt) {
+            $this->staffUnreadQuery($conversation)
+                ->where('created_at', '<=', $repliedAt)
+                ->update(['read_at' => now()]);
+        }
+        $left = (int) $this->staffUnreadQuery($conversation)->count();
         $conversation->unread_count = $left;
 
         return $left;
     }
 
+    /**
+     * The staff member has this chat open, so a message that arrives now is read.
+     */
+    public function touchStaffView(WhatsAppConversation $conversation)
+    {
+        \Illuminate\Support\Facades\Cache::put('wa.web_open.'.$conversation->id, time(), now()->addSeconds(20));
+    }
+
+    protected function staffIsViewing(WhatsAppConversation $conversation)
+    {
+        return (bool) \Illuminate\Support\Facades\Cache::get('wa.web_open.'.$conversation->id);
+    }
+
+    protected function stampIncomingRead(WhatsAppConversation $conversation)
+    {
+        $this->staffUnreadQuery($conversation)->update(['read_at' => now()]);
+    }
+
+    protected function staffUnreadQuery(WhatsAppConversation $conversation)
+    {
+        return WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('direction', WhatsAppMessage::DIR_IN)
+            ->whereNull('read_at')
+            ->where(function ($query) {
+                $query->whereNull('sender_type')
+                    ->orWhere('sender_type', '')
+                    ->orWhere('sender_type', 'CONTACT');
+            });
+    }
+
     public function readOnWeb(WhatsAppConversation $conversation)
     {
-        $wasUnread = (int) $conversation->unread_count > 0;
+        $wasUnread = (int) $conversation->unread_count > 0
+            || $this->staffUnreadQuery($conversation)->exists();
         $this->markRead($conversation);
         if (! $wasUnread) {
             return;
@@ -1266,10 +1311,6 @@ class WhatsAppConversationService
         if (! $last) {
             return;
         }
-        WhatsAppMessage::where('conversation_id', $conversation->id)
-            ->where('direction', WhatsAppMessage::DIR_IN)
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
         $messageId = (string) $last->provider_message_id;
         app()->terminating(function () use ($messageId) {
             try {
@@ -1725,7 +1766,10 @@ class WhatsAppConversationService
         $conversation->last_message = '['.$fileName.']';
         $conversation->last_activity_at = now();
         $conversation->last_outgoing_at = now();
-        $conversation->unread_count = 0;
+        if ($senderType === null || $senderType === '' || $senderType === 'STAFF') {
+            $this->stampIncomingRead($conversation);
+            $conversation->unread_count = 0;
+        }
         $conversation->status = WhatsAppConversation::STATUS_WAITING_CUSTOMER;
         $conversation->save();
         $this->event($conversation, WhatsAppConversationEvent::DOCUMENT, ! empty($result['success']) ? 'Document sent: '.$fileName : 'Document send failed: '.$fileName, $userId);
