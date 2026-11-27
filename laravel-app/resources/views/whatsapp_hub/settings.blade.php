@@ -20,6 +20,28 @@
         </div>
 
         <div class="wa-card">
+            <h5>Linked WhatsApp sessions</h5>
+            <p class="small text-muted">Each connected phone has its own session id and API key. Other applications send with that key, the same way Wasender does: <code>POST {{ url('/api/send-message') }}</code> with <code>Authorization: Bearer</code> the key, and JSON <code>{"to":"2507…","text":"Hello"}</code>.</p>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead><tr><th>Phone</th><th>Status</th><th>Session ID</th><th>API key</th></tr></thead>
+                    <tbody>
+                    @forelse($linkedSessions as $linked)
+                        <tr>
+                            <td>{{ $linked->phone_number ?: $linked->expected_phone }}</td>
+                            <td>{{ $linked->status }}</td>
+                            <td><code>{{ $linked->worker_session_id }}</code></td>
+                            <td><code style="word-break:break-all">{{ $linked->api_key ?: '—' }}</code></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4">No linked sessions yet.</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="wa-card">
             <h5>Conversations</h5>
             <form method="post" action="{{ route('whatsapp.settings.update') }}">
                 @csrf

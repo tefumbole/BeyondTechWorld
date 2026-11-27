@@ -15,6 +15,41 @@ use Illuminate\Http\Request;
 
 class MaiApiController extends Controller
 {
+    public function sendMessage(Request $request)
+    {
+        $header = (string) $request->header('Authorization', '');
+        $token = stripos($header, 'Bearer ') === 0 ? trim(substr($header, 7)) : '';
+        if (! preg_match('/^[a-f0-9]{64}$/', $token) || ! \Illuminate\Support\Facades\Schema::hasColumn('mai_sessions', 'api_key')) {
+            return response()->json(['success' => false, 'error' => 'Sign in with a session API key.'], 401);
+        }
+        $session = MaiSession::where('api_key', $token)->first();
+        if (! $session || $session->status === 'UNLINKED') {
+            return response()->json(['success' => false, 'error' => 'That session is not active.'], 401);
+        }
+        $to = trim((string) $request->input('to'));
+        $text = trim((string) $request->input('text'));
+        $key = trim((string) $request->header('Idempotency-Key', ''));
+        if ($key === '') {
+            $key = 'api-'.substr(sha1($token.'|'.$to.'|'.$text.'|'.date('YmdHi')), 0, 40);
+        }
+        $result = app(MaiOutboundService::class)->sendTo($session, $to, $text, $key);
+        if (empty($result['success'])) {
+            return response()->json([
+                'success' => false,
+                'error' => isset($result['error']) ? $result['error'] : 'The message was not sent.',
+            ], ! empty($result['uncertain']) ? 202 : 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'msgId' => isset($result['msg_id']) ? $result['msg_id'] : null,
+                'jid' => preg_replace('/\D+/', '', $to),
+                'status' => 'in_progress',
+            ],
+        ]);
+    }
+
     public function capabilities()
     {
         return response()->json(['ok' => true, 'capabilities' => MaiCapabilities::matrix()]);

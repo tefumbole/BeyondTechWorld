@@ -40,6 +40,7 @@ class PersonalHub
         if (! $session->exists) {
             $session->status = 'PENDING';
         }
+        $this->issueKey($session, false);
         $session->save();
 
         return $session;
@@ -175,6 +176,22 @@ class PersonalHub
         }
 
         return $groups;
+    }
+
+    public function issueKey(MaiSession $session, $save = true)
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('mai_sessions', 'api_key')) {
+            return $session;
+        }
+        if (preg_match('/^[a-f0-9]{64}$/', (string) $session->api_key)) {
+            return $session;
+        }
+        $session->api_key = bin2hex(random_bytes(32));
+        if ($save && $session->exists) {
+            $session->save();
+        }
+
+        return $session;
     }
 
     public function label($contact)

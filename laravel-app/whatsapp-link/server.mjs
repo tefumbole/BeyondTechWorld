@@ -216,15 +216,18 @@ function chatRows(entry) {
     }
     const phone = id.endsWith('@s.whatsapp.net') ? jidDigits(id) : ''
     if (phone && (phone.length < 8 || phone.length > 15)) return
-    const current = merged[id] || { jid: id, name: '', phone, lid: lid ? jidDigits(lid) : '', preview: '', at: 0, unread: 0 }
+    const current = merged[id] || { jid: id, name: '', phone, lid: lid ? jidDigits(lid) : '', preview: '', at: 0, unread: 0, seen: false }
     const book = entry.book && (entry.book[id] || entry.book[jid])
     if (book && book.name) current.name = book.saved ? book.name : preferName(current.name, book.name)
     current.name = preferName(current.name, row.name)
-    if ((row.at || 0) >= (current.at || 0)) {
-      current.preview = row.preview || current.preview
-      current.at = row.at || current.at
+    if (!current.seen || (row.at || 0) >= (current.at || 0)) {
+      if ((row.at || 0) >= (current.at || 0)) {
+        current.preview = row.preview || current.preview
+        current.at = row.at || current.at
+      }
+      current.unread = row.unread || 0
+      current.seen = true
     }
-    current.unread = Math.max(current.unread || 0, row.unread || 0)
     merged[id] = current
   })
   const rows = Object.keys(merged).map((jid) => merged[jid])
@@ -566,6 +569,31 @@ async function resolveSendJid(entry, to) {
   return phone
 }
 
+async function markRead(id, to) {
+  const entry = sessions.get(id)
+  if (!entry || !entry.sock || entry.status !== 'CONNECTED') {
+    return { success: false }
+  }
+  const jid = await resolveSendJid(entry, to)
+  if (!jid) return { success: false }
+  const keys = []
+  ;(entry.inbox || []).forEach((row) => {
+    if (!row || row.from_me || !row.id) return
+    if (row.from !== jid && row.from !== to) return
+    keys.push({ remoteJid: jid, id: String(row.id), fromMe: false })
+  })
+  Object.keys(entry.chats || {}).forEach((chatId) => {
+    if (chatId === jid || (entry.lids && entry.lids[chatId] === jid)) {
+      entry.chats[chatId].unread = 0
+    }
+  })
+  scheduleSave(entry)
+  if (keys.length && typeof entry.sock.readMessages === 'function') {
+    await entry.sock.readMessages(keys.slice(-20))
+  }
+  return { success: true }
+}
+
 async function sendText(id, to, text) {
   const entry = sessions.get(id)
   if (!entry || !entry.sock || entry.status !== 'CONNECTED') {
@@ -759,6 +787,18 @@ const server = http.createServer((req, res) => {
       const entry = sessions.get(id) || { inbox: [] }
       const ready = entry.lidScan ? Promise.resolve() : attachLids(entry).catch(() => {})
       ready.then(() => send(res, 200, { messages: entry.inbox || [] }))
+      return
+    }
+    if (req.method === 'POST' && parts[2] === 'read') {
+      readBody(req, 2000, (body) => {
+        if (!body) {
+          send(res, 422, { success: false })
+          return
+        }
+        markRead(id, body.to).then((payload) => send(res, 200, payload)).catch(() => {
+          send(res, 200, { success: false })
+        })
+      })
       return
     }
     if (req.method === 'POST' && parts[2] === 'send') {

@@ -114,6 +114,17 @@ class MaiWhatsAppEngine
         return $rows;
     }
 
+    public function markRead($phone, $to)
+    {
+        $id = $this->id($phone);
+        if ($id === '') {
+            return ['success' => false];
+        }
+        $payload = $this->request('POST', '/sessions/'.$id.'/read', ['to' => trim((string) $to)], 12);
+
+        return ['success' => is_array($payload) && ! empty($payload['success'])];
+    }
+
     public function send($phone, $to, $text)
     {
         $id = $this->id($phone);

@@ -1360,6 +1360,22 @@ class WhatsAppConversationService
         if (! $wasUnread) {
             return;
         }
+        if (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+            $session = \App\Mai\MaiSession::find((int) $conversation->mai_session_id);
+            $contact = $conversation->contact;
+            $to = $contact ? preg_replace('/\D+/', '', (string) $contact->normalized_phone) : '';
+            if ($session && $to !== '') {
+                $phone = $session->phone_number ?: $session->expected_phone;
+                app()->terminating(function () use ($phone, $to) {
+                    try {
+                        app(\App\Services\Cloud\MaiWhatsAppEngine::class)->markRead($phone, $to);
+                    } catch (\Throwable $e) {
+                    }
+                });
+            }
+
+            return;
+        }
         $last = WhatsAppMessage::where('conversation_id', $conversation->id)
             ->where('direction', WhatsAppMessage::DIR_IN)
             ->whereNotNull('provider_message_id')

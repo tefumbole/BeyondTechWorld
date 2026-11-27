@@ -2176,6 +2176,15 @@ class WhatsAppHubController extends Controller
         ];
 
         $businessLine = $this->businessLine();
+        $linkedSessions = collect();
+        if (! \App\Support\MaiHost::is(request()) && Schema::hasTable('mai_sessions')) {
+            $linkedSessions = \App\Mai\MaiSession::orderByDesc('id')->limit(100)->get();
+            if (Schema::hasColumn('mai_sessions', 'api_key')) {
+                foreach ($linkedSessions as $linked) {
+                    app(\App\Services\Mai\PersonalHub::class)->issueKey($linked);
+                }
+            }
+        }
 
         return view('whatsapp_hub.settings', compact(
             'businessLine',
@@ -2183,7 +2192,7 @@ class WhatsAppHubController extends Controller
             'aiFirst', 'manualTakeover', 'collectName', 'greetByName', 'handoverUserId', 'escalationNumber', 'historyLimit',
             'clarificationLimit', 'switchPreview', 'staff',
             'websiteAiEnabled', 'websiteAutoGreeting', 'websiteHandover', 'websiteContinueWa',
-            'websiteAiName', 'websiteGreetingDelay', 'websiteMetrics'
+            'websiteAiName', 'websiteGreetingDelay', 'websiteMetrics', 'linkedSessions'
         ));
     }
 

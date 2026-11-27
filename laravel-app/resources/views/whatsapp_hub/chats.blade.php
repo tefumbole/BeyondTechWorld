@@ -81,6 +81,13 @@
     .chat-time { color: var(--wa-muted); font-size: 12px; flex: none; }
     .chat-preview { color: var(--wa-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .chat-state { flex: none; border-radius: 999px; background: #18a957; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; }
+    .chats-side.is-personal .chat-state,
+    .chats-side.is-personal .chat-badge,
+    .chats-side.is-personal .chat-filters button[data-filter="unread"] span { background: #d92d20; color: #fff; box-shadow: none; }
+    .chats-side.is-personal .chat-row[data-read="0"] { background: #fde8e8; box-shadow: inset 4px 0 0 #d92d20; }
+    .chats-side.is-personal .chat-row[data-read="0"] .chat-name,
+    .chats-side.is-personal .chat-row[data-read="0"] .chat-preview { color: #7a1212; }
+    .chats-side.is-personal .chat-row[data-read="0"] .chat-time { color: #d92d20; }
     .chat-row[data-read="0"] { background: #e7f8ee; box-shadow: inset 4px 0 0 #18a957; }
     .chat-row[data-read="0"] .chat-name { font-weight: 800; color: #0c2416; }
     .chat-row[data-read="0"] .chat-preview { color: #14301f; font-weight: 700; }
@@ -277,7 +284,7 @@
     $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
 <div class="chats-app {{ ($open || $group || $pane === 'announcements' || $pane === 'help') ? 'has-open' : '' }}">
-    <aside class="chats-side">
+    <aside class="chats-side {{ !empty($personalHub) ? 'is-personal' : '' }}">
         <nav class="hub-screens">
             <a class="{{ $screen === 'chats' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}">Chats</a>
             <a class="{{ $screen === 'calls' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
