@@ -4,8 +4,12 @@ import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 const file = require.resolve('@whiskeysockets/baileys/lib/Utils/chat-utils.js')
 const src = fs.readFileSync(file, 'utf8')
-const needle = "ev.emit('contacts.upsert', [{ id, name: action.contactAction.fullName }]);"
-const replacement = "ev.emit('contacts.upsert', [{ id, name: action.contactAction.fullName || action.contactAction.firstName, phoneNumber: action.contactAction.pnJid, lid: action.contactAction.lidJid }]);"
-if (src.indexOf(needle) !== -1) {
-  fs.writeFileSync(file, src.replace(needle, replacement))
+const plain = "ev.emit('contacts.upsert', [{ id, name: action.contactAction.fullName }]);"
+const patched = "ev.emit('contacts.upsert', [{ id, name: action.contactAction.fullName || action.contactAction.firstName, phoneNumber: action.contactAction.pnJid, lid: action.contactAction.lidJid }]);"
+if (src.indexOf(patched) !== -1) {
+  process.exit(0)
 }
+if (src.indexOf(plain) === -1) {
+  process.exit(0)
+}
+fs.writeFileSync(file, src.replace(plain, patched))

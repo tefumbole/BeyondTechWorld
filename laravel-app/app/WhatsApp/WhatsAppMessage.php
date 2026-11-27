@@ -77,7 +77,19 @@ class WhatsAppMessage extends Model
             return (string) $meta['staff'];
         }
 
-        return self::listPreview((string) $this->body);
+        $preview = self::listPreview((string) $this->body);
+        $type = strtoupper((string) $this->type);
+        if (in_array($type, ['IMAGE', 'STICKER'], true) && ($preview === '' || $preview === 'Photo' || $preview === 'Sticker')) {
+            return '';
+        }
+        if ($type === 'VIDEO' && ($preview === '' || $preview === 'Video')) {
+            return '';
+        }
+        if ($type === 'AUDIO' && ($preview === '' || $preview === 'Voice message')) {
+            return '';
+        }
+
+        return $preview;
     }
 
     /** Chat-list wording. Authentication templates arrive as a locked placeholder. */
@@ -90,6 +102,7 @@ class WhatsAppMessage extends Model
             '[ALBUM]' => 'Album',
             '[EDIT]' => 'Edited message',
             '[AUDIO]' => 'Voice message',
+            '[VOICE]' => 'Voice message',
             '[VIDEO]' => 'Video',
             '[DOCUMENT]' => 'Document',
             '[LOCATION]' => 'Location',
@@ -97,6 +110,9 @@ class WhatsAppMessage extends Model
         $key = strtoupper($text);
         if (isset($labels[$key])) {
             return $labels[$key];
+        }
+        if ($key === 'PHOTO') {
+            return 'Photo';
         }
         $plain = strtoupper(preg_replace('/[^A-Za-z]+/', '', $text));
         if ($plain === 'AUTHENTICATION') {

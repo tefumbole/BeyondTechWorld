@@ -207,6 +207,10 @@ function rememberContact(entry, person) {
     if (!key) return
     const current = entry.book[key] || { name: '', saved: false }
     if (phoneName) {
+      if (current.saved && current.name && current.name.length > phoneName.length) {
+        entry.book[key] = current
+        return
+      }
       entry.book[key] = { name: phoneName, saved: true }
       return
     }
@@ -245,10 +249,19 @@ function touchChat(entry, jid, patch) {
   const current = entry.chats[id] || { jid: id, name: '', preview: '', at: 0, unread: 0 }
   const previousSaved = current.saved_name || ''
   const book = entry.book && entry.book[id]
-  if (book && book.saved && book.name) current.saved_name = String(book.name).slice(0, 80)
-  if (patch.fromPhone && patch.name && !looksLikeNumber(patch.name)) current.saved_name = String(patch.name).slice(0, 80)
+  if (book && book.saved && book.name) {
+    const fromBook = String(book.name).slice(0, 80)
+    if (!current.saved_name || fromBook.length >= current.saved_name.length) current.saved_name = fromBook
+  }
+  if (patch.fromPhone && patch.name && !looksLikeNumber(patch.name)) {
+    const next = String(patch.name).slice(0, 80)
+    if (!current.saved_name || next.length >= current.saved_name.length) current.saved_name = next
+  }
   if (patch.profile && !looksLikeNumber(patch.profile)) current.profile_name = String(patch.profile).slice(0, 80)
-  if (!current.saved_name && patch.trusted && patch.name && !looksLikeNumber(patch.name)) current.saved_name = String(patch.name).slice(0, 80)
+  if (patch.trusted && patch.name && !looksLikeNumber(patch.name)) {
+    const next = String(patch.name).slice(0, 80)
+    if (!current.saved_name || next.length > current.saved_name.length) current.saved_name = next
+  }
   const saved = current.saved_name || ''
   const profile = current.profile_name || ''
   current.name = saved || profile || current.name || ''
@@ -389,10 +402,15 @@ function rememberMessage(entry, msg, live) {
     quote,
   })
   const write = (file) => {
+    const id = String(msg.key.id || '')
+    ;(entry.inbox || []).forEach((row) => {
+      if (row.id === id) row.file = file || ''
+    })
+    scheduleSave(entry)
     note(entry, {
       kind: 'message',
       live: !!live,
-      id: String(msg.key.id || ''),
+      id,
       jid: stored,
       remote: jidDigits(stored),
       from_me: !!msg.key.fromMe,
@@ -410,8 +428,8 @@ function rememberMessage(entry, msg, live) {
   }
   if (entry.inbox.length > 200) entry.inbox.splice(0, entry.inbox.length - 200)
   scheduleSave(entry)
-  if (live && kind) {
-    saveMedia(entry, msg, kind).then(write).catch(() => write(''))
+  if (kind) {
+    queueMedia(entry, msg, kind, write)
   } else {
     write('')
   }
@@ -436,17 +454,42 @@ function mediaExt(kind) {
   return 'bin'
 }
 
+function queueMedia(entry, msg, kind, done) {
+  if (!entry.mediaJobs) entry.mediaJobs = []
+  if (!entry.mediaBusy) entry.mediaBusy = 0
+  const run = () => {
+    while (entry.mediaBusy < 2 && entry.mediaJobs.length) {
+      const job = entry.mediaJobs.shift()
+      entry.mediaBusy += 1
+      saveMedia(entry, job.msg, job.kind)
+        .then((file) => job.done(file || ''))
+        .catch(() => job.done(''))
+        .then(() => {
+          entry.mediaBusy = Math.max(0, entry.mediaBusy - 1)
+          run()
+        })
+    }
+  }
+  entry.mediaJobs.push({ msg, kind, done })
+  if (entry.mediaJobs.length > 80) entry.mediaJobs.splice(0, entry.mediaJobs.length - 80)
+  run()
+}
+
 async function saveMedia(entry, msg, kind) {
   if (!entry || !kind || typeof downloadMediaMessage !== 'function') return ''
+  const name = String(msg.key && msg.key.id ? msg.key.id : Date.now()).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80) + '.' + mediaExt(kind)
+  const dir = path.join(sessionDir(entry.id), 'media')
+  const full = path.join(dir, name)
+  if (fs.existsSync(full) && fs.statSync(full).size > 0) {
+    return 'sessions/' + entry.id + '/media/' + name
+  }
   const buffer = await downloadMediaMessage(msg, 'buffer', {}, {
     logger,
     reuploadRequest: entry.sock && entry.sock.updateMediaMessage ? entry.sock.updateMediaMessage.bind(entry.sock) : undefined,
   })
   if (!buffer || !buffer.length || buffer.length > 8 * 1024 * 1024) return ''
-  const name = String(msg.key && msg.key.id ? msg.key.id : Date.now()).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80) + '.' + mediaExt(kind)
-  const dir = path.join(sessionDir(entry.id), 'media')
   ensureDir(dir)
-  fs.writeFileSync(path.join(dir, name), buffer)
+  fs.writeFileSync(full, buffer)
   return 'sessions/' + entry.id + '/media/' + name
 }
 
@@ -574,7 +617,7 @@ function rememberTyping(entry, chatId, person, kind) {
 function pullAddressBook(entry, sock, dir) {
   if (!sock || typeof sock.resyncAppState !== 'function' || entry.bookAsked) return
   entry.bookAsked = true
-  const mark = path.join(dir, 'address-book.v4')
+  const mark = path.join(dir, 'address-book.v5')
   let first = true
   try { first = !fs.existsSync(mark) } catch (e) { first = true }
   if (first) {
@@ -589,6 +632,17 @@ function pullAddressBook(entry, sock, dir) {
   sock.resyncAppState(['critical_unblock_low', 'regular_low', 'regular'], first)
     .then(() => { try { fs.writeFileSync(mark, String(Date.now())) } catch (e) {} })
     .catch(() => { entry.bookAsked = false })
+}
+
+function keepAddressBookFresh(entry, sock, dir) {
+  if (!entry || entry.bookTimer) return
+  entry.bookTimer = setInterval(() => {
+    if (!entry.sock || entry.status !== 'CONNECTED') return
+    entry.bookAsked = false
+    try { fs.unlinkSync(path.join(dir, 'address-book.v5')) } catch (e) {}
+    pullAddressBook(entry, sock, dir)
+  }, 15 * 60 * 1000)
+  if (typeof entry.bookTimer.unref === 'function') entry.bookTimer.unref()
 }
 
 function sessionDir(id) {
@@ -805,6 +859,7 @@ async function startSocket(id, expected) {
       const raw = sock.user && sock.user.id ? String(sock.user.id) : ''
       entry.phone = raw.split(':')[0].split('@')[0]
       pullAddressBook(entry, sock, dir)
+      keepAddressBookFresh(entry, sock, dir)
       pullReadState(entry, sock, dir)
       watchRecentTyping(entry)
       if (entry.recoverChats && !entry.historyAsked && typeof sock.resyncAppState === 'function') {

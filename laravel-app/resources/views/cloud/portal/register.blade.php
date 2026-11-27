@@ -206,13 +206,30 @@
     .mai-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
     .mai-brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: #fff; }
     .mai-signin { border: 1px solid rgba(255,255,255,.35); color: #fff; border-radius: 999px; padding: 0.35rem 0.8rem; font-size: 0.85rem; font-weight: 700; }
-    .mai-features { grid-template-columns: 1fr 1fr 1fr; }
-    .mai-features li { text-align: center; }
-    .install-android { display: inline-flex; margin-top: 0.6rem; background: #fff; color: #072f6b; border: 0; border-radius: 999px; font-weight: 800; padding: 0.65rem 1rem; cursor: pointer; }
-    .mai-features { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.55rem; text-align: center; }
-    .mai-features li { background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 14px; }
+    .mai-features { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.55rem; text-align: center; position: relative; z-index: 1; }
+    .mai-features li { text-align: center; background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 14px; }
     .mai-features li:nth-child(-n+3) { background: rgba(212,175,55,.16); }
     .mai-features button { display: block; width: 100%; background: transparent; border: 0; color: #F5D76E; font-weight: 800; padding: 0.85rem 0.45rem; cursor: pointer; }
+    .install-android { display: block; width: 100%; margin-top: 0.75rem; background: #fff; color: #072f6b; border: 0; border-radius: 999px; font-weight: 800; padding: 0.65rem 1rem; cursor: pointer; text-align: center; position: relative; z-index: 1; }
+    form.mai-shell .step[data-step="1"] > .flex {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
+        position: relative;
+        z-index: 2;
+        clear: both;
+    }
+    form.mai-shell .step[data-step="1"] .subscribe-choice {
+        width: 100%;
+        min-height: 3.25rem;
+        position: relative;
+        margin: 0;
+    }
+    @media (max-width: 420px) {
+        .mai-features { grid-template-columns: 1fr 1fr; }
+    }
     #mai-detail { margin-top: 0.7rem; background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 14px; padding: 0.75rem 0.85rem; text-align: left; }
     #mai-detail p { margin: 0 0 0.45rem; color: #fff; }
     #mai-detail-close { background: transparent; border: 0; color: #F5D76E; font-weight: 800; cursor: pointer; padding: 0; }

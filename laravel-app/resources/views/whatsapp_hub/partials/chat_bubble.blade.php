@@ -32,16 +32,16 @@
     @if(!empty($who))<span class="who">{{ $who }}</span>@endif
     @if(!empty($forwarded))<span class="forwarded">Forwarded</span>@endif
     @if(!empty($quote))<span class="quote">{!! $linkify($quote) !!}</span>@endif
-    @if($type === 'IMAGE' && $mediaUrl !== '')
-        <img class="chat-photo" src="{{ $mediaUrl }}" alt="{{ $fileLabel }}" loading="lazy" decoding="async" onerror="this.replaceWith(document.createTextNode(this.alt||'Photo'))">
+    @if(($type === 'IMAGE' || $type === 'STICKER') && $mediaUrl !== '')
+        <img class="chat-photo" src="{{ $mediaUrl }}" alt="{{ $fileLabel }}" loading="lazy" decoding="async" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{className:'aside',textContent:this.alt||'Photo'}))">
     @elseif($type === 'AUDIO' && $mediaUrl !== '')
         <audio controls preload="none" src="{{ $mediaUrl }}"></audio>
     @elseif($type === 'VIDEO' && $mediaUrl !== '')
         <video controls preload="none" src="{{ $mediaUrl }}"></video>
     @elseif($mediaUrl !== '' && in_array($type, ['DOCUMENT', 'LOCATION'], true))
         <a class="chat-file" href="{{ $mediaUrl }}" target="_blank" rel="noopener">{{ $fileLabel }}</a>
-    @elseif(in_array($type, ['IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT', 'LOCATION'], true) && $text === '')
-        <span>{{ $fileLabel }}</span>
+    @elseif(in_array($type, ['IMAGE', 'STICKER', 'AUDIO', 'VIDEO', 'DOCUMENT', 'LOCATION'], true) && $text === '')
+        <span class="aside">{{ $fileLabel }}</span>
     @endif
     @if($text !== '')<span class="body">{!! $linkify($text) !!}</span>@endif
     @if(!empty($aside))<span class="aside">{!! $linkify($aside) !!}</span>@endif

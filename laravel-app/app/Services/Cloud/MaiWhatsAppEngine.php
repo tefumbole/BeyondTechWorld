@@ -138,7 +138,8 @@ class MaiWhatsAppEngine
                 continue;
             }
             $text = isset($row['text']) ? trim((string) $row['text']) : '';
-            if ($text === '') {
+            $type = isset($row['type']) ? strtoupper((string) $row['type']) : 'TEXT';
+            if ($text === '' && $type === 'TEXT') {
                 continue;
             }
             $rows[] = [
@@ -148,6 +149,8 @@ class MaiWhatsAppEngine
                 'text' => function_exists('mb_substr') ? mb_substr($text, 0, 1000) : substr($text, 0, 1000),
                 'at' => isset($row['at']) ? (string) $row['at'] : '',
                 'receipt' => isset($row['receipt']) ? (int) $row['receipt'] : 0,
+                'type' => $type,
+                'file' => isset($row['file']) ? (string) $row['file'] : '',
             ];
         }
 

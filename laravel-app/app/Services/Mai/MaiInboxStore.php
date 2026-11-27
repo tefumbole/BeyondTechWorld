@@ -86,6 +86,23 @@ class MaiInboxStore
             $providerId = 'mai:'.$session->id.':'.$event['event_id'];
             $existing = WhatsAppMessage::where('provider_message_id', $providerId)->first();
             if ($existing) {
+                $stored = $this->keepFile($session, isset($event['file']) ? (string) $event['file'] : '');
+                if ($stored !== '') {
+                    $media = $existing->media();
+                    if (empty($media['stored'])) {
+                        $media['stored'] = $stored;
+                        unset($media['unavailable']);
+                        $existing->media_json = json_encode($media);
+                        if (empty($existing->type) || strtoupper((string) $existing->type) === 'TEXT') {
+                            $kind = isset($event['type']) ? strtoupper(substr((string) $event['type'], 0, 24)) : '';
+                            if (in_array($kind, ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT', 'STICKER'], true)) {
+                                $existing->type = $kind;
+                            }
+                        }
+                        $existing->save();
+                    }
+                }
+
                 return $existing;
             }
             $type = isset($event['type']) ? strtoupper(substr((string) $event['type'], 0, 24)) : 'TEXT';

@@ -1372,7 +1372,7 @@ window.addEventListener('pageshow', function (event) {
         var media = '';
         var photo = message.type === 'IMAGE' || message.type === 'STICKER';
         if (photo && message.media) {
-            media = '<img class="chat-photo" alt="Photo" loading="lazy" decoding="async" src="' + esc(message.media) + '">';
+            media = '<img class="chat-photo" alt="Photo" loading="lazy" decoding="async" src="' + esc(message.media) + '" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement(\'span\'),{className:\'aside\',textContent:\'Photo\'}))">';
         } else if (message.type === 'AUDIO' && message.media) {
             media = '<audio controls preload="none" src="' + esc(message.media) + '"></audio>';
         } else if (message.type === 'VIDEO' && message.media) {

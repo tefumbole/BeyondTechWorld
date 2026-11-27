@@ -30,7 +30,10 @@ class MaiIdentity
         $saved = $this->clip(isset($row['saved_name']) ? $row['saved_name'] : '');
         $profile = $this->clip(isset($row['profile_name']) ? $row['profile_name'] : '');
         if ($saved !== '') {
-            $peer->saved_name = $saved;
+            $current = trim((string) $peer->saved_name);
+            if ($current === '' || strlen($saved) >= strlen($current)) {
+                $peer->saved_name = $saved;
+            }
         }
         if ($profile !== '' && $profile !== $saved) {
             $peer->profile_name = $profile;

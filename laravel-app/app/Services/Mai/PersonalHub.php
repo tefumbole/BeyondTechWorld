@@ -216,18 +216,26 @@ class PersonalHub
                 foreach ($book as $digits => $person) {
                     $savedName = trim((string) $person['saved_name']);
                     $label = function_exists('mb_substr') ? mb_substr($savedName, 0, 191) : substr($savedName, 0, 191);
-                    if (isset($byPhone[$digits]) && (string) $byPhone[$digits]->peer_label === $label) {
+                    $conversation = isset($byPhone[$digits]) ? $byPhone[$digits] : $outbound->conversation($session, $digits);
+                    $current = trim((string) $conversation->peer_label);
+                    if ($current === $label || (strlen($current) > strlen($label) && stripos($current, $label) !== false)) {
+                        $identity->remember($session, [
+                            'jid' => $digits.'@s.whatsapp.net',
+                            'phone' => $digits,
+                            'saved_name' => $current !== '' ? $current : $savedName,
+                            'profile_name' => isset($person['profile_name']) ? $person['profile_name'] : '',
+                        ]);
                         continue;
                     }
-                    $conversation = isset($byPhone[$digits]) ? $byPhone[$digits] : $outbound->conversation($session, $digits);
                     $identity->remember($session, [
                         'jid' => $digits.'@s.whatsapp.net',
                         'phone' => $digits,
-                        'saved_name' => $savedName,
+                        'saved_name' => strlen($label) >= strlen($current) ? $savedName : $current,
                         'profile_name' => isset($person['profile_name']) ? $person['profile_name'] : '',
                     ]);
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'peer_label') && (string) $conversation->peer_label !== $label) {
-                        $conversation->peer_label = $label;
+                    $next = strlen($label) >= strlen($current) ? $label : $current;
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'peer_label') && $next !== '' && (string) $conversation->peer_label !== $next) {
+                        $conversation->peer_label = $next;
                         $conversation->save();
                     }
                 }
@@ -290,7 +298,16 @@ class PersonalHub
     public function label($contact, $conversation = null)
     {
         if ($conversation && $conversation->mai_session_id && \Illuminate\Support\Facades\Schema::hasTable('mai_peers')) {
-            return app(MaiIdentity::class)->display($conversation, $contact);
+            $name = app(MaiIdentity::class)->display($conversation, $contact);
+            if ($name !== '' && $name !== 'WhatsApp') {
+                return $name;
+            }
+            $own = trim((string) $conversation->peer_label);
+            if ($own !== '' && $own !== 'WhatsApp') {
+                return $own;
+            }
+
+            return $name;
         }
         $phone = preg_replace('/\D/', '', (string) optional($contact)->normalized_phone);
         $own = $conversation ? trim((string) $conversation->peer_label) : '';
