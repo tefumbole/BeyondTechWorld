@@ -132,6 +132,38 @@ class MaiWhatsAppEngine
         return ['success' => true];
     }
 
+    public function sendFile($phone, $to, $path, $kind, $mime, $name, $caption)
+    {
+        $id = $this->id($phone);
+        if ($id === '' || ! is_file($path)) {
+            return ['success' => false, 'error' => 'Choose a file to send.'];
+        }
+        $raw = file_get_contents($path);
+        if ($raw === false || strlen($raw) > 8 * 1024 * 1024) {
+            return ['success' => false, 'error' => 'Send a file up to 8 MB.'];
+        }
+        $target = trim((string) $to);
+        if (substr($target, -5) !== '@g.us') {
+            $target = preg_replace('/\D/', '', $target);
+        }
+        $payload = $this->request('POST', '/sessions/'.$id.'/send-file', [
+            'to' => $target,
+            'kind' => $kind,
+            'mime' => (string) $mime,
+            'name' => (string) $name,
+            'caption' => (string) $caption,
+            'data' => base64_encode($raw),
+        ], 40);
+        if (! is_array($payload) || empty($payload['success'])) {
+            $error = is_array($payload) && isset($payload['error']) ? (string) $payload['error'] : 'The file was not sent.';
+
+            return ['success' => false, 'error' => $error];
+        }
+        $messageId = isset($payload['msg_id']) ? (string) $payload['msg_id'] : (isset($payload['id']) ? (string) $payload['id'] : null);
+
+        return ['success' => true, 'msg_id' => $messageId];
+    }
+
     protected function digits($phone)
     {
         $digits = preg_replace('/\D/', '', (string) $phone);

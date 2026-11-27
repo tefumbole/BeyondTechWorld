@@ -1562,9 +1562,10 @@ class WhatsAppHubController extends Controller
             }
             if ($this->personalHub()) {
                 if ($file) {
-                    return redirect()->to($back)->with('not_permitted', 'Send the letter as text. Photos go out from the phone.');
+                    $result = $this->personalFile($jid, $file->getRealPath(), stripos((string) $file->getMimeType(), 'image/') === 0 ? 'image' : 'document', $file->getMimeType(), $file->getClientOriginalName(), $letter);
+                } else {
+                    $result = $this->personalText($jid, $letter);
                 }
-                $result = $this->personalText($jid, $letter);
                 if (empty($result['success'])) {
                     return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'The letter was not sent.');
                 }
@@ -1645,13 +1646,22 @@ class WhatsAppHubController extends Controller
         $back = route('whatsapp.chats', ['group' => $jid]);
         if ($this->personalHub()) {
             $json = $request->ajax() || $request->wantsJson() || $request->filled('send_token');
-            if ($request->file('file') || $request->file('voice')) {
-                $error = 'Send the text. Photos and voice notes go out from the phone.';
+            $file = $request->file('file');
+            if ($file) {
+                $result = $this->personalFile($jid, $file->getRealPath(), stripos((string) $file->getMimeType(), 'image/') === 0 ? 'image' : 'document', $file->getMimeType(), $file->getClientOriginalName(), $body);
+                if (empty($result['success'])) {
+                    $error = isset($result['error']) ? $result['error'] : 'The file was not sent.';
+                    if ($json) {
+                        return response()->json(['ok' => false, 'error' => $error], 422);
+                    }
+
+                    return redirect()->to($back)->with('not_permitted', $error);
+                }
                 if ($json) {
-                    return response()->json(['ok' => false, 'error' => $error], 422);
+                    return response()->json(['ok' => true]);
                 }
 
-                return redirect()->to($back)->with('not_permitted', $error);
+                return redirect()->to($back)->with('message', 'Sent from your WhatsApp.');
             }
             if (substr($jid, -5) !== '@g.us' || $body === '') {
                 if ($json) {
@@ -3175,6 +3185,16 @@ class WhatsAppHubController extends Controller
         }
 
         return app(\App\Services\Cloud\MaiWhatsAppEngine::class)->send($session->phone_number ?: $session->expected_phone, $to, $text);
+    }
+
+    protected function personalFile($to, $path, $kind, $mime, $name, $caption)
+    {
+        $session = $this->personalHub();
+        if (! $session) {
+            return null;
+        }
+
+        return app(\App\Services\Cloud\MaiWhatsAppEngine::class)->sendFile($session->phone_number ?: $session->expected_phone, $to, $path, $kind, $mime, $name, $caption);
     }
 
     protected function personalGroupMessages($session, $jid)

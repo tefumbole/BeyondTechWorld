@@ -423,6 +423,39 @@ async function sendText(id, to, text) {
   return { success: true, id: sent && sent.key ? sent.key.id : null }
 }
 
+function chatJid(to) {
+  let jid = String(to || '').trim()
+  if (jid.indexOf('@') === -1) {
+    const digits = jid.replace(/\D/g, '')
+    if (!/^[1-9][0-9]{7,14}$/.test(digits)) return ''
+    return digits + '@s.whatsapp.net'
+  }
+  if (!/^([1-9][0-9]{7,14}@s\.whatsapp\.net|[0-9]+(-[0-9]+)?@g\.us)$/.test(jid)) return ''
+  return jid
+}
+
+async function sendFile(id, to, payload) {
+  const entry = sessions.get(id)
+  if (!entry || !entry.sock || entry.status !== 'CONNECTED') {
+    return { success: false, error: 'WhatsApp is not linked for this phone yet.' }
+  }
+  const jid = chatJid(to)
+  if (!jid) return { success: false, error: 'That chat is not available.' }
+  const data = Buffer.from(String(payload.data || ''), 'base64')
+  if (!data.length || data.length > 8 * 1024 * 1024) {
+    return { success: false, error: 'Send a file up to 8 MB.' }
+  }
+  const caption = String(payload.caption || '').slice(0, 1000)
+  const kind = String(payload.kind || 'document')
+  let content
+  if (kind === 'image') content = { image: data, caption }
+  else if (kind === 'audio') content = { audio: data, mimetype: payload.mime || 'audio/ogg; codecs=opus', ptt: true }
+  else content = { document: data, mimetype: payload.mime || 'application/octet-stream', fileName: String(payload.name || 'file').slice(0, 120), caption }
+  const sent = await entry.sock.sendMessage(jid, content)
+  const messageId = sent && sent.key ? sent.key.id : null
+  return { success: true, id: messageId, msg_id: messageId }
+}
+
 function readBody(req, limit, done) {
   let raw = ''
   req.on('data', (chunk) => {
@@ -578,6 +611,18 @@ const server = http.createServer((req, res) => {
         }
         sendText(id, body.to, body.text).then((payload) => send(res, 200, payload)).catch(() => {
           send(res, 200, { success: false, error: 'The message was not sent.' })
+        })
+      })
+      return
+    }
+    if (req.method === 'POST' && parts[2] === 'send-file') {
+      readBody(req, 12000000, (body) => {
+        if (!body) {
+          send(res, 422, { success: false, error: 'invalid' })
+          return
+        }
+        sendFile(id, body.to, body).then((payload) => send(res, 200, payload)).catch(() => {
+          send(res, 200, { success: false, error: 'The file was not sent.' })
         })
       })
       return

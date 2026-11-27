@@ -1030,6 +1030,18 @@
                 countryList.hidden = false;
                 filterCountries(countrySearch.value);
             });
+            function writeDialCode() {
+                var field = document.getElementById('phone');
+                if (!field) return;
+                var code = String(dial.value || '').replace(/\D+/g, '');
+                if (!code) return;
+                var previous = field.getAttribute('data-code') || '';
+                var digits = String(field.value || '').replace(/\D+/g, '');
+                if (previous && digits.indexOf(previous) === 0) digits = digits.slice(previous.length);
+                digits = digits.replace(/^0+/, '');
+                field.value = code + digits;
+                field.setAttribute('data-code', code);
+            }
             countryList.addEventListener('click', function (event) {
                 var button = event.target.closest('.country-item');
                 if (!button) return;
@@ -1037,6 +1049,7 @@
                 for (var i = 0; i < countryItems.length; i++) {
                     countryItems[i].classList.toggle('is-on', countryItems[i] === button);
                 }
+                writeDialCode();
                 dial.dispatchEvent(new Event('change', { bubbles: true }));
                 countrySearch.value = chosenCountry();
                 countryList.hidden = true;
@@ -1048,8 +1061,10 @@
             });
             dial.addEventListener('change', function () {
                 countrySearch.value = chosenCountry();
+                writeDialCode();
             });
             countrySearch.value = chosenCountry();
+            writeDialCode();
         }
         var countryName = document.getElementById('country-name');
         if (dial) {

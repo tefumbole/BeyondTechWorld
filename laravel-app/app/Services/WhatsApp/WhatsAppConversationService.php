@@ -803,7 +803,7 @@ class WhatsAppConversationService
         if ($translation) {
             $sendBody = $translation['text'];
         }
-        if (! $message->isWebsiteMessage() && ! $conversation->isWebsite()) {
+        if (! $message->isWebsiteMessage() && ! $conversation->isWebsite() && ! app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
             $result = app(\App\Services\BeyondWasenderService::class)->editSentMessage($message->wasenderId(), $sendBody);
             if (empty($result['success'])) {
                 return ['success' => false, 'error' => isset($result['error']) ? $result['error'] : 'WhatsApp did not change that message.'];
@@ -836,7 +836,7 @@ class WhatsAppConversationService
             if (! $message->canDeleteForEveryone()) {
                 return ['success' => false, 'error' => 'WhatsApp only lets you delete a message for everyone for 15 minutes after it is sent.'];
             }
-            if (! $message->isWebsiteMessage() && ! $conversation->isWebsite()) {
+            if (! $message->isWebsiteMessage() && ! $conversation->isWebsite() && ! app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
                 $result = app(\App\Services\BeyondWasenderService::class)->deleteSentMessage($message->wasenderId());
                 if (empty($result['success'])) {
                     return ['success' => false, 'error' => isset($result['error']) ? $result['error'] : 'WhatsApp did not delete that message.'];
@@ -934,9 +934,6 @@ class WhatsAppConversationService
      */
     public function replyVoice(WhatsAppConversation $conversation, $localPath, $originalName, $mime, $userId = null)
     {
-        if (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
-            return ['success' => false, 'error' => 'Send the voice note from the phone. Text from this chat goes out on your WhatsApp.'];
-        }
         if (! is_file($localPath)) {
             return ['success' => false, 'error' => 'The voice note was empty.'];
         }
@@ -1012,6 +1009,12 @@ class WhatsAppConversationService
         if ($conversation->isWebsite()) {
             $message->provider_message_id = 'webmsg:'.uniqid('', true);
             $textResult = ['success' => true];
+        } elseif (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+            $audioPath = $playable ?: $localPath;
+            $audioResult = $this->sendMaiFile($conversation, $contact->normalized_phone, $audioPath, 'audio', $mime, $originalName, '');
+            if ($translation || empty($audioResult['success'])) {
+                $textResult = app(\App\Services\Mai\MaiOutboundService::class)->deliver($conversation, $sendBody, 'hub-voice-'.$message->id, $message);
+            }
         } else {
             if ($playable) {
                 $audioResult = $this->provider->sendAudio($contact->normalized_phone, $playable);
@@ -1052,6 +1055,24 @@ class WhatsAppConversationService
         $conversation->save();
 
         return ['success' => true, 'message' => $message];
+    }
+
+    protected function sendMaiFile(WhatsAppConversation $conversation, $to, $path, $kind, $mime, $name, $caption)
+    {
+        $session = \App\Mai\MaiSession::find((int) $conversation->mai_session_id);
+        if (! $session) {
+            return ['success' => false, 'error' => 'Link the phone again to send.'];
+        }
+
+        return app(\App\Services\Cloud\MaiWhatsAppEngine::class)->sendFile(
+            $session->phone_number ?: $session->expected_phone,
+            $to,
+            $path,
+            $kind,
+            $mime,
+            $name,
+            $caption
+        );
     }
 
     protected function storeChatFile($localPath, $originalName, $fallback)
@@ -1095,9 +1116,6 @@ class WhatsAppConversationService
 
     public function replyFile(WhatsAppConversation $conversation, $localPath, $originalName, $mime, $caption, $userId = null)
     {
-        if (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
-            return ['success' => false, 'error' => 'Send the photo or file from the phone. Text from this chat goes out on your WhatsApp.'];
-        }
         $caption = trim((string) $caption);
         if (! is_file($localPath)) {
             return ['success' => false, 'error' => 'Choose a photo or file to send.'];
@@ -1179,6 +1197,8 @@ class WhatsAppConversationService
             $message->sent_at = now();
             $message->save();
             $result = ['success' => true];
+        } elseif (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+            $result = $this->sendMaiFile($conversation, $contact->normalized_phone, $dest, $isImage ? 'image' : 'document', $mime, $originalName, $sendCaption);
         } elseif ($isImage) {
             $result = $this->provider->sendImage($contact->normalized_phone, $dest, $sendCaption !== '' ? $sendCaption : null, true);
         } else {
