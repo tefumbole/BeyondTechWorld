@@ -114,56 +114,7 @@ class MaiWhatsAppController extends Controller
 
     public function inbox(Request $request)
     {
-        $user = $this->person();
-        if (! $user) {
-            return redirect()->to(url('/login?mai=1'));
-        }
-        if (\App\Services\Mai\MaiBusinessLine::is($user->phone)) {
-            return redirect()->route('whatsapp.mai')->with('not_permitted', 'Use your personal WhatsApp number. The business line stays separate.');
-        }
-        $engine = app(MaiWhatsAppEngine::class);
-        $engine->open($user->phone);
-        $state = $engine->status($user->phone, false);
-        if (($state['status'] ?? '') !== 'CONNECTED') {
-            return redirect()->route('whatsapp.mai.link');
-        }
-        $chats = $engine->chats($user->phone);
-        $jid = trim((string) $request->get('jid'));
-        if (! preg_match('/^([1-9][0-9]{6,16}@s\.whatsapp\.net|[0-9]+(-[0-9]+)?@g\.us)$/', $jid)) {
-            $jid = '';
-        }
-        $open = null;
-        $messages = [];
-        if ($jid !== '') {
-            foreach ($chats as $chat) {
-                if ($chat['jid'] === $jid) {
-                    $open = $chat;
-                    break;
-                }
-            }
-            if (! $open) {
-                $open = ['jid' => $jid, 'name' => '', 'phone' => preg_replace('/\D/', '', strtok($jid, '@')), 'preview' => '', 'unread' => 0];
-            }
-            $openDigits = preg_replace('/\D/', '', (string) strtok($jid, '@'));
-            foreach ($engine->messages($user->phone) as $row) {
-                $from = (string) ($row['from'] ?? '');
-                $fromDigits = preg_replace('/\D/', '', (string) strtok($from, '@'));
-                if ($from === $jid || ($openDigits !== '' && $fromDigits !== '' && substr($fromDigits, -9) === substr($openDigits, -9))) {
-                    $messages[] = $row;
-                }
-            }
-        }
-
-        return response()
-            ->view('whatsapp_hub.linked_phone', [
-                'phone' => preg_replace('/\D/', '', (string) $user->phone),
-                'session' => $state,
-                'chats' => $chats,
-                'open' => $open,
-                'messages' => $messages,
-                'private' => true,
-            ])
-            ->header('Cache-Control', 'no-store');
+        return redirect()->route('whatsapp.chats');
     }
 
     public function pair()

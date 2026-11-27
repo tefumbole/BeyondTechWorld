@@ -285,7 +285,24 @@ class WhatsAppHubController extends Controller
     public function chats(Request $request)
     {
         if (\App\Support\MaiHost::is($request)) {
-            return redirect()->route('whatsapp.mai.inbox');
+            if (! Auth::check()) {
+                return redirect()->to(url('/login?mai=1'));
+            }
+            $personal = $this->personalHub();
+            if (! $personal) {
+                return redirect()->route('whatsapp.mai')->with('not_permitted', 'Use your personal WhatsApp number.');
+            }
+            $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
+            $linked = $engine->status($personal->phone_number, false);
+            if (($linked['status'] ?? '') !== 'CONNECTED') {
+                return redirect()->route('whatsapp.mai.link');
+            }
+            if ($personal->status !== 'CONNECTED') {
+                $personal->status = 'CONNECTED';
+                $personal->connected_at = $personal->connected_at ?: \Carbon\Carbon::now();
+                $personal->save();
+            }
+            app(\App\Services\Mai\PersonalHub::class)->sync($personal);
         }
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
             return $deny;
@@ -317,11 +334,16 @@ class WhatsAppHubController extends Controller
             return response()->json($this->chatsFeed($request))->header('Cache-Control', 'no-store');
         }
         $conversations = $this->inboxConversations();
+        $personal = $this->personalHub();
         $groups = [];
-        try {
-            $groups = app(\App\Services\WhatsApp\GroupContactExportService::class)->namedGroups();
-        } catch (\Throwable $e) {
-            $groups = [];
+        if ($personal) {
+            $groups = app(\App\Services\Mai\PersonalHub::class)->groups($personal);
+        } else {
+            try {
+                $groups = app(\App\Services\WhatsApp\GroupContactExportService::class)->namedGroups();
+            } catch (\Throwable $e) {
+                $groups = [];
+            }
         }
         $open = null;
         $messages = collect();
@@ -339,7 +361,9 @@ class WhatsAppHubController extends Controller
             if (! $group && substr($jid, -5) === '@g.us') {
                 $group = ['jid' => $jid, 'name' => 'WhatsApp group', 'members' => null];
             }
-            if ($group && Schema::hasTable('whatsapp_group_messages')) {
+            if ($personal && $group) {
+                $groupMessages = $this->personalGroupMessages($personal, $group['jid']);
+            } elseif ($group && Schema::hasTable('whatsapp_group_messages')) {
                 $record = \App\WhatsApp\WhatsAppGroup::where('group_jid', $group['jid'])->first();
                 if ($record) {
                     $groupMessages = \App\WhatsApp\WhatsAppGroupMessage::where('group_id', $record->id)
@@ -367,7 +391,7 @@ class WhatsAppHubController extends Controller
                     : false;
             }
         }
-        $canReply = $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
+        $canReply = $personal ? true : $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
         $pane = (string) $request->get('pane', 'chats');
         if (! in_array($pane, ['chats', 'updates', 'calls', 'media', 'more', 'announcements', 'help'], true)) {
             $pane = 'chats';
@@ -380,17 +404,25 @@ class WhatsAppHubController extends Controller
             if (Schema::hasTable('wa_announcements')) {
                 $updates = \App\WaAnnouncement::orderByDesc('id')->limit(40)->get();
             }
-            $mediaItems = WhatsAppMessage::with('contact')
-                ->whereIn('type', ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'])
-                ->orderByDesc('id')
-                ->limit(40)
-                ->get();
+            $mediaQuery = WhatsAppMessage::with('contact')
+                ->whereIn('type', ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT']);
+            if ($personal) {
+                $mediaQuery->whereIn('conversation_id', WhatsAppConversation::where('mai_session_id', $personal->id)->pluck('id'));
+            }
+            $mediaItems = $mediaQuery->orderByDesc('id')->limit(40)->get();
         }
         if ($pane === 'calls' && Schema::hasTable('whatsapp_calls')) {
             $calls = WhatsAppCall::with('contact')->orderByDesc('called_at')->orderByDesc('id')->limit(80)->get();
+            if ($personal) {
+                $mine = WhatsAppConversation::where('mai_session_id', $personal->id)->pluck('contact_id')->all();
+                $calls = $calls->whereIn('contact_id', $mine)->values();
+            }
             $contactIds = $calls->pluck('contact_id')->filter()->unique()->values();
             if ($contactIds->count()) {
                 $callChats = WhatsAppConversation::whereIn('contact_id', $contactIds)
+                    ->when($personal, function ($query) use ($personal) {
+                        $query->where('mai_session_id', $personal->id);
+                    })
                     ->orderByDesc('id')
                     ->get()
                     ->groupBy('contact_id')
@@ -414,19 +446,26 @@ class WhatsAppHubController extends Controller
         $defaultReply = $translator->defaultReply();
         $enterSends = $translator->enterSends();
         $sessionPhone = '';
-        try {
-            $sessionPhone = app(\App\Services\BeyondWasenderService::class)->sessionPhone();
-        } catch (\Throwable $e) {
-            $sessionPhone = '';
+        if ($personal) {
+            $sessionPhone = '+'.preg_replace('/\D/', '', (string) $personal->phone_number);
+            $phoneLink = ['disconnected' => false, 'status' => 'connected', 'at' => null];
+        } else {
+            try {
+                $sessionPhone = app(\App\Services\BeyondWasenderService::class)->sessionPhone();
+            } catch (\Throwable $e) {
+                $sessionPhone = '';
+            }
+            if ($sessionPhone === '') {
+                $sessionPhone = '+237 675 321 739';
+            }
         }
-        if ($sessionPhone === '') {
-            $sessionPhone = '+237 675 321 739';
-        }
+
+        $personalHub = (bool) $personal;
 
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
             'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
-            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends'
+            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub'
         ));
     }
 
@@ -657,7 +696,10 @@ class WhatsAppHubController extends Controller
     {
         $load = function () {
             $rows = WhatsAppConversation::with('contact');
-            if (Schema::hasColumn('whatsapp_conversations', 'mai_session_id')) {
+            $personal = $this->personalHub();
+            if ($personal) {
+                $rows->where('mai_session_id', $personal->id);
+            } elseif (Schema::hasColumn('whatsapp_conversations', 'mai_session_id')) {
                 $rows->whereNull('mai_session_id');
             }
             $rows = $rows->orderByDesc('last_activity_at')
@@ -694,7 +736,10 @@ class WhatsAppHubController extends Controller
     protected function staffConversation($id)
     {
         $query = WhatsAppConversation::with('contact')->where('id', (int) $id);
-        if (Schema::hasColumn('whatsapp_conversations', 'mai_session_id')) {
+        $personal = $this->personalHub();
+        if ($personal) {
+            $query->where('mai_session_id', $personal->id);
+        } elseif (Schema::hasColumn('whatsapp_conversations', 'mai_session_id')) {
             $query->whereNull('mai_session_id');
         }
 
@@ -967,7 +1012,10 @@ class WhatsAppHubController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage'])) {
             return $deny;
         }
-        $conversation = WhatsAppConversation::with('contact')->findOrFail($id);
+        $conversation = $this->inboxConversation($id);
+        if (! $conversation) {
+            return response()->json(['ok' => false, 'error' => 'That chat is not open.'], 404);
+        }
         $row = WhatsAppMessage::where('conversation_id', $conversation->id)->where('id', (int) $message)->first();
         if (! $row) {
             return response()->json(['ok' => false, 'error' => 'That message is not in this chat.'], 404);
@@ -979,7 +1027,7 @@ class WhatsAppHubController extends Controller
         } elseif ($action === 'star') {
             $result = $this->conversations->starMessage($conversation, $row);
         } else {
-            $target = WhatsAppConversation::with('contact')->find((int) $request->input('to'));
+            $target = $this->inboxConversation((int) $request->input('to'));
             if (! $target || (int) $target->id === (int) $conversation->id) {
                 return response()->json(['ok' => false, 'error' => 'Choose a different chat to forward to.'], 422);
             }
@@ -1512,6 +1560,17 @@ class WhatsAppHubController extends Controller
             if (substr($jid, -5) !== '@g.us') {
                 return redirect()->to($back)->with('not_permitted', 'Choose a WhatsApp group.');
             }
+            if ($this->personalHub()) {
+                if ($file) {
+                    return redirect()->to($back)->with('not_permitted', 'Send the letter as text. Photos go out from the phone.');
+                }
+                $result = $this->personalText($jid, $letter);
+                if (empty($result['success'])) {
+                    return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'The letter was not sent.');
+                }
+
+                return redirect()->to($back)->with('message', 'The letter was sent to the group.');
+            }
             if ($file) {
                 $result = $this->provider->sendGroupDocument(
                     $jid,
@@ -1558,6 +1617,12 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $message = WhatsAppMessage::findOrFail($id);
+        if ($personal = $this->personalHub()) {
+            $owned = WhatsAppConversation::where('id', $message->conversation_id)->where('mai_session_id', $personal->id)->exists();
+            if (! $owned) {
+                abort(404);
+            }
+        }
         $file = app(\App\Services\WhatsApp\WhatsAppMediaLibrary::class)->file($message);
         if (! $file || ! is_file($file['path'])) {
             abort(404);
@@ -1578,6 +1643,38 @@ class WhatsAppHubController extends Controller
         $jid = trim((string) $request->input('jid'));
         $body = trim((string) $request->input('body'));
         $back = route('whatsapp.chats', ['group' => $jid]);
+        if ($this->personalHub()) {
+            $json = $request->ajax() || $request->wantsJson() || $request->filled('send_token');
+            if ($request->file('file') || $request->file('voice')) {
+                $error = 'Send the text. Photos and voice notes go out from the phone.';
+                if ($json) {
+                    return response()->json(['ok' => false, 'error' => $error], 422);
+                }
+
+                return redirect()->to($back)->with('not_permitted', $error);
+            }
+            if (substr($jid, -5) !== '@g.us' || $body === '') {
+                if ($json) {
+                    return response()->json(['ok' => false, 'error' => 'Type a message for the group.'], 422);
+                }
+
+                return redirect()->to($back)->with('not_permitted', 'Type a message for the group.');
+            }
+            $result = $this->personalText($jid, $body);
+            if (empty($result['success'])) {
+                $error = isset($result['error']) ? $result['error'] : 'Send failed.';
+                if ($json) {
+                    return response()->json(['ok' => false, 'error' => $error], 422);
+                }
+
+                return redirect()->to($back)->with('not_permitted', $error);
+            }
+            if ($json) {
+                return response()->json(['ok' => true]);
+            }
+
+            return redirect()->to($back)->with('message', 'Sent from your WhatsApp.');
+        }
         $json = $request->ajax() || $request->wantsJson() || $request->filled('send_token');
         $voice = $request->file('voice');
         if ($voice && substr($jid, -5) === '@g.us') {
@@ -1741,6 +1838,10 @@ class WhatsAppHubController extends Controller
     protected function peopleQuery($q)
     {
         $query = WhatsAppContact::query()->orderByDesc('id');
+        if ($session = $this->personalHub()) {
+            $ids = WhatsAppConversation::where('mai_session_id', $session->id)->pluck('contact_id')->all();
+            $query->whereIn('id', $ids ?: [0]);
+        }
         $q = trim((string) $q);
         if ($q === '') {
             return $query;
@@ -1761,6 +1862,14 @@ class WhatsAppHubController extends Controller
 
     protected function deleteKnownContact(WhatsAppContact $contact)
     {
+        if ($session = $this->personalHub()) {
+            $conversations = WhatsAppConversation::where('contact_id', $contact->id)->where('mai_session_id', $session->id)->get();
+            foreach ($conversations as $conversation) {
+                $this->conversations->destroy($conversation);
+            }
+
+            return;
+        }
         \Illuminate\Support\Facades\DB::transaction(function () use ($contact) {
             $conversations = WhatsAppConversation::where('contact_id', $contact->id)->get();
             foreach ($conversations as $conversation) {
@@ -1794,7 +1903,10 @@ class WhatsAppHubController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage'])) {
             return $deny;
         }
-        $conversation = WhatsAppConversation::with('contact')->findOrFail($id);
+        $conversation = $this->inboxConversation($id);
+        if (! $conversation) {
+            abort(404);
+        }
         $result = $this->conversations->reply($conversation, $request->input('body'), Auth::id());
         if (empty($result['success'])) {
             return redirect()->route('whatsapp.conversation', $conversation->id)
@@ -2989,6 +3101,9 @@ class WhatsAppHubController extends Controller
 
     protected function denyUnless(array $names)
     {
+        if ($this->personalHub() && $this->personalChatRoute()) {
+            return null;
+        }
         if ($this->canAny($names)) {
             return null;
         }
@@ -3016,6 +3131,71 @@ class WhatsAppHubController extends Controller
         }
 
         return false;
+    }
+
+    protected $personalHubSession;
+
+    protected function personalHub()
+    {
+        if ($this->personalHubSession !== null) {
+            return $this->personalHubSession ?: null;
+        }
+        $this->personalHubSession = false;
+        if (! \App\Support\MaiHost::is(request())) {
+            return null;
+        }
+        $user = Auth::user();
+        if (! $user || \App\Services\Mai\MaiBusinessLine::is($user->phone)) {
+            return null;
+        }
+        $session = app(\App\Services\Mai\PersonalHub::class)->ensure($user);
+        $this->personalHubSession = $session ?: false;
+
+        return $session;
+    }
+
+    protected function personalChatRoute()
+    {
+        $name = (string) optional(request()->route())->getName();
+        $blocked = ['whatsapp.settings', 'whatsapp.tenants', 'whatsapp.bills', 'whatsapp.twilio', 'whatsapp.diagnostics', 'whatsapp.index'];
+        foreach ($blocked as $prefix) {
+            if (strpos($name, $prefix) === 0) {
+                return false;
+            }
+        }
+
+        return strpos($name, 'whatsapp.') === 0;
+    }
+
+    protected function personalText($to, $text)
+    {
+        $session = $this->personalHub();
+        if (! $session) {
+            return null;
+        }
+
+        return app(\App\Services\Cloud\MaiWhatsAppEngine::class)->send($session->phone_number ?: $session->expected_phone, $to, $text);
+    }
+
+    protected function personalGroupMessages($session, $jid)
+    {
+        $rows = collect();
+        $index = 1;
+        foreach (app(\App\Services\Cloud\MaiWhatsAppEngine::class)->messages($session->phone_number ?: $session->expected_phone) as $row) {
+            if ((string) $row['from'] !== $jid) {
+                continue;
+            }
+            $item = new \App\WhatsApp\WhatsAppGroupMessage();
+            $item->id = $index++;
+            $item->body = $row['text'];
+            $item->media_json = json_encode(['outgoing' => ! empty($row['from_me'])]);
+            $stamp = is_numeric($row['at']) ? (int) $row['at'] : strtotime((string) $row['at']);
+            $item->message_at = $stamp ? \Carbon\Carbon::createFromTimestamp($stamp) : \Carbon\Carbon::now();
+            $item->participant_name = ! empty($row['from_me']) ? '' : 'WhatsApp';
+            $rows->push($item);
+        }
+
+        return $rows;
     }
 
     protected function publicTwilioError($error)

@@ -1283,7 +1283,7 @@
                                 ['role_id', $role->id]])->first();
 
                         ?>
-                        @if($index_permission_active || $balance_sheet_permission_active || $account_statement_permission_active || $money_transfer_permission_active)
+                        @if(!\App\Support\MaiHost::is() && ($index_permission_active || $balance_sheet_permission_active || $account_statement_permission_active || $money_transfer_permission_active))
                             <li class="" data-nav-key="account"><a href="#account" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-briefcase"></i><span>{{trans('file.Accounting')}}</span></a>
                                 <ul id="account" class="collapse list-unstyled ">
                                     @if($index_permission_active)

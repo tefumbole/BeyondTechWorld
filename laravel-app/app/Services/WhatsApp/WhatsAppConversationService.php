@@ -934,6 +934,9 @@ class WhatsAppConversationService
      */
     public function replyVoice(WhatsAppConversation $conversation, $localPath, $originalName, $mime, $userId = null)
     {
+        if (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+            return ['success' => false, 'error' => 'Send the voice note from the phone. Text from this chat goes out on your WhatsApp.'];
+        }
         if (! is_file($localPath)) {
             return ['success' => false, 'error' => 'The voice note was empty.'];
         }
@@ -1092,6 +1095,9 @@ class WhatsAppConversationService
 
     public function replyFile(WhatsAppConversation $conversation, $localPath, $originalName, $mime, $caption, $userId = null)
     {
+        if (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+            return ['success' => false, 'error' => 'Send the photo or file from the phone. Text from this chat goes out on your WhatsApp.'];
+        }
         $caption = trim((string) $caption);
         if (! is_file($localPath)) {
             return ['success' => false, 'error' => 'Choose a photo or file to send.'];

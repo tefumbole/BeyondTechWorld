@@ -306,7 +306,7 @@
         </div>
         @endif
         <div class="chats-list" id="chatList">
-            <div class="chat-none" id="chatNone" @if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0) style="display:block" @endif>@if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0)No conversations yet. Chats from the Wasender number appear here.@else Nothing in this list.@endif</div>
+            <div class="chat-none" id="chatNone" @if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0) style="display:block" @endif>@if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0)No conversations yet. {{ !empty($personalHub) ? 'Chats from your WhatsApp appear here.' : 'Chats from the Wasender number appear here.' }}@else Nothing in this list.@endif</div>
             @if($pane === 'chats')
             @php
                 $conversations = $conversations->sort(function ($a, $b) {
