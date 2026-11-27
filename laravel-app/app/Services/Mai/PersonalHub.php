@@ -190,6 +190,48 @@ class PersonalHub
                     $conversation->save();
                 }
             }
+            $book = [];
+            foreach ($engine->contacts($phone) as $person) {
+                if (empty($person['saved'])) {
+                    continue;
+                }
+                $digits = isset($person['phone']) ? preg_replace('/\D/', '', (string) $person['phone']) : '';
+                $savedName = isset($person['saved_name']) ? trim((string) $person['saved_name']) : '';
+                if ($savedName === '' || ! preg_match('/^[1-9][0-9]{7,14}$/', $digits) || MaiBusinessLine::is($digits)) {
+                    continue;
+                }
+                $book[$digits] = $person;
+            }
+            if ($book) {
+                $known = WhatsAppConversation::where('mai_session_id', $session->id)
+                    ->with('contact')
+                    ->get();
+                $byPhone = [];
+                foreach ($known as $row) {
+                    $digits = preg_replace('/\D/', '', (string) optional($row->contact)->normalized_phone);
+                    if ($digits !== '') {
+                        $byPhone[$digits] = $row;
+                    }
+                }
+                foreach ($book as $digits => $person) {
+                    $savedName = trim((string) $person['saved_name']);
+                    $label = function_exists('mb_substr') ? mb_substr($savedName, 0, 191) : substr($savedName, 0, 191);
+                    if (isset($byPhone[$digits]) && (string) $byPhone[$digits]->peer_label === $label) {
+                        continue;
+                    }
+                    $conversation = isset($byPhone[$digits]) ? $byPhone[$digits] : $outbound->conversation($session, $digits);
+                    $identity->remember($session, [
+                        'jid' => $digits.'@s.whatsapp.net',
+                        'phone' => $digits,
+                        'saved_name' => $savedName,
+                        'profile_name' => isset($person['profile_name']) ? $person['profile_name'] : '',
+                    ]);
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'peer_label') && (string) $conversation->peer_label !== $label) {
+                        $conversation->peer_label = $label;
+                        $conversation->save();
+                    }
+                }
+            }
             if ($engine->readReady()) {
                 $open = WhatsAppConversation::where('mai_session_id', $session->id)
                     ->where('unread_count', '>', 0)

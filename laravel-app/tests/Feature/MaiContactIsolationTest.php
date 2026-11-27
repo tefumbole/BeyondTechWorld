@@ -598,6 +598,53 @@ class MaiContactIsolationTest extends TestCase
         $this->assertSame('Read Person', app(\App\Services\Mai\PersonalHub::class)->label($readContact->fresh(), $read->fresh()));
     }
 
+    public function test_a_saved_contact_with_no_messages_appears()
+    {
+        $session = $this->linked(13, 'p23767000013');
+        config(['cloud.whatsapp.link_transport' => function ($method, $path) {
+            if (strpos($path, '/contacts') !== false) {
+                return ['contacts' => [
+                    [
+                        'phone' => '250788000111',
+                        'saved_name' => 'Nasrah',
+                        'name' => 'Nasrah',
+                        'saved' => true,
+                    ],
+                    [
+                        'phone' => '237655000222',
+                        'profile_name' => 'Push Only',
+                        'name' => 'Push Only',
+                        'saved' => false,
+                    ],
+                    [
+                        'phone' => '237675321739',
+                        'saved_name' => 'Business Line',
+                        'saved' => true,
+                    ],
+                ]];
+            }
+            if (strpos($path, '/chats') !== false) {
+                return ['read_ready' => true, 'chats' => []];
+            }
+
+            return ['generation' => 1, 'events' => []];
+        }]);
+
+        app(\App\Services\Mai\PersonalHub::class)->sync($session, false);
+
+        $contact = WhatsAppContact::where('normalized_phone', '250788000111')->first();
+        $this->assertNotNull($contact);
+        $chat = WhatsAppConversation::where('mai_session_id', $session->id)
+            ->where('contact_id', $contact->id)
+            ->first();
+        $this->assertNotNull($chat);
+        $this->assertNull($chat->last_activity_at);
+        $this->assertSame(0, (int) $chat->unread_count);
+        $this->assertSame('Nasrah', app(\App\Services\Mai\PersonalHub::class)->label($contact, $chat));
+        $this->assertNull(WhatsAppContact::where('normalized_phone', '237655000222')->first());
+        $this->assertNull(WhatsAppContact::where('normalized_phone', '237675321739')->first());
+    }
+
     public function test_an_edit_uses_the_linked_socket()
     {
         $contact = $this->contact('Owner Book');

@@ -107,7 +107,7 @@ class MaiWhatsAppEngine
                 continue;
             }
             $digits = isset($row['phone']) ? preg_replace('/\D/', '', (string) $row['phone']) : '';
-            if (! preg_match('/^[1-9][0-9]{7,12}$/', $digits)) {
+            if (! preg_match('/^[1-9][0-9]{7,14}$/', $digits)) {
                 continue;
             }
             $rows[] = [

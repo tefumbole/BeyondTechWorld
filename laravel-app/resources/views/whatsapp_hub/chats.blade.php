@@ -342,9 +342,11 @@
             @if($pane === 'chats')
             @php
                 $conversations = $conversations->sort(function ($a, $b) use ($personalHub) {
-                    $aTime = !empty($personalHub) ? $a->last_activity_at : ($a->last_activity_at ?: $a->updated_at);
-                    $bTime = !empty($personalHub) ? $b->last_activity_at : ($b->last_activity_at ?: $b->updated_at);
-                    if ($aTime == $bTime) {
+                    $aWhen = !empty($personalHub) ? $a->last_activity_at : ($a->last_activity_at ?: $a->updated_at);
+                    $bWhen = !empty($personalHub) ? $b->last_activity_at : ($b->last_activity_at ?: $b->updated_at);
+                    $aTime = $aWhen ? $aWhen->getTimestamp() : 0;
+                    $bTime = $bWhen ? $bWhen->getTimestamp() : 0;
+                    if ($aTime === $bTime) {
                         return (int) $b->id - (int) $a->id;
                     }
 
@@ -361,6 +363,9 @@
                         : (string) optional($row->contact)->display_phone;
                     $when = !empty($personalHub) ? $row->last_activity_at : ($row->last_activity_at ?: $row->updated_at);
                     $preview = \App\WhatsApp\WhatsAppMessage::listPreview($row->last_message);
+                    if ($preview === '' && !empty($personalHub)) {
+                        $preview = $rowPhone;
+                    }
                     $rowUnread = (int) $row->id === $openId ? 0 : (int) $row->unread_count;
                     $tone = sprintf('%u', crc32(strtolower($person))) % 8;
                 @endphp

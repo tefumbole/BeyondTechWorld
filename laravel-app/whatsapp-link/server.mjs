@@ -1,3 +1,4 @@
+import './patch-baileys.mjs'
 import fs from 'fs'
 import http from 'http'
 import path from 'path'
@@ -192,7 +193,12 @@ function rememberContact(entry, person) {
   if (!person) return
   const saved = String(person.name || '').trim()
   const notify = String(person.notify || person.verifiedName || '').trim()
-  const phone = phoneJid(person.phoneNumber || (String(person.id || '').indexOf('@s.whatsapp.net') !== -1 ? person.id : ''))
+  const rawId = String(person.id || '').split(':')[0]
+  let phone = phoneJid(person.phoneNumber || (rawId.indexOf('@s.whatsapp.net') !== -1 ? rawId : ''))
+  if (!phone) {
+    const bare = rawId.replace(/\D/g, '')
+    if (rawId.indexOf('@') === -1 && bare.length >= 8 && bare.length <= 15) phone = bare + '@s.whatsapp.net'
+  }
   const lid = String(person.lid || (String(person.id || '').indexOf('@lid') !== -1 ? person.id : '')).split(':')[0]
   if (!entry.book) entry.book = {}
   const phoneName = saved && !looksLikeNumber(saved) ? saved.slice(0, 80) : ''
@@ -312,7 +318,7 @@ function contactRows(entry) {
   const add = (jid, name, saved) => {
     const id = String(jid || '')
     const phone = id.endsWith('@s.whatsapp.net') ? jidDigits(id) : ''
-    if (!phone || phone === mine || phone.length < 8 || phone.length > 13) return
+    if (!phone || phone === mine || phone.length < 8 || phone.length > 15) return
     const current = merged[phone] || { jid: phone + '@s.whatsapp.net', name: '', saved_name: '', profile_name: '', phone, saved: false }
     if (name && !looksLikeNumber(name)) {
       if (saved) {
@@ -568,7 +574,7 @@ function rememberTyping(entry, chatId, person, kind) {
 function pullAddressBook(entry, sock, dir) {
   if (!sock || typeof sock.resyncAppState !== 'function' || entry.bookAsked) return
   entry.bookAsked = true
-  const mark = path.join(dir, 'address-book.v3')
+  const mark = path.join(dir, 'address-book.v4')
   let first = true
   try { first = !fs.existsSync(mark) } catch (e) { first = true }
   if (first) {

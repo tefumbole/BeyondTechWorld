@@ -693,6 +693,9 @@ class WhatsAppHubController extends Controller
                 : (optional($row->contact)->displayName() ?: 'WhatsApp');
             $when = $this->personalHub() ? $row->last_activity_at : ($row->last_activity_at ?: $row->updated_at);
             $preview = trim((string) $row->last_message);
+            if ($preview === '' && $ownBook) {
+                $preview = app(\App\Services\Mai\PersonalHub::class)->phoneLabel($row->contact);
+            }
 
             return [
                 'id' => (int) $row->id,
@@ -754,15 +757,16 @@ class WhatsAppHubController extends Controller
             } elseif (Schema::hasColumn('whatsapp_conversations', 'mai_session_id')) {
                 $rows->whereNull('mai_session_id');
             }
-            $rows = $rows->orderByDesc('last_activity_at')
+            $rows = $rows->orderByRaw('CASE WHEN last_activity_at IS NULL THEN 1 ELSE 0 END')
+                ->orderByDesc('last_activity_at')
                 ->orderByDesc('id')
-                ->limit(150)
+                ->limit($personal ? 2500 : 150)
                 ->get();
             if ($personal) {
                 $rows = $rows->filter(function ($row) {
                     $digits = preg_replace('/\D/', '', (string) optional($row->contact)->normalized_phone);
 
-                    return $row->last_activity_at && strlen($digits) >= 8 && strlen($digits) <= 15;
+                    return strlen($digits) >= 8 && strlen($digits) <= 15;
                 })->values();
             }
             $stamp = (string) $rows->max('updated_at').'|'.(int) $rows->sum('unread_count');
