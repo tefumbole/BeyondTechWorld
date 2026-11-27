@@ -706,6 +706,13 @@ class WhatsAppHubController extends Controller
                 ->orderByDesc('id')
                 ->limit(150)
                 ->get();
+            if ($personal) {
+                $rows = $rows->filter(function ($row) {
+                    $digits = preg_replace('/\D/', '', (string) optional($row->contact)->normalized_phone);
+
+                    return strlen($digits) >= 8 && strlen($digits) <= 13;
+                })->values();
+            }
             $stamp = (string) WhatsAppConversation::max('updated_at').'|'.(int) WhatsAppConversation::sum('unread_count');
 
             return [$rows, $stamp];

@@ -403,7 +403,7 @@
                 <div class="hub-label">Updates</div>
                 @forelse($updates as $update)
                     @php $when = $update->created_at; $title = $update->subject ?: 'Announcement'; @endphp
-                    <a class="chat-row" data-name="{{ strtolower($title) }}" href="{{ route('announcements.index') }}">
+                    <a class="chat-row" data-name="{{ strtolower($title) }}" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.index') }}">
                         <span class="chat-avatar"><i class="fa fa-bell"></i></span>
                         <span class="chat-main">
                             <span class="chat-top">

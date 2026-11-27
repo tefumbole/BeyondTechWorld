@@ -108,6 +108,7 @@ function scheduleSave(entry) {
       fs.writeFileSync(path.join(sessionDir(entry.id), 'chats.json'), JSON.stringify({
         chats: entry.chats || {},
         inbox: (entry.inbox || []).slice(-200),
+        lids: entry.lids || {},
       }))
     } catch (e) {}
   }, 400)
@@ -118,48 +119,102 @@ function loadSavedChats(entry) {
     const saved = JSON.parse(fs.readFileSync(path.join(sessionDir(entry.id), 'chats.json'), 'utf8'))
     entry.chats = saved && saved.chats ? saved.chats : {}
     entry.inbox = saved && Array.isArray(saved.inbox) ? saved.inbox : []
+    entry.lids = saved && saved.lids ? saved.lids : {}
   } catch (e) {
     if (!entry.chats) entry.chats = {}
     if (!entry.inbox) entry.inbox = []
   }
 }
 
+function looksLikeNumber(name) {
+  const digits = String(name || '').replace(/\D/g, '')
+  return digits.length >= 8 && digits.length >= String(name || '').replace(/[\s+()-]/g, '').length
+}
+
+function preferName(current, next) {
+  const incoming = String(next || '').trim()
+  if (!incoming || looksLikeNumber(incoming)) return current || ''
+  if (!current || looksLikeNumber(current)) return incoming.slice(0, 80)
+  return current
+}
+
+function phoneJid(jid) {
+  const id = String(jid || '').split(':')[0]
+  if (id.endsWith('@s.whatsapp.net') || id.endsWith('@g.us')) return id
+  return ''
+}
+
+function rememberLid(entry, lid, phone) {
+  const from = String(lid || '').split(':')[0]
+  const to = phoneJid(phone)
+  if (!from.endsWith('@lid') || !to) return
+  if (!entry.lids) entry.lids = {}
+  entry.lids[from] = to
+  const saved = entry.chats && entry.chats[from]
+  if (saved) touchChat(entry, to, { name: saved.name, preview: saved.preview, at: saved.at, unread: saved.unread, trusted: !looksLikeNumber(saved.name) })
+}
+
+function rememberContact(entry, person) {
+  if (!person) return
+  const saved = String(person.name || '').trim()
+  const notify = String(person.notify || person.verifiedName || '').trim()
+  const phone = phoneJid(person.phoneNumber || (String(person.id || '').indexOf('@s.whatsapp.net') !== -1 ? person.id : ''))
+  const lid = String(person.lid || (String(person.id || '').indexOf('@lid') !== -1 ? person.id : '')).split(':')[0]
+  if (lid && phone) rememberLid(entry, lid, phone)
+  const target = phone || (String(person.id || '').indexOf('@g.us') !== -1 ? String(person.id) : '')
+  if (!target) return
+  touchChat(entry, target, { name: saved || notify, trusted: saved !== '' })
+}
+
 function touchChat(entry, jid, patch) {
-  const id = String(jid || '')
-  if (!id || id.indexOf('@broadcast') !== -1) return
+  const id = String(jid || '').split(':')[0]
+  if (!id || id.indexOf('@broadcast') !== -1 || id.endsWith('@lid')) return
   if (!entry.chats) entry.chats = {}
   const current = entry.chats[id] || { jid: id, name: '', preview: '', at: 0, unread: 0 }
-  if (patch.name) current.name = String(patch.name).slice(0, 80)
+  if (patch.trusted && patch.name && !looksLikeNumber(patch.name)) current.name = String(patch.name).slice(0, 80)
+  else if (patch.name) current.name = preferName(current.name, patch.name)
   if (patch.preview) current.preview = String(patch.preview).slice(0, 140)
   if (patch.at) current.at = Number(patch.at) || current.at
   if (typeof patch.unread === 'number') current.unread = patch.unread
-  if (!current.name) {
-    const digits = jidDigits(id)
-    if (digits) current.name = '+' + digits
-  }
   entry.chats[id] = current
   scheduleSave(entry)
 }
 
 function chatRows(entry) {
-  const rows = Object.keys(entry.chats || {}).map((jid) => entry.chats[jid])
+  const merged = {}
+  Object.keys(entry.chats || {}).forEach((jid) => {
+    const row = entry.chats[jid]
+    let id = String(jid || '')
+    if (id.endsWith('@lid')) id = entry.lids && entry.lids[id] ? entry.lids[id] : ''
+    id = phoneJid(id) || (id.endsWith('@g.us') ? id : '')
+    if (!id) return
+    const phone = id.endsWith('@s.whatsapp.net') ? jidDigits(id) : ''
+    if (phone && (phone.length < 8 || phone.length > 13)) return
+    const current = merged[id] || { jid: id, name: '', phone, preview: '', at: 0, unread: 0 }
+    current.name = preferName(current.name, row.name)
+    if ((row.at || 0) >= (current.at || 0)) {
+      current.preview = row.preview || current.preview
+      current.at = row.at || current.at
+    }
+    current.unread = Math.max(current.unread || 0, row.unread || 0)
+    merged[id] = current
+  })
+  const rows = Object.keys(merged).map((jid) => merged[jid])
   rows.sort((left, right) => (right.at || 0) - (left.at || 0))
-  return rows.slice(0, 80).map((row) => ({
-    jid: row.jid,
-    name: row.name || '',
-    phone: jidDigits(row.jid),
-    preview: row.preview || '',
-    at: row.at || 0,
-    unread: row.unread || 0,
-  }))
+  return rows.slice(0, 80)
 }
 
 function rememberMessage(entry, msg) {
   if (!msg || !msg.key) return
   const text = messageText(msg.message).trim()
-  const jid = String(msg.key.remoteJid || '')
+  let jid = String(msg.key.remoteJid || '').split(':')[0]
+  const alt = String(msg.key.remoteJidAlt || '')
+  if (jid.endsWith('@lid') && alt.indexOf('@s.whatsapp.net') !== -1) {
+    rememberLid(entry, jid, alt)
+    jid = phoneJid(alt)
+  }
   const at = Number(msg.messageTimestamp) || 0
-  if (jid) {
+  if (jid && !jid.endsWith('@lid')) {
     touchChat(entry, jid, {
       name: !msg.key.fromMe && msg.pushName ? msg.pushName : '',
       preview: text || (msg.message && msg.message.imageMessage ? 'Photo' : ''),
@@ -279,15 +334,17 @@ async function startSocket(id, expected) {
     const messages = payload && payload.messages ? payload.messages : []
     chats.forEach((chat) => touchChat(entry, chat.id, {
       name: chat.name || '',
+      trusted: !!(chat.name && !looksLikeNumber(chat.name)),
       at: Number(chat.conversationTimestamp) || 0,
       unread: Number(chat.unreadCount) || 0,
     }))
-    contacts.forEach((person) => touchChat(entry, person.id, { name: person.name || person.notify || '' }))
+    contacts.forEach((person) => rememberContact(entry, person))
     messages.forEach((msg) => rememberMessage(entry, msg))
   })
   sock.ev.on('chats.upsert', (chats) => {
     ;(chats || []).forEach((chat) => touchChat(entry, chat.id, {
       name: chat.name || '',
+      trusted: !!(chat.name && !looksLikeNumber(chat.name)),
       at: Number(chat.conversationTimestamp) || 0,
       unread: Number(chat.unreadCount) || 0,
     }))
@@ -297,13 +354,17 @@ async function startSocket(id, expected) {
       if (!chat || !chat.id) return
       touchChat(entry, chat.id, {
         name: chat.name || '',
+        trusted: !!(chat.name && !looksLikeNumber(chat.name)),
         at: Number(chat.conversationTimestamp) || 0,
         unread: typeof chat.unreadCount === 'number' ? chat.unreadCount : undefined,
       })
     })
   })
   sock.ev.on('contacts.upsert', (people) => {
-    ;(people || []).forEach((person) => touchChat(entry, person.id, { name: person.name || person.notify || '' }))
+    ;(people || []).forEach((person) => rememberContact(entry, person))
+  })
+  sock.ev.on('contacts.update', (people) => {
+    ;(people || []).forEach((person) => rememberContact(entry, person))
   })
   sock.ev.on('connection.update', async (update) => {
     if (update.qr) {
@@ -317,6 +378,11 @@ async function startSocket(id, expected) {
       entry.retries = 0
       const raw = sock.user && sock.user.id ? String(sock.user.id) : ''
       entry.phone = raw.split(':')[0].split('@')[0]
+      const needsNames = Object.keys(entry.chats || {}).some((jid) => jid.indexOf('@lid') !== -1 || looksLikeNumber((entry.chats[jid] || {}).name))
+      if (needsNames && !entry.nameAsked && typeof sock.resyncAppState === 'function') {
+        entry.nameAsked = true
+        sock.resyncAppState(['critical_unblock_low', 'regular_low'], false).catch(() => {})
+      }
       if (entry.recoverChats && !entry.historyAsked && typeof sock.resyncAppState === 'function') {
         entry.historyAsked = true
         sock.resyncAppState(['critical_block', 'critical_unblock_low', 'regular_high', 'regular_low', 'regular'], true)

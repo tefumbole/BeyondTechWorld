@@ -51,15 +51,36 @@ class PersonalHub
         $engine = app(MaiWhatsAppEngine::class);
         $outbound = app(MaiOutboundService::class);
         app(CloudTenantContext::class)->withoutIsolation(function () use ($session, $phone, $engine, $outbound) {
+            $lookups = 0;
             foreach ($engine->chats($phone) as $chat) {
-                if (substr($chat['jid'], -5) === '@g.us' || $chat['phone'] === '') {
+                if (substr($chat['jid'], -5) === '@g.us' || $chat['phone'] === '' || strlen($chat['phone']) > 13) {
                     continue;
                 }
                 $conversation = $outbound->conversation($session, $chat['phone']);
                 $contact = $conversation->contact;
+                $saved = $this->savedName($chat['name'], $chat['phone']);
+                if ($saved === '' && strpos($chat['phone'], '237') === 0 && strlen($chat['phone']) === 12 && $lookups < 8) {
+                    $lookups++;
+                    try {
+                        $found = app(\App\Services\MobileMoneyHolderService::class)->lookup($chat['phone'], false, true);
+                        if (! empty($found['name'])) {
+                            $saved = $this->savedName($found['name'], $chat['phone']);
+                        }
+                    } catch (\Throwable $e) {
+                    }
+                }
                 $shared = $contact && WhatsAppConversation::where('contact_id', $contact->id)->whereNull('mai_session_id')->exists();
-                if ($contact && ! $shared && $chat['name'] !== '' && trim((string) $contact->wa_name) === '') {
-                    $contact->wa_name = function_exists('mb_substr') ? mb_substr($chat['name'], 0, 191) : substr($chat['name'], 0, 191);
+                if ($contact && $saved !== '' && ! $shared) {
+                    $current = $this->savedName($contact->wa_name, $chat['phone']);
+                    if ($current === '' || $current !== $saved) {
+                        $contact->wa_name = function_exists('mb_substr') ? mb_substr($saved, 0, 191) : substr($saved, 0, 191);
+                    }
+                }
+                if ($contact) {
+                    $shown = \App\Support\WhatsAppPhone::display($chat['phone']);
+                    if ($shown !== '' && $contact->display_phone !== $shown) {
+                        $contact->display_phone = $shown;
+                    }
                     $contact->save();
                 }
                 if ($chat['preview'] !== '') {
@@ -77,7 +98,7 @@ class PersonalHub
                     continue;
                 }
                 $digits = preg_replace('/\D/', '', strtok($from, '@'));
-                if ($digits === '') {
+                if ($digits === '' || strlen($digits) > 13 || substr($from, -4) === '@lid') {
                     continue;
                 }
                 $conversation = $outbound->conversation($session, $digits);
@@ -119,5 +140,17 @@ class PersonalHub
         }
 
         return $groups;
+    }
+
+    protected function savedName($name, $phone)
+    {
+        $name = trim((string) $name);
+        $digits = preg_replace('/\D/', '', $name);
+        $phone = preg_replace('/\D/', '', (string) $phone);
+        if ($name === '' || $digits === $phone || $name === '+'.$phone) {
+            return '';
+        }
+
+        return $name;
     }
 }
