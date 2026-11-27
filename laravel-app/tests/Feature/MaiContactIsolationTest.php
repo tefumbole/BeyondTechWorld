@@ -48,7 +48,7 @@ class MaiContactIsolationTest extends TestCase
             $table->unsignedBigInteger('contact_id')->nullable();
             $table->string('direction', 16);
             $table->string('type', 24)->default('TEXT');
-            $table->string('provider_message_id', 128)->nullable();
+            $table->string('provider_message_id', 128)->nullable()->unique();
             $table->text('body')->nullable();
             $table->text('media_json')->nullable();
             $table->string('status', 16)->default('DELIVERED');
@@ -491,6 +491,41 @@ class MaiContactIsolationTest extends TestCase
         $this->assertSame(WhatsAppMessage::STATUS_READ, $photo->fresh()->status);
         @unlink($dir.'/pic.jpg');
         @unlink(storage_path('app/'.$photo->media()['stored']));
+    }
+
+    public function test_a_message_already_stored_does_not_stop_the_chat()
+    {
+        $session = $this->linked(9, 'p2376700009');
+        $other = $this->contact('Already stored');
+        $chat = $this->chat($other, $session, 'Already stored');
+        $kept = new WhatsAppMessage();
+        $kept->conversation_id = $chat->id;
+        $kept->contact_id = $other->id;
+        $kept->direction = WhatsAppMessage::DIR_OUT;
+        $kept->type = 'TEXT';
+        $kept->provider_message_id = 'DUPCHAT1';
+        $kept->body = 'Keep this';
+        $kept->status = WhatsAppMessage::STATUS_SENT;
+        $kept->sender_type = 'ECHO';
+        $kept->save();
+        config(['cloud.whatsapp.link_transport' => function ($method, $path, $body) {
+            if (substr($path, -9) === '/messages') {
+                return ['messages' => [[
+                    'id' => 'DUPCHAT1',
+                    'from' => '237699000999@s.whatsapp.net',
+                    'from_me' => true,
+                    'text' => 'Keep this',
+                    'at' => (string) time(),
+                    'receipt' => 2,
+                ]]];
+            }
+
+            return ['status' => 'CONNECTED'];
+        }]);
+
+        app(\App\Services\Mai\PersonalHub::class)->sync($session);
+
+        $this->assertSame(1, WhatsAppMessage::where('provider_message_id', 'DUPCHAT1')->count());
     }
 
     public function test_an_edit_uses_the_linked_socket()

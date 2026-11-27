@@ -122,11 +122,11 @@ class PersonalHub
                 $status = $this->receiptStatus($row);
                 $conversation = $outbound->conversation($session, $digits);
                 if ($providerId !== '') {
-                    $existing = WhatsAppMessage::where('conversation_id', $conversation->id)
-                        ->where('provider_message_id', $providerId)
-                        ->first();
+                    $existing = WhatsAppMessage::where('provider_message_id', $providerId)->first();
                     if ($existing) {
-                        $this->raiseStatus($existing, $status);
+                        if ((int) $existing->conversation_id === (int) $conversation->id) {
+                            $this->raiseStatus($existing, $status);
+                        }
                         continue;
                     }
                 }
@@ -138,7 +138,7 @@ class PersonalHub
                     ->orderByDesc('id')
                     ->first();
                 if ($same) {
-                    if ($providerId !== '' && ! $same->provider_message_id) {
+                    if ($providerId !== '' && ! $same->provider_message_id && ! WhatsAppMessage::where('provider_message_id', $providerId)->exists()) {
                         $same->provider_message_id = $providerId;
                         $same->save();
                     }
@@ -161,7 +161,11 @@ class PersonalHub
                 $message->sender_type = ! empty($row['from_me']) ? 'ECHO' : 'CONTACT';
                 $message->created_at = $stamp;
                 $message->updated_at = $stamp;
-                $message->save();
+                try {
+                    $message->save();
+                } catch (\Illuminate\Database\QueryException $e) {
+                    continue;
+                }
                 $preview = function_exists('mb_substr') ? mb_substr($row['text'], 0, 191) : substr($row['text'], 0, 191);
                 $conversation->last_message = $preview;
                 if (! $conversation->last_activity_at || $stamp->gt($conversation->last_activity_at)) {

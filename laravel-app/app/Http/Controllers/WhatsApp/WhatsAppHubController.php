@@ -302,7 +302,10 @@ class WhatsAppHubController extends Controller
                 $personal->connected_at = $personal->connected_at ?: \Carbon\Carbon::now();
                 $personal->save();
             }
-            app(\App\Services\Mai\PersonalHub::class)->sync($personal);
+            try {
+                app(\App\Services\Mai\PersonalHub::class)->sync($personal);
+            } catch (\Throwable $e) {
+            }
         }
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
             return $deny;
