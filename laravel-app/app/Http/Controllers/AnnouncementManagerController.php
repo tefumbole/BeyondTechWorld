@@ -61,18 +61,58 @@ class AnnouncementManagerController extends Controller
 
     protected function usersJson()
     {
+        $phonePeople = $this->phonePeople('');
+        if ($phonePeople !== null) {
+            return collect($phonePeople)->values();
+        }
+
         return collect($this->announcements->eligibleUsers())->values();
     }
 
     public function searchUsers(Request $request)
     {
         $this->authorizeAnnouncements('announcements.create');
+        $phonePeople = $this->phonePeople($request->query('q', ''));
+        if ($phonePeople !== null) {
+            return response()->json(collect($phonePeople)->values());
+        }
         $users = $this->announcements->eligibleUsers(
             $request->query('filter', 'all'),
             $request->query('q', '')
         );
 
         return response()->json(collect($users)->values());
+    }
+
+    protected function phonePeople($search)
+    {
+        if (! \App\Support\MaiHost::is(request()) || ! Auth::check()) {
+            return null;
+        }
+        $session = app(\App\Services\Mai\PersonalHub::class)->ensure(Auth::user());
+        $owner = $session ? ($session->phone_number ?: $session->expected_phone) : '';
+        if ($owner === '') {
+            return [];
+        }
+        $term = strtolower(trim((string) $search));
+        $out = [];
+        foreach (app(\App\Services\Cloud\MaiWhatsAppEngine::class)->contacts($owner) as $row) {
+            $name = $row['name'] !== '' ? $row['name'] : $row['phone'];
+            if ($term !== '' && strpos(strtolower($name.' '.$row['phone']), $term) === false) {
+                continue;
+            }
+            $out[] = [
+                'id' => 'wa:'.$row['phone'],
+                'name' => $name,
+                'email' => '',
+                'phone' => $row['phone'],
+                'address' => '',
+                'role' => 'customer',
+                'source' => 'WhatsApp',
+            ];
+        }
+
+        return $out;
     }
 
     /**

@@ -82,6 +82,34 @@ class MaiWhatsAppEngine
         return $rows;
     }
 
+    public function contacts($phone)
+    {
+        $id = $this->id($phone);
+        if ($id === '') {
+            return [];
+        }
+        $payload = $this->request('GET', '/sessions/'.$id.'/contacts', null, 12);
+        if (! is_array($payload) || empty($payload['contacts']) || ! is_array($payload['contacts'])) {
+            return [];
+        }
+        $rows = [];
+        foreach ($payload['contacts'] as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $digits = isset($row['phone']) ? preg_replace('/\D/', '', (string) $row['phone']) : '';
+            if (! preg_match('/^[1-9][0-9]{7,12}$/', $digits)) {
+                continue;
+            }
+            $rows[] = [
+                'phone' => $digits,
+                'name' => isset($row['name']) ? (string) $row['name'] : '',
+            ];
+        }
+
+        return $rows;
+    }
+
     public function messages($phone)
     {
         $id = $this->id($phone);

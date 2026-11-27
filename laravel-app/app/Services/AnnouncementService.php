@@ -75,7 +75,58 @@ class AnnouncementService
 
     public function resolvePeople(array $ids)
     {
-        return $this->people->resolveDirectoryPeople($ids);
+        $people = $this->people->resolveDirectoryPeople($ids);
+        $found = [];
+        foreach ($people as $person) {
+            if (is_array($person) && isset($person['id'])) {
+                $found[(string) $person['id']] = true;
+            }
+        }
+        $book = [];
+        foreach ($ids as $id) {
+            if (strpos((string) $id, 'wa:') === 0) {
+                $book = $this->phoneBook();
+                break;
+            }
+        }
+        foreach ($ids as $id) {
+            $id = (string) $id;
+            if (isset($found[$id]) || strpos($id, 'wa:') !== 0) {
+                continue;
+            }
+            $phone = preg_replace('/\D/', '', substr($id, 3));
+            if (! preg_match('/^[1-9][0-9]{7,12}$/', $phone)) {
+                continue;
+            }
+            $known = isset($book[$phone]) ? $book[$phone] : [];
+            $people[] = [
+                'id' => 'wa:'.$phone,
+                'kind' => 'contact',
+                'name' => ! empty($known['name']) ? $known['name'] : $phone,
+                'phone' => $phone,
+                'email' => '',
+            ];
+        }
+
+        return $people;
+    }
+
+    protected function phoneBook()
+    {
+        $book = [];
+        if (! $this->sessionId) {
+            return $book;
+        }
+        try {
+            foreach ($this->whatsappContacts() as $contact) {
+                if (! empty($contact['phone'])) {
+                    $book[$contact['phone']] = $contact;
+                }
+            }
+        } catch (\Exception $e) {
+        }
+
+        return $book;
     }
 
     /**
@@ -589,7 +640,7 @@ class AnnouncementService
     {
         if ($this->sessionId) {
             $phone = $this->sessionPhone();
-            $rows = $phone === '' ? [] : app(\App\Services\Cloud\MaiWhatsAppEngine::class)->chats($phone);
+            $rows = $phone === '' ? [] : app(\App\Services\Cloud\MaiWhatsAppEngine::class)->contacts($phone);
             $contacts = [];
             foreach ($rows as $row) {
                 if (empty($row['phone'])) {

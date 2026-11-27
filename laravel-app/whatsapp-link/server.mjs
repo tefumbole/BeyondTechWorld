@@ -171,8 +171,17 @@ function rememberContact(entry, person) {
   const lid = String(person.lid || (String(person.id || '').indexOf('@lid') !== -1 ? person.id : '')).split(':')[0]
   if (!entry.book) entry.book = {}
   const known = saved && !looksLikeNumber(saved) ? saved : (notify && !looksLikeNumber(notify) ? notify : '')
-  if (phone && known) entry.book[phone] = { name: known.slice(0, 80), saved: saved !== '' && !looksLikeNumber(saved) }
-  if (lid && known) entry.book[lid] = { name: known.slice(0, 80), saved: saved !== '' && !looksLikeNumber(saved) }
+  const keep = (key) => {
+    if (!key) return
+    const current = entry.book[key] || { name: '', saved: false }
+    entry.book[key] = {
+      name: (known || current.name || '').slice(0, 80),
+      saved: (saved !== '' && !looksLikeNumber(saved)) || !!current.saved,
+    }
+  }
+  keep(phone)
+  keep(lid)
+  if (phone || lid) scheduleSave(entry)
   if (lid && phone) rememberLid(entry, lid, phone)
   const target = phone || (String(person.id || '').indexOf('@g.us') !== -1 ? String(person.id) : '')
   const existing = target && entry.chats && entry.chats[target] ? target : (lid && entry.chats && entry.chats[lid] ? lid : '')
@@ -233,6 +242,33 @@ function chatRows(entry) {
   const rows = Object.keys(merged).map((jid) => merged[jid])
   rows.sort((left, right) => (right.at || 0) - (left.at || 0))
   return rows.slice(0, 80)
+}
+
+function contactRows(entry) {
+  const merged = {}
+  const mine = String(entry.phone || '').replace(/\D/g, '')
+  const add = (jid, name) => {
+    const id = String(jid || '')
+    const phone = id.endsWith('@s.whatsapp.net') ? jidDigits(id) : ''
+    if (!phone || phone === mine || phone.length < 8 || phone.length > 13) return
+    const current = merged[phone] || { jid: phone + '@s.whatsapp.net', name: '', phone }
+    if (name && !looksLikeNumber(name)) current.name = preferName(current.name, name)
+    merged[phone] = current
+  }
+  Object.keys(entry.book || {}).forEach((key) => {
+    const row = entry.book[key] || {}
+    let id = key
+    if (id.endsWith('@lid') && entry.lids && entry.lids[id]) id = entry.lids[id]
+    add(id, row.name)
+  })
+  Object.keys(entry.chats || {}).forEach((jid) => {
+    const row = entry.chats[jid]
+    if (!row) return
+    let id = jid
+    if (id.endsWith('@lid') && entry.lids && entry.lids[id]) id = entry.lids[id]
+    add(id, row.name)
+  })
+  return Object.keys(merged).map((phone) => merged[phone])
 }
 
 function rememberMessage(entry, msg, live) {
@@ -301,7 +337,7 @@ async function attachLids(entry) {
 function pullAddressBook(entry, sock, dir) {
   if (!sock || typeof sock.resyncAppState !== 'function' || entry.bookAsked) return
   entry.bookAsked = true
-  const mark = path.join(dir, 'address-book.pulled')
+  const mark = path.join(dir, 'address-book.v2')
   let first = true
   try { first = !fs.existsSync(mark) } catch (e) { first = true }
   if (first) {
@@ -781,6 +817,11 @@ const server = http.createServer((req, res) => {
       const entry = sessions.get(id) || { chats: {} }
       attachLids(entry).catch(() => {})
       send(res, 200, { phone: entry.phone || null, chats: chatRows(entry) })
+      return
+    }
+    if (req.method === 'GET' && parts[2] === 'contacts') {
+      const entry = sessions.get(id) || { book: {}, chats: {} }
+      send(res, 200, { phone: entry.phone || null, contacts: contactRows(entry) })
       return
     }
     if (req.method === 'GET' && parts[2] === 'messages') {
