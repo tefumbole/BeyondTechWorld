@@ -173,10 +173,10 @@
     .ask-file[hidden] { display: none !important; }
     .ask-file span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ask-file button { border: 0; background: transparent; color: #0b3f90; font-size: 20px; font-weight: 800; cursor: pointer; }
-    .ask-row { display: flex; align-items: flex-end; gap: 8px; padding: 6px; border-radius: 22px; background: #f4f7fd; box-shadow: inset 0 0 0 1px #e1e8f4; }
-    .ask-card .ask-clip { display: flex; align-items: center; justify-content: center; width: auto; min-width: 76px; height: 40px; margin: 0; padding: 0 12px; border-radius: 14px; background: #c6ab47; color: #072f6b; font-size: 13px; font-weight: 800; letter-spacing: 0; text-transform: none; cursor: pointer; flex: none; }
-    .ask-clip input { display: none; }
-    .ask-row #transcribePrompt { flex: 1; width: auto; min-height: 36px; max-height: 96px; margin: 0; padding: 8px 4px; border: 0; border-radius: 0; background: transparent; resize: none; box-shadow: none; }
+    .ask-row { display: flex; align-items: flex-end; gap: 8px; padding: 8px; border-radius: 22px; background: #f4f7fd; box-shadow: inset 0 0 0 1px #e1e8f4; }
+    .ask-card .ask-clip { display: flex; align-items: center; justify-content: center; width: auto; min-width: 76px; height: 40px; margin: 0; padding: 0 12px; border-radius: 14px; background: #c6ab47; color: #072f6b; font-size: 13px; font-weight: 800; letter-spacing: 0; text-transform: none; cursor: pointer; flex: none; overflow: hidden; }
+    .ask-clip input, .ask-clip > div { display: none !important; }
+    .ask-row #transcribePrompt { flex: 1 1 auto; width: auto; min-width: 0; min-height: 96px; max-height: 180px; margin: 0; padding: 10px 8px; border: 0; border-radius: 14px; background: #fff; resize: vertical; box-shadow: inset 0 0 0 1px #e1e8f4; }
     .ask-row #transcribeAsk { width: auto; min-width: 64px; height: 40px; margin: 0; padding: 0 14px; border-radius: 16px; background: linear-gradient(145deg, #0b3f90, #072f6b); }
     .mai-open { width: 46px; height: 46px; flex: none; cursor: pointer; }
     .msg-edit { display: flex; flex-direction: column; gap: 8px; }
@@ -870,7 +870,7 @@
             </div>
             <div class="ask-row">
                 <label class="ask-clip" aria-label="Attach a file">
-                    <input type="file" id="askFile" accept=".txt,.csv,.md,.json,.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif">
+                    <input type="file" id="askFile" class="js-no-image-paste" data-skip-image-paste="1" accept=".txt,.csv,.md,.json,.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif">
                     Attach
                 </label>
                 <textarea id="transcribePrompt" maxlength="2000" rows="1" placeholder="Ask MAI about this chat"></textarea>
@@ -1065,20 +1065,70 @@
         var picked = event.target.files && event.target.files[0];
         showPicked(picked || null);
     });
+    function showAskFile(file) {
+        var input = document.getElementById('askFile');
+        var name = document.getElementById('askFileName');
+        if (!name) return;
+        var span = name.querySelector('span');
+        if (input && file) {
+            try {
+                var list = new DataTransfer();
+                list.items.add(file);
+                input.files = list.files;
+            } catch (e) {}
+        }
+        if (!file) {
+            name.hidden = true;
+            if (span) span.textContent = '';
+            return;
+        }
+        name.hidden = false;
+        if (span) span.textContent = file.name || 'Pasted file';
+    }
+    function askPastedFile(data) {
+        var named = clipboardFile(data);
+        if (named) return named;
+        if (!data) return null;
+        var items = data.items || [];
+        var i;
+        for (i = 0; i < items.length; i++) {
+            if (!items[i] || items[i].kind !== 'file') continue;
+            var fromItem = items[i].getAsFile();
+            if (fromItem) return fromItem;
+        }
+        var files = data.files || [];
+        return files.length ? files[0] : null;
+    }
     document.addEventListener('paste', function (event) {
         var field = event.target;
-        if (!field || field.id !== 'chatBody') return;
+        if (!field) return;
+        if (field.id === 'transcribePrompt') {
+            var askPicked = askPastedFile(event.clipboardData);
+            if (!askPicked) return;
+            event.preventDefault();
+            showAskFile(askPicked);
+            return;
+        }
+        if (field.id !== 'chatBody') return;
         var picked = clipboardFile(event.clipboardData);
         if (!picked) return;
         event.preventDefault();
         attachPasted(picked);
     }, true);
     document.addEventListener('dragover', function (event) {
-        if (!event.target || event.target.id !== 'chatBody') return;
+        if (!event.target || (event.target.id !== 'chatBody' && event.target.id !== 'transcribePrompt')) return;
         event.preventDefault();
     });
     document.addEventListener('drop', function (event) {
-        if (!event.target || event.target.id !== 'chatBody') return;
+        if (!event.target) return;
+        if (event.target.id === 'transcribePrompt') {
+            var askPicked = askPastedFile(event.dataTransfer);
+            if (!askPicked) return;
+            event.preventDefault();
+            showAskFile(askPicked);
+            return;
+        }
+        if (event.target.id !== 'chatBody') return;
         var picked = clipboardFile(event.dataTransfer);
         if (!picked) return;
         event.preventDefault();
@@ -2094,13 +2144,7 @@
     if (transcribeAsk) transcribeAsk.addEventListener('click', function () { runAsk(''); });
     var askFile = document.getElementById('askFile');
     if (askFile) askFile.addEventListener('change', function () {
-        var picked = askAttachment();
-        var name = document.getElementById('askFileName');
-        if (!name) return;
-        var span = name.querySelector('span');
-        if (!picked) { name.hidden = true; if (span) span.textContent = ''; return; }
-        name.hidden = false;
-        if (span) span.textContent = picked.name;
+        showAskFile(askAttachment());
     });
     var transcribeUse = document.getElementById('transcribeUse');
     if (transcribeUse) transcribeUse.addEventListener('click', function () {
