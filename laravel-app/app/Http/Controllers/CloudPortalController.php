@@ -109,6 +109,9 @@ class CloudPortalController extends Controller
 
     public function whatsappMai(Request $request)
     {
+        if (\App\Support\MaiHost::isMainSite($request)) {
+            return redirect()->away(\App\Support\MaiHost::url('/'));
+        }
         $request->merge(['service' => 'MESSAGING']);
 
         return $this->showRegister();

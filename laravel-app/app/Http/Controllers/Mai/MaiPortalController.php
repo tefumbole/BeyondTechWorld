@@ -14,8 +14,11 @@ use Illuminate\Support\Facades\Auth;
 
 class MaiPortalController extends Controller
 {
-    public function home()
+    public function home(Request $request)
     {
+        if (\App\Support\MaiHost::is($request)) {
+            return app(\App\Http\Controllers\CloudPortalController::class)->whatsappMai($request);
+        }
         if (! config('cloud.mai_customer.enabled')) {
             return response()->view('mai.closed', [], 404);
         }

@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 class BeyondController extends Controller
 {
-    public function home()
+    public function home(\Illuminate\Http\Request $request)
     {
+        if (\App\Support\MaiHost::is($request)) {
+            return app(CloudPortalController::class)->whatsappMai($request);
+        }
         $pubService = app(\App\Services\EventPublicationService::class);
         $homeEvents = \Cache::remember('beyond.home.events', 60, function () use ($pubService) {
             return $pubService->publishedQuery()

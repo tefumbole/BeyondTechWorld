@@ -324,7 +324,7 @@
 @php
     $navDefs = [
         'home'         => ['label' => 'Home', 'url' => url('/')],
-        'whatsapp-mai' => ['label' => 'Whats MAI', 'url' => url('/whatsapp-mai'), 'icon' => asset('branding/mbole-ai.png')],
+        'whatsapp-mai' => ['label' => 'Whats MAI', 'url' => \App\Support\MaiHost::url('/'), 'icon' => asset('branding/mbole-ai.png')],
         'trainings'    => ['label' => 'Training', 'url' => url('/trainings'), 'menu' => 'training'],
         'events'       => ['label' => 'Events', 'url' => url('/events')],
         'rentals'      => ['label' => 'Rentals', 'url' => url('/rentals')],

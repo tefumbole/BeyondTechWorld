@@ -133,7 +133,10 @@ class CloudSubscribeWizardTest extends TestCase
         $this->get('/subscriptions')->assertRedirect('/cloud/register');
         $catalog = $this->get('/cloud/register');
         $catalog->assertOk()->assertSee('Individual')->assertSee('Company')->assertSee('Phone number')->assertDontSee('Confirm password')->assertSee('Quotations')->assertSee('Digital Invitations')->assertDontSee('WhatsApp Hub');
-        $catalog->assertSee('Whats MAI')->assertSee('branding/mbole-ai.png')->assertSee('/whatsapp-mai');
+        $catalog->assertSee('Whats MAI')->assertSee('branding/mbole-ai.png')->assertSee('https://mai.beyondtechworld.com');
+        $this->get('http://beyondtechworld.com/whatsapp-mai')->assertRedirect('https://mai.beyondtechworld.com');
+        $this->get('http://mai.beyondtechworld.com/')->assertOk()->assertSee('Start free trial')->assertSee('Auto Translate')->assertDontSee('Create an account');
+        $this->get('http://mai.beyondtechworld.com/mai')->assertOk()->assertSee('Start free trial')->assertDontSee('Create an account');
         $this->get('/whatsapp-mai')->assertOk()->assertSee('Whats MAI')->assertSee('Auto Translate')->assertSee('Transcribe')->assertSee('AI Replies')->assertSee('Auto Summaries')->assertSee('Scheduled Posts')->assertSee('Group Messaging')->assertSee('Start free trial')->assertSee('Install on Android')->assertSee('Subscribe')->assertSee('3-day trial')->assertSee('MTN MoMo')->assertSee('1,500')->assertDontSee('That code does not link WhatsApp.')->assertDontSee('Already registered?')->assertDontSee('Signature Required')->assertDontSee('Digital Invitations');
         $page = $this->get('/cloud/register?service=QUOTATIONS');
         $page->assertOk()->assertSee('Quotations')->assertDontSee('WhatsApp Hub')->assertDontSee('Digital Invitations')->assertDontSee('Messaging');
