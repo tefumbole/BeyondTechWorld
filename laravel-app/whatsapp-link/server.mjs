@@ -109,6 +109,7 @@ function scheduleSave(entry) {
         chats: entry.chats || {},
         inbox: (entry.inbox || []).slice(-200),
         lids: entry.lids || {},
+        book: entry.book || {},
       }))
     } catch (e) {}
   }, 400)
@@ -120,6 +121,7 @@ function loadSavedChats(entry) {
     entry.chats = saved && saved.chats ? saved.chats : {}
     entry.inbox = saved && Array.isArray(saved.inbox) ? saved.inbox : []
     entry.lids = saved && saved.lids ? saved.lids : {}
+    entry.book = saved && saved.book ? saved.book : {}
   } catch (e) {
     if (!entry.chats) entry.chats = {}
     if (!entry.inbox) entry.inbox = []
@@ -144,6 +146,13 @@ function phoneJid(jid) {
   return ''
 }
 
+function when(value) {
+  const raw = value && value.toString ? value.toString() : value
+  let n = Number(raw) || 0
+  if (n > 1000000000000) n = Math.floor(n / 1000)
+  return n
+}
+
 function rememberLid(entry, lid, phone) {
   const from = String(lid || '').split(':')[0]
   const to = phoneJid(phone)
@@ -160,21 +169,29 @@ function rememberContact(entry, person) {
   const notify = String(person.notify || person.verifiedName || '').trim()
   const phone = phoneJid(person.phoneNumber || (String(person.id || '').indexOf('@s.whatsapp.net') !== -1 ? person.id : ''))
   const lid = String(person.lid || (String(person.id || '').indexOf('@lid') !== -1 ? person.id : '')).split(':')[0]
+  if (!entry.book) entry.book = {}
+  const known = saved && !looksLikeNumber(saved) ? saved : (notify && !looksLikeNumber(notify) ? notify : '')
+  if (phone && known) entry.book[phone] = { name: known.slice(0, 80), saved: saved !== '' && !looksLikeNumber(saved) }
+  if (lid && known) entry.book[lid] = { name: known.slice(0, 80), saved: saved !== '' && !looksLikeNumber(saved) }
   if (lid && phone) rememberLid(entry, lid, phone)
   const target = phone || (String(person.id || '').indexOf('@g.us') !== -1 ? String(person.id) : '')
   if (!target) return
-  touchChat(entry, target, { name: saved || notify, trusted: saved !== '' })
+  touchChat(entry, target, { name: saved || notify, trusted: saved !== '' && !looksLikeNumber(saved) })
 }
 
 function touchChat(entry, jid, patch) {
-  const id = String(jid || '').split(':')[0]
-  if (!id || id.indexOf('@broadcast') !== -1 || id.endsWith('@lid')) return
+  let id = String(jid || '').split(':')[0]
+  if (!id || id.indexOf('@broadcast') !== -1) return
+  if (id.endsWith('@lid') && entry.lids && entry.lids[id]) id = entry.lids[id]
   if (!entry.chats) entry.chats = {}
   const current = entry.chats[id] || { jid: id, name: '', preview: '', at: 0, unread: 0 }
-  if (patch.trusted && patch.name && !looksLikeNumber(patch.name)) current.name = String(patch.name).slice(0, 80)
+  const book = entry.book && entry.book[id]
+  if (book && book.saved && book.name) current.name = book.name
+  else if (patch.trusted && patch.name && !looksLikeNumber(patch.name)) current.name = String(patch.name).slice(0, 80)
   else if (patch.name) current.name = preferName(current.name, patch.name)
   if (patch.preview) current.preview = String(patch.preview).slice(0, 140)
-  if (patch.at) current.at = Number(patch.at) || current.at
+  const at = when(patch.at)
+  if (at && at >= (current.at || 0)) current.at = at
   if (typeof patch.unread === 'number') current.unread = patch.unread
   entry.chats[id] = current
   scheduleSave(entry)
@@ -185,12 +202,18 @@ function chatRows(entry) {
   Object.keys(entry.chats || {}).forEach((jid) => {
     const row = entry.chats[jid]
     let id = String(jid || '')
-    if (id.endsWith('@lid')) id = entry.lids && entry.lids[id] ? entry.lids[id] : ''
-    id = phoneJid(id) || (id.endsWith('@g.us') ? id : '')
+    if (id.endsWith('@lid')) id = entry.lids && entry.lids[id] ? entry.lids[id] : id
+    if (id.endsWith('@lid')) {
+      const named = preferName('', row.name) || (entry.book && entry.book[id] && entry.book[id].name) || ''
+      if (!named) return
+    }
+    id = phoneJid(id) || (id.endsWith('@g.us') ? id : (id.endsWith('@lid') ? id : ''))
     if (!id) return
     const phone = id.endsWith('@s.whatsapp.net') ? jidDigits(id) : ''
-    if (phone && (phone.length < 8 || phone.length > 13)) return
+    if (phone && (phone.length < 8 || phone.length > 15)) return
     const current = merged[id] || { jid: id, name: '', phone, preview: '', at: 0, unread: 0 }
+    const book = entry.book && (entry.book[id] || entry.book[jid])
+    if (book && book.name) current.name = book.saved ? book.name : preferName(current.name, book.name)
     current.name = preferName(current.name, row.name)
     if ((row.at || 0) >= (current.at || 0)) {
       current.preview = row.preview || current.preview
@@ -213,7 +236,7 @@ function rememberMessage(entry, msg) {
     rememberLid(entry, jid, alt)
     jid = phoneJid(alt)
   }
-  const at = Number(msg.messageTimestamp) || 0
+  const at = when(msg.messageTimestamp) || Math.floor(Date.now() / 1000)
   if (jid && !jid.endsWith('@lid')) {
     touchChat(entry, jid, {
       name: !msg.key.fromMe && msg.pushName ? msg.pushName : '',
@@ -263,6 +286,26 @@ async function attachLids(entry) {
     })
     scheduleSave(entry)
   } catch (e) {}
+}
+
+function pullAddressBook(entry, sock, dir) {
+  if (!sock || typeof sock.resyncAppState !== 'function' || entry.bookAsked) return
+  entry.bookAsked = true
+  const mark = path.join(dir, 'address-book.pulled')
+  let first = true
+  try { first = !fs.existsSync(mark) } catch (e) { first = true }
+  if (first) {
+    try {
+      fs.readdirSync(dir).forEach((file) => {
+        if (file.indexOf('app-state-sync-version-critical_unblock_low') === 0 || file.indexOf('app-state-sync-version-regular') === 0) {
+          fs.rmSync(path.join(dir, file), { force: true })
+        }
+      })
+    } catch (e) {}
+  }
+  sock.resyncAppState(['critical_unblock_low', 'regular_low', 'regular'], first)
+    .then(() => { try { fs.writeFileSync(mark, String(Date.now())) } catch (e) {} })
+    .catch(() => { entry.bookAsked = false })
 }
 
 function sessionDir(id) {
@@ -378,11 +421,7 @@ async function startSocket(id, expected) {
       entry.retries = 0
       const raw = sock.user && sock.user.id ? String(sock.user.id) : ''
       entry.phone = raw.split(':')[0].split('@')[0]
-      const needsNames = Object.keys(entry.chats || {}).some((jid) => jid.indexOf('@lid') !== -1 || looksLikeNumber((entry.chats[jid] || {}).name))
-      if (needsNames && !entry.nameAsked && typeof sock.resyncAppState === 'function') {
-        entry.nameAsked = true
-        sock.resyncAppState(['critical_unblock_low', 'regular_low'], false).catch(() => {})
-      }
+      pullAddressBook(entry, sock, dir)
       if (entry.recoverChats && !entry.historyAsked && typeof sock.resyncAppState === 'function') {
         entry.historyAsked = true
         sock.resyncAppState(['critical_block', 'critical_unblock_low', 'regular_high', 'regular_low', 'regular'], true)

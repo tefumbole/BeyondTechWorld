@@ -45,21 +45,21 @@ class PersonalHub
         return $session;
     }
 
-    public function sync(MaiSession $session)
+    public function sync(MaiSession $session, $lookupNames = true)
     {
         $phone = $session->phone_number ?: $session->expected_phone;
         $engine = app(MaiWhatsAppEngine::class);
         $outbound = app(MaiOutboundService::class);
-        app(CloudTenantContext::class)->withoutIsolation(function () use ($session, $phone, $engine, $outbound) {
+        app(CloudTenantContext::class)->withoutIsolation(function () use ($session, $phone, $engine, $outbound, $lookupNames) {
             $lookups = 0;
             foreach ($engine->chats($phone) as $chat) {
-                if (substr($chat['jid'], -5) === '@g.us' || $chat['phone'] === '' || strlen($chat['phone']) > 13) {
+                if (substr($chat['jid'], -5) === '@g.us' || $chat['phone'] === '' || strlen($chat['phone']) < 8 || strlen($chat['phone']) > 15) {
                     continue;
                 }
                 $conversation = $outbound->conversation($session, $chat['phone']);
                 $contact = $conversation->contact;
                 $saved = $this->savedName($chat['name'], $chat['phone']);
-                if ($saved === '' && strpos($chat['phone'], '237') === 0 && strlen($chat['phone']) === 12 && $lookups < 8) {
+                if ($lookupNames && $saved === '' && strpos($chat['phone'], '237') === 0 && strlen($chat['phone']) === 12 && $lookups < 8) {
                     $lookups++;
                     try {
                         $found = app(\App\Services\MobileMoneyHolderService::class)->lookup($chat['phone'], false, true);
@@ -87,8 +87,15 @@ class PersonalHub
                     $conversation->last_message = $chat['preview'];
                 }
                 $conversation->unread_count = (int) $chat['unread'];
-                if ($chat['at'] > 0) {
-                    $conversation->last_activity_at = Carbon::createFromTimestamp($chat['at']);
+                $at = (int) $chat['at'];
+                if ($at > 1000000000000) {
+                    $at = (int) floor($at / 1000);
+                }
+                if ($at > 0) {
+                    $when = Carbon::createFromTimestamp($at);
+                    if (! $conversation->last_activity_at || $when->gt($conversation->last_activity_at)) {
+                        $conversation->last_activity_at = $when;
+                    }
                 }
                 $conversation->save();
             }
@@ -98,7 +105,7 @@ class PersonalHub
                     continue;
                 }
                 $digits = preg_replace('/\D/', '', strtok($from, '@'));
-                if ($digits === '' || strlen($digits) > 13 || substr($from, -4) === '@lid') {
+                if ($digits === '' || strlen($digits) < 8 || strlen($digits) > 15 || substr($from, -4) === '@lid') {
                     continue;
                 }
                 $conversation = $outbound->conversation($session, $digits);

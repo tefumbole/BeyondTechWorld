@@ -314,6 +314,12 @@ class WhatsAppHubController extends Controller
             return response()->json($this->chatThread((int) $request->get('chat')))->header('Cache-Control', 'no-store');
         }
         if ($request->get('poll')) {
+            if (\App\Support\MaiHost::is($request) && ($personal = $this->personalHub())) {
+                try {
+                    app(\App\Services\Mai\PersonalHub::class)->sync($personal, false);
+                } catch (\Throwable $e) {
+                }
+            }
             if ($request->get('names')) {
                 $named = $this->inboxConversations();
                 try {
@@ -710,7 +716,7 @@ class WhatsAppHubController extends Controller
                 $rows = $rows->filter(function ($row) {
                     $digits = preg_replace('/\D/', '', (string) optional($row->contact)->normalized_phone);
 
-                    return strlen($digits) >= 8 && strlen($digits) <= 13;
+                    return strlen($digits) >= 8 && strlen($digits) <= 15;
                 })->values();
             }
             $stamp = (string) WhatsAppConversation::max('updated_at').'|'.(int) WhatsAppConversation::sum('unread_count');
