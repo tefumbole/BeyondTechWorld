@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\HttpFoundation\Response;
+
 class SiteSession
 {
     /**
@@ -35,5 +38,32 @@ class SiteSession
 
         return $host === 'beyondtechworld.com'
             || (strlen($host) > 20 && substr($host, -20) === '.beyondtechworld.com');
+    }
+
+    /**
+     * Drop the shared login cookie and the older host-only cookie.
+     * A parent-domain cookie is not cleared by a host-only delete.
+     */
+    public static function expire(Response $response)
+    {
+        $names = [
+            'beyond_site_session',
+            'beyond_enterprise_session',
+            (string) config('session.cookie'),
+            'remember_web_'.sha1(\Illuminate\Auth\SessionGuard::class),
+            'remember_beyond_'.sha1(\Illuminate\Auth\SessionGuard::class),
+        ];
+        $seen = [];
+        foreach ($names as $name) {
+            $name = trim($name);
+            if ($name === '' || isset($seen[$name])) {
+                continue;
+            }
+            $seen[$name] = true;
+            $response->headers->setCookie(new Cookie($name, '', 1, '/', '.beyondtechworld.com', true, true, false, 'lax'));
+            $response->headers->setCookie(new Cookie($name, '', 1, '/', null, false, true, false, 'lax'));
+        }
+
+        return $response;
     }
 }

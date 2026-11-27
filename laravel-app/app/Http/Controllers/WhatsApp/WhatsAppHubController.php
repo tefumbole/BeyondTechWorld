@@ -481,11 +481,13 @@ class WhatsAppHubController extends Controller
             ? app(\App\Http\Controllers\AnnouncementManagerController::class)->composeState($request)
             : null;
 
-        return view('whatsapp_hub.chats', compact(
-            'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
-            'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
-            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady', 'historyProgress'
-        ));
+        return response()
+            ->view('whatsapp_hub.chats', compact(
+                'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
+                'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
+                'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady', 'historyProgress'
+            ))
+            ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
     }
 
     protected function phoneLinkState()

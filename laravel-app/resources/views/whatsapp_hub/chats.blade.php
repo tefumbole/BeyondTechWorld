@@ -16,6 +16,8 @@
     .hub-screens { display: flex; gap: 8px; padding: 10px 12px 0; background: #fff; flex: none; }
     .hub-screens a { flex: 1; text-align: center; text-decoration: none; border-radius: 999px; padding: 9px 8px; font-size: 14px; font-weight: 700; color: #3b4a6b; background: #f4f7fb; border: 1px solid #e7edf5; }
     .hub-screens a.is-on { color: #fff; background: var(--wa-grad); border-color: transparent; }
+    .hub-screens form.hub-signout { flex: 1; margin: 0; display: flex; }
+    .hub-screens form.hub-signout button { flex: 1; width: 100%; text-align: center; border-radius: 999px; padding: 9px 8px; font-size: 14px; font-weight: 700; color: #3b4a6b; background: #f4f7fb; border: 1px solid #e7edf5; cursor: pointer; min-height: 40px; }
     .hub-gear, .chat-gear { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #e7edf5; background: #fff; color: #1565c0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(15,31,61,.08); }
     .hub-install { width: auto; min-width: 52px; padding: 0 12px; border-radius: 999px; font-weight: 800; font-size: 13px; }
     .hub-gear svg, .chat-gear svg { width: 18px; height: 18px; }
@@ -308,7 +310,10 @@
             @endif
             <a class="{{ $screen === 'more' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}">More</a>
             <button type="button" class="hub-gear hub-install" id="hubInstall">App</button>
-            <a href="{{ url('/logout') }}">Sign out</a>
+            <form method="POST" action="{{ url('/logout') }}" class="hub-signout">
+                @csrf
+                <button type="submit">Sign out</button>
+            </form>
             <button type="button" class="hub-gear js-lang-settings" aria-label="Language settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
         </nav>
         <div class="hub-label">WhatsApp {{ $sessionPhone }}</div>
@@ -965,6 +970,9 @@
 </div>
 <div class="emoji-box" id="emojiBox" hidden></div>
 <script>
+window.addEventListener('pageshow', function (event) {
+    if (event.persisted) window.location.reload();
+});
 (function () {
     var search = document.getElementById('chatSearch');
     var list = document.getElementById('chatList');
