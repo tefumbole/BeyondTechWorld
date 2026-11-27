@@ -15,6 +15,14 @@ class MaiPersonalSite
         if (! MaiHost::is($request)) {
             return $next($request);
         }
+        $name = (string) optional($request->route())->getName();
+        if ($request->isMethod('get') && strpos($name, 'announcements.') === 0
+            && ! in_array($name, ['announcements.users.search', 'announcements.groups.lookup'], true)) {
+            return redirect()->route('whatsapp.chats', array_filter([
+                'pane' => 'announcements',
+                'group' => $request->query('group'),
+            ]));
+        }
         if ($this->allowed($request)) {
             return $next($request);
         }
@@ -35,8 +43,6 @@ class MaiPersonalSite
             'cloud/login/*',
             'admin/whatsapp/chats',
             'admin/whatsapp/chats/*',
-            'admin/whatsapp/people',
-            'admin/whatsapp/people/*',
             'admin/whatsapp/groups',
             'admin/whatsapp/groups/*',
             'admin/announcements',
@@ -58,11 +64,13 @@ class MaiPersonalSite
             return $request->is('/') || $request->is('mai');
         }
 
+        if (strpos($name, 'announcements.') === 0) {
+            return ! in_array($name, ['announcements.settings', 'announcements.settings.update'], true);
+        }
+
         return strpos($name, 'whatsapp.chats') === 0
             || strpos($name, 'whatsapp.mai') === 0
-            || strpos($name, 'whatsapp.people') === 0
             || strpos($name, 'whatsapp.groups') === 0
-            || strpos($name, 'announcements.') === 0
             || strpos($name, 'cloud.register') === 0
             || strpos($name, 'cloud.login') === 0;
     }

@@ -120,6 +120,9 @@ class AnnouncementManagerController extends Controller
      */
     public function quickRecipient(Request $request)
     {
+        if (\App\Support\MaiHost::is($request)) {
+            return response()->json(['message' => 'Choose a person from your WhatsApp list.'], 422);
+        }
         $this->authorizeAnnouncements('announcements.create');
 
         $data = $request->validate([
@@ -161,7 +164,7 @@ class AnnouncementManagerController extends Controller
         );
     }
 
-    public function compose(Request $request)
+    public function composeState(Request $request)
     {
         $this->authorizeAnnouncements('announcements.create');
         @set_time_limit(90);
@@ -197,7 +200,28 @@ class AnnouncementManagerController extends Controller
             }
         }
 
-        return view('announcement_manager.compose', compact('users', 'categories', 'templates', 'settings', 'clone', 'waGroups'));
+        return compact('users', 'categories', 'templates', 'settings', 'clone', 'waGroups');
+    }
+
+    public function compose(Request $request)
+    {
+        if (\App\Support\MaiHost::is($request)) {
+            return redirect()->route('whatsapp.chats', array_filter([
+                'pane' => 'announcements',
+                'group' => $request->get('group'),
+            ]));
+        }
+
+        return view('announcement_manager.compose', $this->composeState($request));
+    }
+
+    protected function leaveAnnouncements($key, $message)
+    {
+        $to = \App\Support\MaiHost::is(request())
+            ? redirect()->route('whatsapp.chats', ['pane' => 'announcements'])
+            : redirect()->route('announcements.index');
+
+        return $to->with($key, $message);
     }
 
     public function previewRecipients(Request $request)
@@ -302,13 +326,11 @@ class AnnouncementManagerController extends Controller
         if ($row->whatsapp_status === 'sending') {
             $count = count($row->recipients());
 
-            return redirect()->route('announcements.index')
-                ->with('message', 'Announcement is going out to '.$count.' contact'.($count === 1 ? '' : 's').' by '.$this->announcementChannels($row).' ('.$row->reference.'). Delivery continues in the background.');
+            return $this->leaveAnnouncements('message', 'Announcement is going out to '.$count.' contact'.($count === 1 ? '' : 's').' by '.$this->announcementChannels($row).' ('.$row->reference.'). Delivery continues in the background.');
         }
 
         if ($row->status === 'scheduled') {
-            return redirect()->route('announcements.index')
-                ->with('message', 'Announcement scheduled (' . $row->reference . ').');
+            return $this->leaveAnnouncements('message', 'Announcement scheduled (' . $row->reference . ').');
         }
 
         $failures = [];
@@ -320,17 +342,14 @@ class AnnouncementManagerController extends Controller
         }
 
         if ($row->whatsapp_status === 'sent' && empty($failures)) {
-            return redirect()->route('announcements.index')
-                ->with('message', 'Announcement sent by '.$this->announcementChannels($row).' (' . $row->reference . ').');
+            return $this->leaveAnnouncements('message', 'Announcement sent by '.$this->announcementChannels($row).' (' . $row->reference . ').');
         }
 
         if ($row->whatsapp_status === 'partial') {
-            return redirect()->route('announcements.index')
-                ->with('message', 'Announcement partially sent (' . $row->reference . '). Failed: ' . implode('; ', $failures));
+            return $this->leaveAnnouncements('message', 'Announcement partially sent (' . $row->reference . '). Failed: ' . implode('; ', $failures));
         }
 
-        return redirect()->route('announcements.index')
-            ->with('not_permitted',
+        return $this->leaveAnnouncements('not_permitted',
                 'Announcement saved (' . $row->reference . ') but WhatsApp delivery failed. '
                 . 'Check each recipient phone in People → Customers/Users (full number e.g. 675321739, not +237237…). '
                 . 'Failed: ' . (implode('; ', $failures) ?: 'unknown')

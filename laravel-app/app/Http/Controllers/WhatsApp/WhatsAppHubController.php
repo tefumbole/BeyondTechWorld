@@ -467,11 +467,14 @@ class WhatsAppHubController extends Controller
         }
 
         $personalHub = (bool) $personal;
+        $announce = ($personal && $pane === 'announcements')
+            ? app(\App\Http\Controllers\AnnouncementManagerController::class)->composeState($request)
+            : null;
 
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
             'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
-            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub'
+            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce'
         ));
     }
 

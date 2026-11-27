@@ -1,0 +1,1155 @@
+<style>
+    .an-topbar { display:flex; justify-content:space-between; align-items:center; gap:16px; background:#0b3f90; color:#fff; border-radius:16px; padding:16px 20px; margin:0 0 16px; }
+    .an-topbar h1 { margin:0; font-size:22px; font-weight:800; color:#fff; }
+    .an-topbar p { margin:2px 0 0; color:#d6e2f7; font-size:13px; }
+    .an-topbar nav { display:flex; gap:8px; flex-wrap:wrap; }
+    .an-topbar a { color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:999px; padding:6px 12px; font-size:13px; font-weight:700; text-decoration:none; }
+    .an-layout { display: grid; grid-template-columns: 1.4fr .9fr; gap: 16px; }
+    @media (max-width: 992px) { .an-layout { grid-template-columns: 1fr; } }
+    .an-label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:6px; }
+    .an-field { width:100%; border:1px solid #d7deea; border-radius:8px; padding:9px 12px; font-size:14px; }
+    .an-field:focus { outline:none; border-color:#0b3f90; box-shadow:0 0 0 3px rgba(11,63,144,.12); }
+    textarea.an-field { min-height:140px; resize:vertical; }
+    .an-ph {
+        display:inline-block; border:1px solid #9bb6e0; color:#0b3f90; border-radius:999px;
+        padding:2px 10px; font-size:12px; margin:2px 2px 0 0; cursor:pointer; background:#f0f6ff; font-weight:600;
+    }
+    .an-pill {
+        border:0; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600;
+        background:#f1f5f9; color:#334155; cursor:pointer; margin:0 4px 6px 0;
+    }
+    .an-pill.active { background:#0b3f90; color:#fff; }
+    .an-user-list { max-height:220px; overflow:auto; border:1px solid #e3e9f4; border-radius:10px; background:#fff; }
+    .an-user-item { display:block; width:100%; text-align:left; padding:10px 12px; border:0; border-bottom:1px solid #f0f3f8; background:#fff; cursor:pointer; }
+    .an-user-item:hover, .an-user-item.selected { background:#f0f6ff; }
+    .an-user-item .meta { color:#6b7280; font-size:12px; }
+    .an-chip {
+        display:inline-flex; align-items:center; gap:6px; border:1px solid #0b3f90; color:#0b3f90;
+        background:#eef4ff; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:600; margin:2px;
+    }
+    .an-chip button { border:0; background:transparent; color:#0b3f90; font-weight:800; cursor:pointer; }
+    .an-send-opt {
+        border:1px solid #d7deea; border-radius:10px; padding:10px 12px; cursor:pointer;
+        font-size:13px; font-weight:600; margin-bottom:8px; background:#fff;
+    }
+    .an-send-opt.active { border-color:#0b3f90; background:#eef4ff; color:#0b3f90; }
+    .an-info { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; border-radius:8px; padding:8px 10px; font-size:12px; margin-top:8px; }
+    .an-drop {
+        border:1px dashed #94a3b8; border-radius:10px; padding:16px; text-align:center; color:#64748b; font-size:13px;
+    }
+    .an-add-recipient-panel {
+        border:1px dashed #0b3f90; border-radius:12px; background:#f8fbff; padding:12px 14px;
+    }
+</style>
+<style>
+    .an-compose { color: #1b2742; }
+    .an-compose .an-layout { grid-template-columns: minmax(0, 1.2fr) minmax(320px, .86fr); gap: 18px; align-items: start; }
+    .an-compose .an-page-card { border: 0; border-radius: 22px; padding: 22px; background: #fff; box-shadow: 0 16px 40px rgba(15, 35, 80, .08); }
+    .an-compose .an-field { border: 1px solid #e4eaf5; border-radius: 14px; min-height: 46px; background: #fbfcfe; padding: 10px 14px; }
+    .an-compose textarea.an-field { min-height: 180px; }
+    .an-compose .an-pill { border-radius: 999px; padding: 8px 14px; background: #f3f6fb; font-weight: 700; }
+    .an-compose .an-pill.active { background: #0b3f90; color: #fff; box-shadow: 0 8px 18px rgba(11, 63, 144, .22); }
+    .an-compose .an-btn-primary { width: 100%; justify-content: center; min-height: 48px; border: 0; border-radius: 14px; background: linear-gradient(100deg, #072f6b, #0b3f90); font-weight: 800; }
+    .an-compose .an-btn-outline { border-radius: 12px; background: #fff; }
+    .an-compose .an-send-opt { border-radius: 16px; padding: 12px 14px; }
+    .an-compose .an-send-opt.active { border-color: #0b3f90; background: #f3f7ff; }
+    .an-compose .an-drop { border-radius: 16px; background: #f8fafc; }
+    .an-compose .an-info { border-radius: 14px; }
+    .an-compose.is-mai .an-directory,
+    .an-compose.is-mai #an-add-recipient-btn,
+    .an-compose.is-mai #an-add-recipient-panel { display: none !important; }
+    .an-compose.is-embedded { width: min(1180px, calc(100% - 28px)); margin: 8px auto 32px; }
+    .chats-app.is-announce .chat-rail,
+    .chats-app.is-announce .chats-side { display: none !important; }
+    .chats-app.is-announce .chats-thread { display: flex !important; overflow: auto; background: #e8eef8; }
+</style>
+
+        <form method="POST" action="{{ route('announcements.store') }}" enctype="multipart/form-data" id="an-form">
+            @csrf
+            <input type="hidden" name="cloned_from_id" value="{{ $clone['cloned_from_id'] ?? '' }}">
+            <input type="hidden" name="template_name" id="an-template-name" value="">
+            <input type="hidden" name="send_mode" id="an-send-mode" value="now">
+            <input type="hidden" name="send_whatsapp" value="1">
+            <input type="hidden" name="audience" id="an-audience" value="people">
+
+            <div class="an-layout">
+                <div class="an-page-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
+                        <h5 class="mb-0" style="color:#0b3f90;font-weight:700;">Message</h5>
+                        <div>
+                            <label class="an-label mb-0">Template</label>
+                            <select class="an-field" id="an-template-pick" style="min-width:180px;">
+                                <option value="">Blank Message</option>
+                                @foreach($templates as $tpl)
+                                    <option value="{{ $tpl->id }}"
+                                        data-subject="{{ e($tpl->subject) }}"
+                                        data-header="{{ e($tpl->header) }}"
+                                        data-body="{{ e($tpl->body) }}"
+                                        data-name="{{ e($tpl->name) }}"
+                                        data-school="{{ \App\Support\SchoolMerge::isSchool($tpl->name, $tpl->subject, $tpl->body, $tpl->header) ? '1' : '0' }}"
+                                        data-category="{{ $tpl->category_id }}">{{ $tpl->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 form-group">
+                            <label class="an-label">Category</label>
+                            <select name="category_id" class="an-field" id="an-category">
+                                <option value="">General</option>
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}" {{ (string)old('category_id', $clone['category_id'] ?? '') === (string)$cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-8 form-group">
+                            <label class="an-label">Internal subject</label>
+                            <input type="text" name="subject" class="an-field" required placeholder="Internal tracking title" value="{{ old('subject', $clone['subject'] ?? '') }}">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="an-label">WhatsApp header (optional)</label>
+                        <input type="text" name="header" class="an-field" value="{{ $defaultHeader }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="an-label">Message Body</label>
+                        <div class="mb-2" style="font-size:12px;color:#9ca3af;">
+                            Insert:
+                            @foreach(['{name}','{Parent}','{Student}','{Class}','{email}','{phone}','{address}','{date}','{institution_name}','{reference}'] as $tok)
+                                <span class="an-ph" data-token="{{ $tok }}">{{ $tok }}</span>
+                            @endforeach
+                        </div>
+                        <div id="an-school-note" class="an-info" style="display:none;">
+                            This school letter fills {Parent}, {Student}, and {Class} for each person.
+                            Parent is the customer name, Student is the company name, and Class is the city.
+                            A name written as Parent | Student | Class is read the same way.
+                            The filled letter is attached, so you can send the message as it is. Open Preview to check each student.
+                        </div>
+                        <textarea name="body" id="an-body" class="an-field" rows="8" required placeholder="Dear {name},">{{ old('body', $clone['body'] ?? "Dear {name},\n\n") }}</textarea>
+                    </div>
+
+                    <div class="form-group mb-0" id="an-sendto">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap mb-2" style="gap:8px;">
+                            <label class="an-label mb-0" style="color:#0b3f90;font-weight:700;font-size:15px;">Recipients <span id="an-count">0</span> selected</label>
+                        </div>
+                        <div class="mb-3">
+                            <button type="button" class="an-pill active an-audience" data-audience="people">People</button>
+                            <button type="button" class="an-pill an-audience" data-audience="group">Group members</button>
+                            <button type="button" class="an-pill an-audience" data-audience="contacts">All contacts</button>
+                        </div>
+                        <div id="an-group-box" class="mb-3" style="display:none;">
+                            <label class="an-label">Groups</label>
+                            <input type="search" id="an-group-search" class="an-field mb-2" placeholder="Search a group, for example NBC Praise Team">
+                            <div class="d-flex mb-2" style="gap:8px;">
+                                <button type="button" class="an-btn-outline" id="an-group-visible">Add shown</button>
+                                <button type="button" class="an-btn-outline" id="an-group-clear">Clear</button>
+                            </div>
+                            <div id="an-group-chips" class="mt-1 mb-2"></div>
+                            <p id="an-group-progress" class="text-muted small mb-2" style="display:none"></p>
+                            <div id="an-group-list" class="an-user-list" style="max-height:280px;">
+                                @forelse(($waGroups ?? []) as $group)
+                                    <label class="an-user-item an-group-row" data-jid="{{ $group['jid'] }}" data-known="{{ !empty($group['known']) ? '1' : '0' }}" data-sent="{{ (int) ($group['last_sent'] ?? 0) }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                        <input type="checkbox" name="group_jids[]" value="{{ $group['jid'] }}">
+                                        <span>
+                                            <span class="an-group-label">{{ !empty($group['name']) ? $group['name'] : 'Loading name…' }}</span>
+                                            @if($group['members'] !== null)
+                                                <span class="meta an-group-count"> · {{ number_format($group['members']) }} contacts</span>
+                                            @else
+                                                <span class="meta an-group-count"></span>
+                                            @endif
+                                            @if(!empty($group['last_sent']))
+                                                <span class="meta"> · recent</span>
+                                            @endif
+                                        </span>
+                                    </label>
+                                @empty
+                                    <div class="p-3 text-muted small">No WhatsApp groups were returned for this account.</div>
+                                @endforelse
+                            </div>
+                            <div class="an-info" id="an-group-info">Search a group and tick it. Broadcast sends the same message to each member separately, without a name. Personalize greets each member by name.</div>
+                        </div>
+                        <div id="an-contacts-box" class="mb-3" style="display:none;">
+                            <div class="an-info">A personal WhatsApp message is sent to every contact saved on the connected WhatsApp account.</div>
+                        </div>
+                        <div id="an-people-box">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap mb-2" style="gap:8px;">
+                            <label class="an-label mb-0" style="color:#0b3f90;font-weight:700;font-size:15px;">Select Recipients *</label>
+                            <button type="button" class="an-btn-outline" id="an-add-recipient-btn" style="white-space:nowrap;">
+                                <i class="dripicons-plus"></i> Add new recipient
+                            </button>
+                        </div>
+                        <div id="an-add-recipient-panel" class="an-add-recipient-panel mb-3" style="display:none;">
+                            <p class="text-muted small mb-2">Add someone who is not in the list yet. They are saved as a customer and selected automatically.</p>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <label class="small font-weight-bold">WhatsApp / Phone *</label>
+                                    <input type="tel" class="an-field js-phone-holder" id="an-new-phone" placeholder="675321739 or +237…">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="small font-weight-bold" id="an-new-name-label">Name *</label>
+                                    <input type="text" class="an-field" id="an-new-name" placeholder="Full name">
+                                </div>
+                                <div class="col-md-6 mb-2 an-school-field" style="display:none;">
+                                    <label class="small font-weight-bold">Student</label>
+                                    <input type="text" class="an-field" id="an-new-student" placeholder="Student name">
+                                </div>
+                                <div class="col-md-6 mb-2 an-school-field" style="display:none;">
+                                    <label class="small font-weight-bold">Class</label>
+                                    <input type="text" class="an-field" id="an-new-class" placeholder="Form / class">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="small font-weight-bold">Email (optional)</label>
+                                    <input type="email" class="an-field" id="an-new-email" placeholder="email@example.com">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="small font-weight-bold">Address (optional)</label>
+                                    <input type="text" class="an-field" id="an-new-address" placeholder="City / address">
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap" style="gap:8px;">
+                                <button type="button" class="an-btn-primary" id="an-new-save"><i class="dripicons-checkmark"></i> Save &amp; select</button>
+                                <button type="button" class="an-btn-outline" id="an-new-cancel">Cancel</button>
+                                <span class="small text-muted align-self-center" id="an-new-status"></span>
+                            </div>
+                        </div>
+                        <div class="mb-2 an-directory">
+                            <button type="button" class="an-pill active an-rf" data-role="customers">Customers</button>
+                            <button type="button" class="an-pill an-rf" data-role="staff">System Users</button>
+                            <button type="button" class="an-pill an-rf" data-role="applicants">Applicants</button>
+                            <button type="button" class="an-pill an-rf" data-role="all">All</button>
+                        </div>
+                        <div class="d-flex mb-2 flex-wrap" style="gap:8px;">
+                            <input type="search" class="an-field an-rsearch" placeholder="Search name, email, phone…" style="flex:1;min-width:180px;">
+                            <button type="button" class="an-btn-outline an-rselect-all" style="white-space:nowrap;">Select all</button>
+                            <button type="button" class="an-btn-outline an-rdeselect-all" style="white-space:nowrap;">Deselect all</button>
+                        </div>
+                        <div class="an-user-list an-rlist" style="display:none;"></div>
+                        <div class="an-rchips mt-2"></div>
+                        <div class="an-rhiddens"></div>
+
+                        <hr>
+                        <h6 style="font-weight:700;">CC (no action required)</h6>
+                        <p class="text-muted small">Copied recipients also receive the WhatsApp message.</p>
+                        <div class="mb-2 an-directory">
+                            <button type="button" class="an-pill active an-cf" data-role="all">All</button>
+                            <button type="button" class="an-pill an-cf" data-role="staff">Staff</button>
+                            <button type="button" class="an-pill an-cf" data-role="customers">Customers</button>
+                            <button type="button" class="an-pill an-cf" data-role="applicants">Applicants</button>
+                        </div>
+                        <div class="d-flex mb-2 flex-wrap" style="gap:8px;">
+                            <input type="search" class="an-field an-csearch" placeholder="Search CC…" style="flex:1;min-width:180px;">
+                            <button type="button" class="an-btn-outline an-cselect-all" style="white-space:nowrap;">Select all</button>
+                            <button type="button" class="an-btn-outline an-cdeselect-all" style="white-space:nowrap;">Deselect all</button>
+                        </div>
+                        <div class="an-user-list an-clist" style="display:none;max-height:140px;"></div>
+                        <div class="an-cchips mt-2"></div>
+                        <div class="an-chiddens"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label class="an-label">Footer (optional)</label>
+                        <input type="text" name="footer" id="an-footer" class="an-field" value="{{ old('footer', $clone['footer'] ?? '') }}" data-system="{{ \App\Support\WhatsAppMessage::companyName() }}" placeholder="For example Nkwen Praise Team">
+                        <p class="text-muted small mb-0">If you type a footer, that is the only sign-off. Leave it blank to use {{ \App\Support\WhatsAppMessage::companyName() }}.</p>
+                    </div>
+
+                    <div class="an-drop">
+                        <div class="mb-2">Attachments (max 10MB)</div>
+                        <input type="file" name="attachment" accept=".pdf,image/*,video/*,audio/*" class="an-field">
+                    </div>
+                </div>
+
+                <div id="an-rail">
+                    <div class="an-page-card">
+                        <h5 style="color:#0b3f90;font-weight:700;">Delivery</h5>
+                        <label class="d-flex align-items-center" style="gap:8px;font-weight:600;">
+                            <input type="checkbox" checked disabled> Send via WhatsApp
+                        </label>
+                        <button type="button" class="an-pill mt-3" id="an-broadcast-btn">Broadcast</button>
+                        <input type="checkbox" name="broadcast" id="an-broadcast" value="1" class="d-none">
+                        <div class="an-info" id="an-broadcast-help">The same message goes to each person separately, without a name. A selected group sends to its members, not into the group chat.</div>
+                        <button type="button" class="an-pill mt-2" id="an-personalize-btn">Personalize each message</button>
+                        <input type="checkbox" name="personalized" id="an-personalized" value="1" class="d-none">
+                        <div class="an-info" id="an-personalize-help">Each person is greeted as Dear and their name. Turn this on to add a title in the preview, for example Pastor John or Dr. Bolla.</div>
+                        <div class="an-info">Messages go out one person every 5 seconds so WhatsApp does not block the account.</div>
+                        <button type="button" class="an-btn-outline mt-2" id="an-preview-btn" style="display:none;">Preview messages</button>
+                        <div class="mt-3">
+                            <div class="an-send-opt active" data-mode="now">✈ Send immediately</div>
+                            <div class="an-send-opt" data-mode="schedule"><i class="dripicons-clock"></i> Schedule for later</div>
+                            <input type="datetime-local" name="schedule_at" id="an-schedule-at" class="an-field d-none mt-2">
+                        </div>
+                        <div class="mt-3">
+                            <label class="an-label">Reminders</label>
+                            <div id="an-reminders"></div>
+                            <button type="button" class="an-btn-outline mt-1" id="an-add-reminder">+ Add reminder</button>
+                        </div>
+                        <div class="mt-3">
+                            <label class="d-flex align-items-center" style="gap:8px;">
+                                <input type="checkbox" name="save_as_template" value="1"> Save as template
+                            </label>
+                            <input type="text" name="template_name" class="an-field mt-1" placeholder="Template name (optional)">
+                        </div>
+                        <div class="mt-3 d-flex flex-column" style="gap:8px;">
+                            <button type="submit" class="an-btn-primary" style="justify-content:center;padding:12px;"><i class="dripicons-rocket"></i> Send Now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="an-preview" class="an-page-card mt-3" style="display:none;">
+                <h5 style="color:#0b3f90;font-weight:700;">Preview</h5>
+                <p class="text-muted small">Edit the message and each name. Add a title in the name, such as Pastor, Dr., or Engr.</p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="an-label">Message</label>
+                        <textarea id="an-preview-body" class="an-field" rows="8"></textarea>
+                        <input type="search" id="an-preview-search" class="an-field mt-2" placeholder="Search a name or phone number">
+                        <div id="an-preview-list" class="an-user-list mt-2" style="max-height:360px;"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="an-label">How this person will receive it</label>
+                        <pre id="an-preview-sample" style="white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:16px;min-height:220px;font-family:inherit;"></pre>
+                    </div>
+                </div>
+                <div id="an-name-overrides"></div>
+                <div id="an-school-overrides"></div>
+            </div>
+        </form>
+    </div>
+</section>
+
+<script>
+window.AN_MAI = !!document.querySelector('.an-compose.is-mai');
+window.AN_USERS = @json($users);
+window.AN_USERS_SEARCH = @json(route('announcements.users.search'));
+window.AN_QUICK_RECIPIENT = @json(route('announcements.quick_recipient'));
+window.AN_PRESELECT = @json([
+    'recipients' => $clone['recipient_ids'] ?? [],
+    'cc' => $clone['cc_ids'] ?? [],
+]);
+(function () {
+    var recipients = (window.AN_PRESELECT.recipients || []).slice();
+    var ccs = (window.AN_PRESELECT.cc || []).slice();
+    var rRole = window.AN_MAI ? 'all' : 'customers', cRole = 'all';
+    var sendTo = document.getElementById('an-sendto');
+    var rail = document.getElementById('an-rail');
+    if (sendTo && rail) rail.insertBefore(sendTo, rail.firstChild);
+    var searchTimers = {};
+    var csrf = document.querySelector('meta[name="csrf-token"]')
+        ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        : (document.querySelector('#an-form input[name="_token"]') || {}).value;
+
+    function esc(s) {
+        return String(s || '').replace(/[&<>"']/g, function (c) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+        });
+    }
+
+    function mergeUsers(list) {
+        var map = {};
+        (window.AN_USERS || []).forEach(function (u) { map[u.id] = u; });
+        (list || []).forEach(function (u) { map[u.id] = u; });
+        window.AN_USERS = Object.keys(map).map(function (k) { return map[k]; });
+    }
+
+    function filterUsersLocal(query, roleFilter) {
+        var q = (query || '').toLowerCase();
+        return (window.AN_USERS || []).filter(function (u) {
+            var role = (u.role || '').toLowerCase();
+            var source = (u.source || '').toLowerCase();
+            if (roleFilter === 'staff' && (source === 'customer' || source === 'applicant' || role === 'customer' || role === 'client' || role === 'applicant')) return false;
+            if (roleFilter === 'customers' && source !== 'customer' && role !== 'customer' && role !== 'client') return false;
+            if (roleFilter === 'applicants' && source !== 'applicant' && role !== 'applicant') return false;
+            if (!q) return true;
+            return (u.name||'').toLowerCase().indexOf(q) !== -1
+                || (u.email||'').toLowerCase().indexOf(q) !== -1
+                || (u.phone||'').toLowerCase().indexOf(q) !== -1;
+        });
+    }
+
+    function searchUsers(query, roleFilter, done) {
+        var q = (query || '').trim();
+        if (!q || q.length < 2 || !window.AN_USERS_SEARCH) {
+            done(filterUsersLocal(query, roleFilter));
+            return;
+        }
+        var filter = roleFilter === 'staff' ? 'staff'
+            : (roleFilter === 'customers' ? 'customers'
+            : (roleFilter === 'applicants' ? 'applicants' : 'all'));
+        fetch(window.AN_USERS_SEARCH + '?q=' + encodeURIComponent(q) + '&filter=' + encodeURIComponent(filter), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        }).then(function (r) { return r.json(); }).then(function (rows) {
+            mergeUsers(rows);
+            done(filterUsersLocal(query, roleFilter));
+        }).catch(function () {
+            done(filterUsersLocal(query, roleFilter));
+        });
+    }
+
+    function filterUsers(query, roleFilter) {
+        return filterUsersLocal(query, roleFilter);
+    }
+
+    function schoolActive() {
+        return !!window.AN_SCHOOL;
+    }
+    function renderList(el, users, selected, onToggle) {
+        el.innerHTML = users.map(function (u) {
+            var sel = selected.indexOf(u.id) !== -1 ? ' selected' : '';
+            var extra = '';
+            if (schoolActive() && (u.student || u.class || u.parent)) {
+                extra = '<div class="meta">Parent: '+esc(u.parent || u.name || '')
+                    +' · Student: '+esc(u.student || '—')
+                    +' · Class: '+esc(u.class || '—')+'</div>';
+            }
+            return '<button type="button" class="an-user-item'+sel+'" data-id="'+esc(u.id)+'">'
+                + '<div class="font-weight-bold">'+esc(u.name||'Untitled')+'</div>'
+                + '<div class="meta">'+esc(u.email||'')+' · '+esc(u.phone||'')+'</div>'
+                + extra
+                + '</button>';
+        }).join('') || '<div class="p-3 text-muted small text-center">No people found.</div>';
+        el.querySelectorAll('.an-user-item').forEach(function (item) {
+            item.addEventListener('click', function () { onToggle(item.getAttribute('data-id')); });
+        });
+    }
+
+    function renderChips(el, selected, onRemove, prefix) {
+        var map = {};
+        (window.AN_USERS || []).forEach(function (u) { map[u.id] = u; });
+        el.innerHTML = selected.map(function (id) {
+            var u = map[id] || { name: id };
+            return '<span class="an-chip" data-id="'+esc(id)+'">'+esc((prefix?prefix+' ':'')+(u.name||id))
+                + ' <button type="button">×</button></span>';
+        }).join('');
+        el.querySelectorAll('.an-chip button').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                onRemove(btn.parentNode.getAttribute('data-id'));
+            });
+        });
+    }
+
+    function syncHiddens(el, selected, name) {
+        el.innerHTML = selected.map(function (id) {
+            return '<input type="hidden" name="'+name+'[]" value="'+esc(id)+'">';
+        }).join('');
+        document.getElementById('an-count').textContent = String(recipients.length + ccs.length);
+    }
+
+    function searching(q) {
+        return (q || '').trim().length >= 1;
+    }
+
+    function refreshRecipients() {
+        var q = document.querySelector('.an-rsearch').value;
+        var list = document.querySelector('.an-rlist');
+        renderChips(document.querySelector('.an-rchips'), recipients, function (id) {
+            recipients = recipients.filter(function (x) { return x !== id; });
+            refreshRecipients();
+        });
+        syncHiddens(document.querySelector('.an-rhiddens'), recipients, 'recipient_ids');
+        if (!searching(q)) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            return;
+        }
+        searchUsers(q, rRole, function (users) {
+            if (!searching(document.querySelector('.an-rsearch').value)) return;
+            list.style.display = '';
+            renderList(list, users, recipients, function (id) {
+                if (recipients.indexOf(id) === -1) recipients.push(id);
+                refreshRecipients();
+            });
+            renderChips(document.querySelector('.an-rchips'), recipients, function (id) {
+                recipients = recipients.filter(function (x) { return x !== id; });
+                refreshRecipients();
+            });
+            syncHiddens(document.querySelector('.an-rhiddens'), recipients, 'recipient_ids');
+        });
+    }
+
+    function refreshCc() {
+        var q = document.querySelector('.an-csearch').value;
+        var list = document.querySelector('.an-clist');
+        renderChips(document.querySelector('.an-cchips'), ccs, function (id) {
+            ccs = ccs.filter(function (x) { return x !== id; });
+            refreshCc();
+        }, 'CC:');
+        syncHiddens(document.querySelector('.an-chiddens'), ccs, 'cc_ids');
+        if (!searching(q)) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            return;
+        }
+        searchUsers(q, cRole, function (users) {
+            if (!searching(document.querySelector('.an-csearch').value)) return;
+            list.style.display = '';
+            renderList(list, users, ccs, function (id) {
+                if (ccs.indexOf(id) === -1) ccs.push(id);
+                refreshCc();
+            });
+            renderChips(document.querySelector('.an-cchips'), ccs, function (id) {
+                ccs = ccs.filter(function (x) { return x !== id; });
+                refreshCc();
+            }, 'CC:');
+            syncHiddens(document.querySelector('.an-chiddens'), ccs, 'cc_ids');
+        });
+    }
+
+    document.querySelector('.an-rsearch').addEventListener('input', function () {
+        clearTimeout(searchTimers.r);
+        searchTimers.r = setTimeout(refreshRecipients, 250);
+    });
+    document.querySelector('.an-csearch').addEventListener('input', function () {
+        clearTimeout(searchTimers.c);
+        searchTimers.c = setTimeout(refreshCc, 250);
+    });
+    document.querySelectorAll('.an-rf').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            rRole = btn.getAttribute('data-role');
+            document.querySelectorAll('.an-rf').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            refreshRecipients();
+        });
+    });
+    document.querySelectorAll('.an-cf').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            cRole = btn.getAttribute('data-role');
+            document.querySelectorAll('.an-cf').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            refreshCc();
+        });
+    });
+    document.querySelector('.an-rselect-all').addEventListener('click', function () {
+        var q = document.querySelector('.an-rsearch').value;
+        if (!searching(q)) return;
+        searchUsers(q, rRole, function (users) {
+            users.forEach(function (u) {
+                if (recipients.indexOf(u.id) === -1) recipients.push(u.id);
+            });
+            refreshRecipients();
+        });
+    });
+    document.querySelector('.an-rdeselect-all').addEventListener('click', function () {
+        recipients = [];
+        refreshRecipients();
+    });
+    document.querySelector('.an-cselect-all').addEventListener('click', function () {
+        var q = document.querySelector('.an-csearch').value;
+        if (!searching(q)) return;
+        searchUsers(q, cRole, function (users) {
+            users.forEach(function (u) {
+                if (ccs.indexOf(u.id) === -1) ccs.push(u.id);
+            });
+            refreshCc();
+        });
+    });
+    document.querySelector('.an-cdeselect-all').addEventListener('click', function () {
+        ccs = [];
+        refreshCc();
+    });
+
+    var addPanel = document.getElementById('an-add-recipient-panel');
+    var addBtn = document.getElementById('an-add-recipient-btn');
+    var addStatus = document.getElementById('an-new-status');
+    if (addBtn && addPanel) {
+        addBtn.addEventListener('click', function () {
+            if (addPanel.style.display === 'none') {
+                addPanel.style.display = 'block';
+                document.getElementById('an-new-name').focus();
+            } else {
+                addPanel.style.display = 'none';
+            }
+        });
+        document.getElementById('an-new-cancel').addEventListener('click', function () {
+            addPanel.style.display = 'none';
+            if (addStatus) addStatus.textContent = '';
+        });
+        document.getElementById('an-new-save').addEventListener('click', function () {
+            var name = (document.getElementById('an-new-name').value || '').trim();
+            var phone = (document.getElementById('an-new-phone').value || '').trim();
+            var email = (document.getElementById('an-new-email').value || '').trim();
+            var address = (document.getElementById('an-new-address').value || '').trim();
+            if (!name || !phone) {
+                alert('Name and WhatsApp / phone are required.');
+                return;
+            }
+            var btn = document.getElementById('an-new-save');
+            btn.disabled = true;
+            if (addStatus) addStatus.textContent = 'Saving…';
+            fetch(window.AN_QUICK_RECIPIENT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrf || ''
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    name: name,
+                    phone: phone,
+                    email: email,
+                    address: address,
+                    student: (document.getElementById('an-new-student') || {}).value || '',
+                    class_name: (document.getElementById('an-new-class') || {}).value || ''
+                })
+            }).then(function (r) {
+                return r.json().then(function (body) {
+                    if (!r.ok) {
+                        var msg = (body && body.message) ? body.message : 'Could not save recipient.';
+                        if (body && body.errors) {
+                            var first = Object.keys(body.errors)[0];
+                            if (first && body.errors[first] && body.errors[first][0]) {
+                                msg = body.errors[first][0];
+                            }
+                        }
+                        throw new Error(msg);
+                    }
+                    return body;
+                });
+            }).then(function (body) {
+                var u = body.user;
+                if (!u || !u.id) throw new Error('Invalid response.');
+                mergeUsers([u]);
+                if (recipients.indexOf(u.id) === -1) recipients.push(u.id);
+                rRole = 'customers';
+                document.querySelectorAll('.an-rf').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-role') === 'customers');
+                });
+                document.getElementById('an-new-name').value = '';
+                document.getElementById('an-new-phone').value = '';
+                document.getElementById('an-new-email').value = '';
+                document.getElementById('an-new-address').value = '';
+                if (document.getElementById('an-new-student')) document.getElementById('an-new-student').value = '';
+                if (document.getElementById('an-new-class')) document.getElementById('an-new-class').value = '';
+                addPanel.style.display = 'none';
+                if (addStatus) {
+                    addStatus.textContent = body.created ? 'Recipient added.' : 'Existing customer selected.';
+                }
+                refreshRecipients();
+            }).catch(function (err) {
+                alert(err.message || 'Could not save recipient.');
+                if (addStatus) addStatus.textContent = '';
+            }).finally(function () {
+                btn.disabled = false;
+            });
+        });
+    }
+
+    (function () {
+        var ta = document.getElementById('an-body');
+        var caret = null;
+        function remember() {
+            if (!ta || typeof ta.selectionStart !== 'number') return;
+            caret = { start: ta.selectionStart, end: ta.selectionEnd };
+        }
+        if (ta) {
+            ['keyup', 'click', 'mouseup', 'select', 'input'].forEach(function (eventName) {
+                ta.addEventListener(eventName, remember);
+            });
+        }
+        document.querySelectorAll('.an-ph').forEach(function (ph) {
+            ph.addEventListener('mousedown', function (event) {
+                event.preventDefault();
+            });
+            ph.addEventListener('click', function () {
+                if (!ta) return;
+                var token = ph.getAttribute('data-token') || '';
+                var value = ta.value || '';
+                var start = caret ? caret.start : value.length;
+                var end = caret ? caret.end : start;
+                if (document.activeElement === ta && typeof ta.selectionStart === 'number') {
+                    start = ta.selectionStart;
+                    end = ta.selectionEnd;
+                }
+                ta.value = value.slice(0, start) + token + value.slice(end);
+                var cursor = start + token.length;
+                caret = { start: cursor, end: cursor };
+                ta.focus();
+                if (ta.setSelectionRange) {
+                    ta.setSelectionRange(cursor, cursor);
+                }
+            });
+        });
+    })();
+
+    document.querySelectorAll('.an-send-opt').forEach(function (opt) {
+        opt.addEventListener('click', function () {
+            document.querySelectorAll('.an-send-opt').forEach(function (o) { o.classList.remove('active'); });
+            opt.classList.add('active');
+            var mode = opt.getAttribute('data-mode');
+            document.getElementById('an-send-mode').value = mode;
+            document.getElementById('an-schedule-at').classList.toggle('d-none', mode !== 'schedule');
+            var submit = document.querySelector('#an-form button[type=submit]');
+            submit.innerHTML = mode === 'schedule'
+                ? '<i class="dripicons-clock"></i> Schedule'
+                : '<i class="dripicons-rocket"></i> Send Now';
+        });
+    });
+
+    document.getElementById('an-add-reminder').addEventListener('click', function () {
+        var box = document.getElementById('an-reminders');
+        var row = document.createElement('div');
+        row.className = 'd-flex mb-2';
+        row.style.gap = '8px';
+        row.innerHTML = '<input type="datetime-local" name="reminders[]" class="an-field">'
+            + '<button type="button" class="an-btn-outline text-danger">×</button>';
+        row.querySelector('button').addEventListener('click', function () { row.remove(); });
+        box.appendChild(row);
+    });
+
+    function textIsSchool(name, subject, body, header) {
+        var hay = ((name || '') + ' ' + (subject || '') + ' ' + (header || '') + ' ' + (body || '')).toLowerCase();
+        if (hay.indexOf('fredrick') !== -1 || hay.indexOf('frederick') !== -1) return true;
+        return /[\[{]\s*(parent|student|class|child)(_name)?\s*[\}\]]/i.test((body || '') + ' ' + (subject || ''));
+    }
+    function syncSchoolMode(enablePersonalize) {
+        var pick = document.getElementById('an-template-pick');
+        var opt = pick && pick.selectedIndex >= 0 ? pick.options[pick.selectedIndex] : null;
+        var fromTemplate = opt && opt.getAttribute('data-school') === '1';
+        var body = document.getElementById('an-body');
+        var subject = document.querySelector('[name=subject]');
+        var header = document.querySelector('[name=header]');
+        var was = !!window.AN_SCHOOL;
+        window.AN_SCHOOL = fromTemplate || textIsSchool(
+            opt ? opt.getAttribute('data-name') : '',
+            subject ? subject.value : '',
+            body ? body.value : '',
+            header ? header.value : ''
+        );
+        var note = document.getElementById('an-school-note');
+        if (note) note.style.display = window.AN_SCHOOL ? '' : 'none';
+        document.querySelectorAll('.an-school-field').forEach(function (el) {
+            el.style.display = window.AN_SCHOOL ? '' : 'none';
+        });
+        var templateName = document.getElementById('an-template-name');
+        if (templateName) templateName.value = opt && opt.value ? (opt.getAttribute('data-name') || opt.text || '') : '';
+        var nameLabel = document.getElementById('an-new-name-label');
+        if (nameLabel) nameLabel.textContent = window.AN_SCHOOL ? 'Parent *' : 'Name *';
+        if (enablePersonalize && window.AN_SCHOOL && personalizeBox && !personalizeBox.checked) {
+            personalizeBox.checked = true;
+            if (typeof syncPersonalize === 'function') syncPersonalize();
+        }
+        if (was !== !!window.AN_SCHOOL && typeof refreshRecipients === 'function') refreshRecipients();
+        if (typeof paintSample === 'function') paintSample();
+    }
+    document.getElementById('an-template-pick').addEventListener('change', function () {
+        var opt = this.options[this.selectedIndex];
+        if (!opt || !opt.value) {
+            syncSchoolMode();
+            return;
+        }
+        document.querySelector('[name=subject]').value = opt.getAttribute('data-subject') || '';
+        document.querySelector('[name=header]').value = opt.getAttribute('data-header') || '';
+        document.getElementById('an-body').value = opt.getAttribute('data-body') || '';
+        var cat = opt.getAttribute('data-category');
+        if (cat) document.getElementById('an-category').value = cat;
+        syncSchoolMode(true);
+    });
+    document.getElementById('an-body').addEventListener('input', function () {
+        syncSchoolMode(false);
+    });
+
+    document.getElementById('an-form').addEventListener('submit', function (e) {
+        var previewBodyField = document.getElementById('an-preview-body');
+        var previewPanel = document.getElementById('an-preview');
+        if (previewBodyField && previewPanel && previewPanel.style.display !== 'none') {
+            document.getElementById('an-body').value = previewBodyField.value;
+        }
+        if (typeof writeOverrides === 'function') {
+            writeOverrides();
+        }
+        var audience = document.getElementById('an-audience').value;
+        if (audience === 'group') {
+            if (!document.querySelectorAll('#an-group-list input:checked').length) {
+                e.preventDefault();
+                alert('Choose at least one WhatsApp group.');
+            }
+            return;
+        }
+        if (audience === 'contacts') {
+            return;
+        }
+        if (!recipients.length) {
+            e.preventDefault();
+            alert('Select at least one recipient.');
+        }
+    });
+
+    document.querySelectorAll('.an-audience').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.an-audience').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            var audience = btn.getAttribute('data-audience');
+            document.getElementById('an-audience').value = audience;
+            document.getElementById('an-people-box').style.display = audience === 'people' ? '' : 'none';
+            document.getElementById('an-group-box').style.display = audience === 'group' ? '' : 'none';
+            document.getElementById('an-contacts-box').style.display = audience === 'contacts' ? '' : 'none';
+            if (audience === 'group') {
+                var personalOn = document.getElementById('an-personalized');
+                var broadcastOn = document.getElementById('an-broadcast');
+                if (broadcastOn && (!personalOn || !personalOn.checked)) {
+                    broadcastOn.checked = true;
+                }
+                if (typeof syncPersonalize === 'function') syncPersonalize();
+            }
+            var count = document.getElementById('an-count');
+            if (audience === 'contacts') {
+                count.textContent = 'All';
+            } else if (audience === 'group') {
+                count.textContent = String(document.querySelectorAll('#an-group-list input:checked').length);
+            } else {
+                count.textContent = String(recipients.length);
+            }
+        });
+    });
+    var groupList = document.getElementById('an-group-list');
+    var groupSearch = document.getElementById('an-group-search');
+    function groupRows() {
+        return groupList ? Array.prototype.slice.call(groupList.querySelectorAll('.an-group-row')) : [];
+    }
+    function updateGroupCount() {
+        renderGroupChips();
+        if (document.getElementById('an-audience').value !== 'group') return;
+        document.getElementById('an-count').textContent = String(document.querySelectorAll('#an-group-list input:checked').length);
+    }
+    function renderGroupChips() {
+        var chips = document.getElementById('an-group-chips');
+        if (!chips) return;
+        var checked = groupRows().filter(function (row) {
+            var box = row.querySelector('input');
+            return box && box.checked;
+        });
+        chips.innerHTML = checked.map(function (row) {
+            var name = row.querySelector('.an-group-label') ? row.querySelector('.an-group-label').textContent : 'Group';
+            return '<span class="an-chip" data-jid="'+esc(row.getAttribute('data-jid'))+'">'+esc(name)+' <button type="button">×</button></span>';
+        }).join('');
+        chips.querySelectorAll('button').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                var jid = btn.parentNode.getAttribute('data-jid');
+                var row = groupList.querySelector('.an-group-row[data-jid="' + String(jid).replace(/"/g, '\\"') + '"]');
+                var box = row && row.querySelector('input');
+                if (box) box.checked = false;
+                updateGroupCount();
+            });
+        });
+    }
+    var personalizeBtn = document.getElementById('an-personalize-btn');
+    var personalizeBox = document.getElementById('an-personalized');
+    var broadcastBtn = document.getElementById('an-broadcast-btn');
+    var broadcastBox = document.getElementById('an-broadcast');
+    var previewBtn = document.getElementById('an-preview-btn');
+    var previewPeople = [];
+    var previewFocus = '';
+    function syncPersonalize() {
+        var on = !!(personalizeBox && personalizeBox.checked);
+        var broadcast = !!(broadcastBox && broadcastBox.checked);
+        if (personalizeBtn) personalizeBtn.classList.toggle('active', on);
+        if (broadcastBtn) broadcastBtn.classList.toggle('active', broadcast && !on);
+        if (previewBtn) previewBtn.style.display = on ? '' : 'none';
+        var info = document.getElementById('an-group-info');
+        if (info) {
+            info.textContent = on
+                ? 'Added groups stay listed above. Personalize greets each member by name. Use Preview to edit the message and add titles to names.'
+                : 'Broadcast sends the same message to each member separately, without a name. It does not post inside the group chat.';
+        }
+    }
+    if (broadcastBtn && broadcastBox) {
+        broadcastBtn.addEventListener('click', function () {
+            var audience = document.getElementById('an-audience').value;
+            if (broadcastBox.checked && audience === 'group' && !(personalizeBox && personalizeBox.checked)) {
+                return;
+            }
+            broadcastBox.checked = !broadcastBox.checked;
+            if (broadcastBox.checked && personalizeBox) personalizeBox.checked = false;
+            syncPersonalize();
+        });
+    }
+    if (personalizeBtn && personalizeBox) {
+        personalizeBtn.addEventListener('click', function () {
+            personalizeBox.checked = !personalizeBox.checked;
+            if (personalizeBox.checked && broadcastBox) broadcastBox.checked = false;
+            syncPersonalize();
+        });
+        syncPersonalize();
+    }
+    function displayName(person) {
+        var name = person && person.name ? String(person.name).trim() : '';
+        var phone = person && person.phone ? String(person.phone).replace(/\D/g, '') : '';
+        var digits = name.replace(/\D/g, '');
+        if (!name || /^\d{6,}$/.test(name.replace(/[\s+\-()]/g, '')) || (phone && digits === phone)) return '';
+        return name;
+    }
+    function previewHtml(person) {
+        var header = (document.querySelector('[name=header]').value || '').trim();
+        var footerInput = document.getElementById('an-footer');
+        var footer = footerInput ? footerInput.value.trim() : '';
+        if (!footer && footerInput) footer = (footerInput.getAttribute('data-system') || '').trim();
+        var name = displayName(person);
+        var phone = person && person.phone ? person.phone : '';
+        var parent = person && person.parent ? person.parent : name;
+        var student = person && person.student ? person.student : '';
+        var className = person && person.class ? person.class : '';
+        var body = esc(document.getElementById('an-preview-body').value || '');
+        var shownName = name ? '<strong>'+esc(name)+'</strong>' : '';
+        body = body.replace(/\{name\}/ig, shownName).replace(/\{phone\}/ig, esc(phone)).replace(/\{date\}/ig, new Date().toLocaleDateString());
+        body = body.replace(/\{parent(_name)?\}/ig, esc(parent)).replace(/\{student(_name)?\}/ig, esc(student)).replace(/\{child(_name)?\}/ig, esc(student)).replace(/\{class(_name)?\}/ig, esc(className));
+        body = body.replace(/^\s*Dear\b[^\n]*\n*/i, '').trim();
+        var html = '';
+        if (header) html += '<div style="font-size:17px;font-weight:700;margin-bottom:12px;">📢 '+esc(header)+'</div>';
+        html += '<div style="margin-bottom:12px;">'+(name ? 'Dear <strong>'+esc(name)+'</strong>,' : 'Hello,')+'</div>';
+        html += '<div style="white-space:pre-wrap;line-height:1.5;">'+body+'</div>';
+        if (footer) html += '<div style="margin-top:14px;color:#64748b;font-style:italic;">'+esc(footer)+'</div>';
+        return html;
+    }
+    function paintSample() {
+        var sample = document.getElementById('an-preview-sample');
+        if (!sample) return;
+        var person = previewPeople.filter(function (p) { return p.phone === previewFocus; })[0] || previewPeople[0];
+        sample.innerHTML = person ? previewHtml(person) : 'Add a group, then open preview.';
+    }
+    function writeOverrides() {
+        var box = document.getElementById('an-name-overrides');
+        if (!box) return;
+        box.innerHTML = previewPeople.filter(function (p) {
+            return String(p.name || '').trim() !== String(p.original || '').trim();
+        }).map(function (p) {
+            return '<input type="hidden" name="name_overrides['+esc(p.phone)+']" value="'+esc(p.name)+'">';
+        }).join('');
+        var school = document.getElementById('an-school-overrides');
+        if (!school) return;
+        if (!schoolActive()) {
+            school.innerHTML = '';
+            return;
+        }
+        school.innerHTML = previewPeople.map(function (p) {
+            return '<input type="hidden" name="school['+esc(p.phone)+'][parent]" value="'+esc(p.parent || '')+'">'
+                + '<input type="hidden" name="school['+esc(p.phone)+'][student]" value="'+esc(p.student || '')+'">'
+                + '<input type="hidden" name="school['+esc(p.phone)+'][class]" value="'+esc(p.class || '')+'">';
+        }).join('');
+    }
+    function renderPreviewList() {
+        var list = document.getElementById('an-preview-list');
+        var search = document.getElementById('an-preview-search');
+        if (!list) return;
+        var q = search ? search.value.toLowerCase().trim() : '';
+        var qDigits = q.replace(/\D+/g, '');
+        var shown = previewPeople.filter(function (p) {
+            if (!q) return true;
+            var name = (p.name || '').toLowerCase();
+            var phone = (p.phone || '').toLowerCase();
+            return name.indexOf(q) !== -1 || phone.indexOf(q) !== -1 || (qDigits && phone.indexOf(qDigits) !== -1);
+        });
+        list.innerHTML = shown.map(function (p) {
+            var schoolFields = '';
+            if (schoolActive()) {
+                schoolFields = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px;">'
+                    + '<input class="an-field an-school-parent" data-phone="'+esc(p.phone)+'" value="'+esc(p.parent || '')+'" placeholder="Parent">'
+                    + '<input class="an-field an-school-student" data-phone="'+esc(p.phone)+'" value="'+esc(p.student || '')+'" placeholder="Student">'
+                    + '<input class="an-field an-school-class" data-phone="'+esc(p.phone)+'" value="'+esc(p.class || '')+'" placeholder="Class">'
+                    + '</div>';
+            }
+            return '<label class="an-user-item" style="display:block;">'
+                + '<input class="an-field an-name-edit" data-phone="'+esc(p.phone)+'" value="'+esc(p.name)+'" placeholder="Add a title, for example Pastor John">'
+                + schoolFields
+                + '<div class="meta">'+esc(p.phone)+(p.group ? ' · '+esc(p.group) : '')+'</div></label>';
+        }).join('') || '<div class="p-3 text-muted small">No contacts match that search.</div>';
+        list.querySelectorAll('.an-name-edit').forEach(function (input) {
+            input.addEventListener('focus', function () {
+                previewFocus = input.getAttribute('data-phone');
+                paintSample();
+            });
+            input.addEventListener('input', function () {
+                var phone = input.getAttribute('data-phone');
+                previewPeople.forEach(function (p) {
+                    if (p.phone === phone) p.name = input.value;
+                });
+                previewFocus = phone;
+                writeOverrides();
+                paintSample();
+            });
+        });
+        list.querySelectorAll('.an-school-parent, .an-school-student, .an-school-class').forEach(function (input) {
+            input.addEventListener('input', function () {
+                var phone = input.getAttribute('data-phone');
+                var field = input.classList.contains('an-school-student') ? 'student'
+                    : (input.classList.contains('an-school-class') ? 'class' : 'parent');
+                previewPeople.forEach(function (p) {
+                    if (p.phone !== phone) return;
+                    p[field] = input.value;
+                    if (field === 'parent' && String(p.name || '') === String(p.original || '')) {
+                        p.name = input.value;
+                        p.original = input.value;
+                        var nameBox = list.querySelector('.an-name-edit[data-phone="'+phone+'"]');
+                        if (nameBox && document.activeElement !== nameBox) nameBox.value = input.value;
+                    }
+                });
+                previewFocus = phone;
+                writeOverrides();
+                paintSample();
+            });
+        });
+        paintSample();
+    }
+    var previewBody = document.getElementById('an-preview-body');
+    if (previewBody) {
+        previewBody.addEventListener('input', function () {
+            document.getElementById('an-body').value = previewBody.value;
+            paintSample();
+        });
+    }
+    var footerInput = document.getElementById('an-footer');
+    if (footerInput) footerInput.addEventListener('input', paintSample);
+    var previewSearch = document.getElementById('an-preview-search');
+    if (previewSearch) previewSearch.addEventListener('input', renderPreviewList);
+    if (previewBtn) {
+        previewBtn.addEventListener('click', function () {
+            var audience = document.getElementById('an-audience').value;
+            var jids = groupRows().filter(function (row) {
+                var box = row.querySelector('input');
+                return box && box.checked;
+            }).map(function (row) { return row.getAttribute('data-jid'); });
+            if (audience === 'group' && !jids.length) {
+                alert('Add at least one WhatsApp group first.');
+                return;
+            }
+            if (audience !== 'group' && !recipients.length) {
+                alert('Select at least one person first.');
+                return;
+            }
+            previewBtn.disabled = true;
+            previewBtn.textContent = 'Loading names…';
+            fetch(@json(route('announcements.preview')), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ audience: audience, group_jids: jids, recipient_ids: recipients })
+            }).then(function (response) { return response.json().then(function (payload) { return { ok: response.ok, payload: payload }; }); }).then(function (result) {
+                var payload = result.payload || {};
+                if (!result.ok) {
+                    alert(payload.error || 'The names could not be loaded.');
+                    return;
+                }
+                previewPeople = (payload.people || []).map(function (person) {
+                    person.original = person.name || '';
+                    if (!person.parent) person.parent = person.name || '';
+                    return person;
+                });
+                previewFocus = previewPeople.length ? previewPeople[0].phone : '';
+                document.getElementById('an-preview-body').value = document.getElementById('an-body').value;
+                document.getElementById('an-preview').style.display = '';
+                renderPreviewList();
+                writeOverrides();
+                document.getElementById('an-preview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }).catch(function () {
+                alert('The names could not be loaded. Add the group again and open Preview.');
+            }).then(function () {
+                previewBtn.disabled = false;
+                previewBtn.textContent = 'Preview messages';
+            });
+        });
+    }
+    if (groupList) {
+        groupList.addEventListener('change', updateGroupCount);
+    }
+    if (groupSearch) {
+        groupSearch.addEventListener('input', function () {
+            var q = groupSearch.value.toLowerCase().trim();
+            groupRows().forEach(function (row) {
+                var name = (row.querySelector('.an-group-label') ? row.querySelector('.an-group-label').textContent : '').toLowerCase();
+                row.style.display = !q || name.indexOf(q) !== -1 ? 'flex' : 'none';
+            });
+        });
+    }
+    var selectShown = document.getElementById('an-group-visible');
+    if (selectShown) {
+        selectShown.addEventListener('click', function () {
+            groupRows().forEach(function (row) {
+                if (row.style.display === 'none') return;
+                var box = row.querySelector('input');
+                if (box) box.checked = true;
+            });
+            updateGroupCount();
+        });
+    }
+    var clearGroups = document.getElementById('an-group-clear');
+    if (clearGroups) {
+        clearGroups.addEventListener('click', function () {
+            groupRows().forEach(function (row) {
+                var box = row.querySelector('input');
+                if (box) box.checked = false;
+            });
+            updateGroupCount();
+        });
+    }
+    (function loadGroupNames() {
+        var progress = document.getElementById('an-group-progress');
+        var lookupUrl = @json(route('announcements.groups.lookup'));
+        function pending() {
+            return groupRows().filter(function (row) {
+                return row.getAttribute('data-known') !== '1';
+            }).map(function (row) { return row.getAttribute('data-jid'); });
+        }
+        function paint(group) {
+            var row = groupList.querySelector('.an-group-row[data-jid="' + String(group.jid).replace(/"/g, '\\"') + '"]');
+            if (!row || !group.name) return;
+            row.setAttribute('data-known', '1');
+            var label = row.querySelector('.an-group-label');
+            if (label) label.textContent = group.name;
+            var count = row.querySelector('.an-group-count');
+            if (count && group.members !== null && group.members !== undefined) {
+                count.textContent = ' · ' + Number(group.members).toLocaleString() + ' contacts';
+            }
+            renderGroupChips();
+        }
+        function tick() {
+            var jids = pending();
+            if (!jids.length) {
+                if (progress) progress.style.display = 'none';
+                return;
+            }
+            if (progress) {
+                progress.style.display = '';
+                progress.textContent = 'Resolving every group into contacts (' + (groupRows().length - jids.length) + ' of ' + groupRows().length + '). Groups you use stay at the top. Search works as each name appears.';
+            }
+            fetch(lookupUrl + '?jids=' + encodeURIComponent(jids.slice(0, 8).join(',')), {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            }).then(function (response) { return response.json(); }).then(function (payload) {
+                (payload && payload.groups ? payload.groups : []).forEach(paint);
+                if (groupSearch && groupSearch.value) groupSearch.dispatchEvent(new Event('input'));
+                if (pending().length) setTimeout(tick, Math.max(5, (payload && payload.retry_after) ? payload.retry_after : 60) * 1000);
+                else if (progress) progress.style.display = 'none';
+            }).catch(function () {
+                if (pending().length) setTimeout(tick, 60000);
+            });
+        }
+        if (pending().length) tick();
+    })();
+
+    refreshRecipients();
+    refreshCc();
+    syncSchoolMode(true);
+})();
+</script>
+@if(request('group'))
+<script>
+(function () {
+    var jid = @json((string) request('group'));
+    var pill = document.querySelector('.an-audience[data-audience="group"]');
+    if (pill) pill.click();
+    var row = document.querySelector('.an-group-row[data-jid="' + jid.replace(/"/g, '\\"') + '"] input');
+    if (row) row.checked = true;
+})();
+</script>
+@endif

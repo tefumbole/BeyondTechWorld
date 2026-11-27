@@ -283,7 +283,7 @@
 @php
     $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
-<div class="chats-app {{ ($open || $group || $pane === 'announcements' || $pane === 'help') ? 'has-open' : '' }}">
+<div class="chats-app {{ ($open || $group || $pane === 'announcements' || $pane === 'help') ? 'has-open' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}">
     <aside class="chats-side {{ !empty($personalHub) ? 'is-personal' : '' }}">
         <nav class="hub-screens">
             <a class="{{ $screen === 'chats' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}">Chats</a>
@@ -395,11 +395,13 @@
                 @php
                     $more = [
                         ['Help', 'How to use Whats MAI', route('whatsapp.chats', ['pane' => 'help'])],
-                        ['People', 'Names and numbers', route('whatsapp.people')],
-                        ['Groups', 'WhatsApp groups', route('whatsapp.groups')],
-                        ['Leads', 'Enquiries from chats', route('whatsapp.leads')],
-                        ['Announcements', 'Send a letter to a group or a person', route('whatsapp.chats', ['pane' => 'announcements'])],
                     ];
+                    if (empty($personalHub)) {
+                        $more[] = ['People', 'Names and numbers', route('whatsapp.people')];
+                    }
+                    $more[] = ['Groups', 'WhatsApp groups', route('whatsapp.groups')];
+                    $more[] = ['Leads', 'Enquiries from chats', route('whatsapp.leads')];
+                    $more[] = ['Announcements', 'Send a letter to a group or a person', route('whatsapp.chats', ['pane' => 'announcements'])];
                 @endphp
                 @foreach($more as $item)
                     <a class="chat-row" data-name="{{ strtolower($item[0].' '.$item[1]) }}" href="{{ $item[2] }}">
@@ -483,7 +485,7 @@
                         @csrf
                         <button type="submit" class="{{ $open->mode !== 'AI' ? 'is-on' : '' }}">Human</button>
                     </form>
-                    <a class="announce-btn" href="{{ route('announcements.compose') }}">Announcements</a>
+                    <a class="announce-btn" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.compose') }}">Announcements</a>
                 </div>
             </header>
             @php
@@ -604,7 +606,7 @@
                         <p>{{ $group['members'] === null ? 'WhatsApp group' : number_format($group['members']).' contacts' }}</p>
                     </div>
                 </div>
-                <a class="announce-btn" href="{{ route('announcements.compose', ['group' => $group['jid']]) }}">Create announcement</a>
+                <a class="announce-btn" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements', 'group' => $group['jid']]) : route('announcements.compose', ['group' => $group['jid']]) }}">Create announcement</a>
             </header>
             @if(session('not_permitted'))<div class="chat-note">{{ session('not_permitted') }}</div>@endif
             <div class="chats-stream" id="chatStream">
@@ -671,6 +673,21 @@
             @endif
         @elseif($pane === 'help')
             @include('whatsapp_hub.partials.help')
+        @elseif($pane === 'announcements' && !empty($personalHub) && !empty($announce))
+            <header class="chats-head">
+                <div class="chats-head-person">
+                    <a class="chat-back" href="{{ route('whatsapp.chats') }}" aria-label="Back">‹ Back</a>
+                    <div>
+                        <h2>Announcements</h2>
+                        <p>Write a message, choose people or a group, then send</p>
+                    </div>
+                </div>
+            </header>
+            @if(session('message'))<div class="chat-note">{{ session('message') }}</div>@endif
+            @if(session('not_permitted'))<div class="chat-note">{{ session('not_permitted') }}</div>@endif
+            <div class="an-shell an-compose is-mai is-embedded">
+                @include('announcement_manager.partials.composer', $announce)
+            </div>
         @elseif($pane === 'announcements')
             <header class="chats-head">
                 <div class="chats-head-person">
@@ -744,7 +761,7 @@
             <form method="POST" id="threadTranslate" action="">@csrf<button type="submit" class="is-translate">Translate</button></form>
             <form method="POST" id="threadAi" action="">@csrf<button type="submit">AI</button></form>
             <form method="POST" id="threadHuman" action="">@csrf<button type="submit">Human</button></form>
-            <a class="announce-btn" href="{{ route('announcements.compose') }}">Announcements</a>
+            <a class="announce-btn" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.compose') }}">Announcements</a>
         </div>
     </header>
     <div class="chat-live" id="chatLive">Reconnecting…</div>
