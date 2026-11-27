@@ -1,3 +1,6 @@
+@php
+    $defaultHeader = old('header', is_array($clone ?? null) ? (isset($clone['header']) ? $clone['header'] : '') : '');
+@endphp
 <style>
     .an-topbar { display:flex; justify-content:space-between; align-items:center; gap:16px; background:#0b3f90; color:#fff; border-radius:16px; padding:16px 20px; margin:0 0 16px; }
     .an-topbar h1 { margin:0; font-size:22px; font-weight:800; color:#fff; }

@@ -99,12 +99,15 @@
                         <td class="await-when" data-order="{{ $bill['latest_at'] ? $bill['latest_at']->timestamp : 0 }}">{{ $bill['latest_at'] ? $bill['latest_at']->format('d M Y H:i') : '' }}</td>
                         <td>
                             <div class="await-pay">
-                                @if($single && $dueNow >= 100)
-                                    <button type="button" class="request-payment btn btn-sm btn-primary" data-id="{{ $bill['sale_id'] }}" data-due="{{ $dueNow }}" data-name="{{ $bill['name'] }}" data-ref="{{ $refLabel }}"><i class="fa fa-whatsapp"></i> Request payment</button>
+                                @if($dueNow >= 100)
+                                    @if($single)
+                                        <button type="button" class="request-payment btn btn-sm btn-primary" data-id="{{ $bill['sale_id'] }}" data-due="{{ $dueNow }}" data-name="{{ $bill['name'] }}" data-ref="{{ $refLabel }}"><i class="fa fa-whatsapp"></i> Request payment</button>
+                                    @else
+                                        <button type="button" class="request-group btn btn-sm btn-primary" data-ids="{{ implode(',', $bill['sale_ids']) }}"><i class="fa fa-whatsapp"></i> Request payment</button>
+                                    @endif
                                 @endif
-                                @if($single)
-                                    <button type="button" class="add-payment btn btn-sm btn-success" data-id="{{ $bill['sale_id'] }}" data-due="{{ $dueNow }}" data-name="{{ $bill['name'] }}" data-phone="{{ $bill['phone'] }}" data-ref="{{ $refLabel }}" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i>{{ trans('file.Add Payment') }}</button>
-                                @else
+                                <button type="button" class="add-payment btn btn-sm btn-success" data-id="{{ $bill['pay_id'] }}" data-due="{{ (int) round($bill['pay_due']) }}" data-name="{{ $bill['name'] }}" data-phone="{{ $bill['phone'] }}" data-ref="{{ $bill['pay_ref'] }}" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i>{{ trans('file.Add Payment') }}</button>
+                                @if(! $single)
                                     <a class="btn btn-sm btn-success" href="{{ $href }}">View</a>
                                 @endif
                             </div>
@@ -216,8 +219,14 @@
             $('input[name="amount"]').val(balance);
             $('input[name="sale_id"]').val(sale_id);
         });
-        $(document).on('click', '#biller-table tbody .request-payment', function (event) {
+        $(document).on('click', '#biller-table tbody .request-payment, #biller-table tbody .request-group', function (event) {
             event.stopPropagation();
+        });
+        $(document).on('click', '.request-group', function () {
+            var ids = String($(this).attr('data-ids') || '').split(',').filter(function (part) { return $.trim(part) !== ''; });
+            if (!ids.length) return;
+            if (!confirm('Send a payment request for each of these ' + ids.length + ' bills?')) return;
+            postAwaiting('awaiting-request-form', ids);
         });
         $(document).on('click', '#biller-table tbody tr.clickable-row td:not(:first-child):not(:last-child)', function () {
             var href = $(this).closest('tr').data('href');

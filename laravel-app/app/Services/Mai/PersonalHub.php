@@ -74,22 +74,10 @@ class PersonalHub
                     } catch (\Throwable $e) {
                     }
                 }
-                $shared = $contact && WhatsAppConversation::where('contact_id', $contact->id)->whereNull('mai_session_id')->exists();
-                if ($contact && $saved !== '' && ! $shared) {
-                    $current = $this->savedName($contact->wa_name, $store);
-                    if ($current === '' || $current !== $saved) {
-                        $contact->wa_name = function_exists('mb_substr') ? mb_substr($saved, 0, 191) : substr($saved, 0, 191);
-                    }
-                }
-                if ($contact) {
-                    $shown = ($chat['phone'] !== '' && strlen($chat['phone']) <= 13)
-                        ? \App\Support\WhatsAppPhone::display($chat['phone'])
-                        : '';
-                    if ((string) $contact->display_phone !== $shown) {
-                        $contact->display_phone = $shown;
-                    }
-                    if ($contact->isDirty()) {
-                        $contact->save();
+                if ($saved !== '' && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'peer_label')) {
+                    $label = function_exists('mb_substr') ? mb_substr($saved, 0, 191) : substr($saved, 0, 191);
+                    if ((string) $conversation->peer_label !== $label) {
+                        $conversation->peer_label = $label;
                     }
                 }
                 if ($chat['preview'] !== '' && (string) $conversation->last_message !== $chat['preview']) {
@@ -130,19 +118,35 @@ class PersonalHub
                 }
                 $providerId = isset($row['id']) ? substr((string) $row['id'], 0, 128) : '';
                 $status = $this->receiptStatus($row);
+                $conversation = $outbound->conversation($session, $digits);
                 if ($providerId !== '') {
-                    $existing = WhatsAppMessage::where('provider_message_id', $providerId)->first();
+                    $existing = WhatsAppMessage::where('conversation_id', $conversation->id)
+                        ->where('provider_message_id', $providerId)
+                        ->first();
                     if ($existing) {
                         $this->raiseStatus($existing, $status);
                         continue;
                     }
                 }
-                $conversation = $outbound->conversation($session, $digits);
+                $stamp = Carbon::createFromTimestamp($stampValue);
+                $same = WhatsAppMessage::where('conversation_id', $conversation->id)
+                    ->where('body', $row['text'])
+                    ->where('direction', ! empty($row['from_me']) ? WhatsAppMessage::DIR_OUT : WhatsAppMessage::DIR_IN)
+                    ->where('created_at', '>=', $stamp->copy()->subMinutes(2))
+                    ->orderByDesc('id')
+                    ->first();
+                if ($same) {
+                    if ($providerId !== '' && ! $same->provider_message_id) {
+                        $same->provider_message_id = $providerId;
+                        $same->save();
+                    }
+                    $this->raiseStatus($same, $status);
+                    continue;
+                }
                 $key = 'mai-live:'.$session->id.':'.substr(sha1($from.'|'.$row['text'].'|'.$row['at']), 0, 40);
                 if (WhatsAppMessage::where('provider_message_id', $key)->exists()) {
                     continue;
                 }
-                $stamp = Carbon::createFromTimestamp($stampValue);
                 $message = new WhatsAppMessage();
                 $message->timestamps = false;
                 $message->conversation_id = $conversation->id;
@@ -194,9 +198,20 @@ class PersonalHub
         return $session;
     }
 
-    public function label($contact)
+    public function label($contact, $conversation = null)
     {
         $phone = preg_replace('/\D/', '', (string) optional($contact)->normalized_phone);
+        $own = $conversation ? trim((string) $conversation->peer_label) : '';
+        if ($own !== '') {
+            return $own;
+        }
+        if ($conversation && $conversation->mai_session_id) {
+            if ($phone !== '' && strlen($phone) <= 13) {
+                return '+'.$phone;
+            }
+
+            return 'WhatsApp';
+        }
         $name = $this->savedName(optional($contact)->wa_name, $phone);
         if ($name !== '') {
             return $name;
@@ -210,6 +225,16 @@ class PersonalHub
         }
 
         return 'WhatsApp';
+    }
+
+    public function phoneLabel($contact)
+    {
+        $phone = preg_replace('/\D/', '', (string) optional($contact)->normalized_phone);
+        if ($phone !== '' && strlen($phone) <= 13) {
+            return '+'.$phone;
+        }
+
+        return '';
     }
 
     protected function receiptStatus(array $row)

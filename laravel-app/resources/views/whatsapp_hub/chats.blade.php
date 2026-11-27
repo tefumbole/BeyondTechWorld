@@ -330,14 +330,17 @@
             @foreach($conversations as $row)
                 @php
                     $person = !empty($personalHub)
-                        ? app(\App\Services\Mai\PersonalHub::class)->label($row->contact)
+                        ? app(\App\Services\Mai\PersonalHub::class)->label($row->contact, $row)
                         : (optional($row->contact)->displayName() ?: 'WhatsApp');
+                    $rowPhone = !empty($personalHub)
+                        ? app(\App\Services\Mai\PersonalHub::class)->phoneLabel($row->contact)
+                        : (string) optional($row->contact)->display_phone;
                     $when = !empty($personalHub) ? $row->last_activity_at : ($row->last_activity_at ?: $row->updated_at);
                     $preview = \App\WhatsApp\WhatsAppMessage::listPreview($row->last_message);
                     $rowUnread = (int) $row->id === $openId ? 0 : (int) $row->unread_count;
                     $tone = sprintf('%u', crc32(strtolower($person))) % 8;
                 @endphp
-                <a class="chat-row {{ (int) $row->id === $openId ? 'is-on' : '' }}" data-id="{{ $row->id }}" data-kind="person" data-read="{{ $rowUnread > 0 ? '0' : '1' }}" data-name="{{ strtolower($person.' '.optional($row->contact)->display_phone) }}" href="{{ route('whatsapp.chats', ['chat' => $row->id]) }}">
+                <a class="chat-row {{ (int) $row->id === $openId ? 'is-on' : '' }}" data-id="{{ $row->id }}" data-kind="person" data-read="{{ $rowUnread > 0 ? '0' : '1' }}" data-name="{{ strtolower($person.' '.$rowPhone) }}" href="{{ route('whatsapp.chats', ['chat' => $row->id]) }}">
                     <span class="chat-avatar" data-tone="{{ $tone }}">{{ mb_strtoupper(mb_substr($person, 0, 1)) }}</span>
                     <span class="chat-main">
                         <span class="chat-top">
@@ -454,8 +457,10 @@
     <section class="chats-thread">
         @if($open)
             @php
-                $title = !empty($personalHub) ? app(\App\Services\Mai\PersonalHub::class)->label($open->contact) : (optional($open->contact)->displayName() ?: 'WhatsApp');
-                $threadPhone = (string) optional($open->contact)->display_phone;
+                $title = !empty($personalHub) ? app(\App\Services\Mai\PersonalHub::class)->label($open->contact, $open) : (optional($open->contact)->displayName() ?: 'WhatsApp');
+                $threadPhone = !empty($personalHub)
+                    ? app(\App\Services\Mai\PersonalHub::class)->phoneLabel($open->contact)
+                    : (string) optional($open->contact)->display_phone;
                 if (!empty($personalHub) && strlen(preg_replace('/\D/', '', $threadPhone)) > 13) {
                     $threadPhone = '';
                 }

@@ -247,6 +247,9 @@ class PaymentController extends Controller
         $refs = [];
         $pending = true;
         $latest = null;
+        $payId = $first ? (int) $first->id : 0;
+        $payDue = 0;
+        $payRef = $first ? (string) $first->reference_no : '';
         foreach ($sales as $sale) {
             $saleDue = max(0, (float) $sale->grand_total - (float) $sale->paid_amount);
             $total += (float) $sale->grand_total;
@@ -254,6 +257,11 @@ class PaymentController extends Controller
             $due += $saleDue;
             $ids[] = (int) $sale->id;
             $refs[] = (string) $sale->reference_no;
+            if ($saleDue >= $payDue) {
+                $payDue = $saleDue;
+                $payId = (int) $sale->id;
+                $payRef = (string) $sale->reference_no;
+            }
             if ((int) $sale->payment_status !== 1 || (float) $sale->paid_amount > 0.009) {
                 $pending = false;
             }
@@ -285,6 +293,9 @@ class PaymentController extends Controller
             'latest' => $latest ? $latest->format('Y-m-d H:i:s') : '',
             'latest_at' => $latest,
             'sale_id' => $first ? (int) $first->id : 0,
+            'pay_id' => $payId,
+            'pay_due' => $payDue,
+            'pay_ref' => $payRef,
         ];
     }
 

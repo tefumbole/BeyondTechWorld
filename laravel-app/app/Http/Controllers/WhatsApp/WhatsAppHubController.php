@@ -322,15 +322,20 @@ class WhatsAppHubController extends Controller
             }
             if ($request->get('names')) {
                 $named = $this->inboxConversations();
-                try {
-                    $this->conversations->preferPhoneNames($named, true);
-                } catch (\Throwable $e) {
+                $ownBook = (bool) $this->personalHub();
+                if (! $ownBook) {
+                    try {
+                        $this->conversations->preferPhoneNames($named, true);
+                    } catch (\Throwable $e) {
+                    }
                 }
                 $names = [];
                 foreach ($named as $row) {
                     $names[] = [
                         'id' => (int) $row->id,
-                        'name' => optional($row->contact)->displayName() ?: 'WhatsApp',
+                        'name' => $ownBook
+                            ? app(\App\Services\Mai\PersonalHub::class)->label($row->contact, $row)
+                            : (optional($row->contact)->displayName() ?: 'WhatsApp'),
                     ];
                 }
 
@@ -647,13 +652,16 @@ class WhatsAppHubController extends Controller
             return $payload;
         }
         $payload['list'] = true;
-        try {
-            $this->conversations->preferPhoneNames($conversations, false);
-        } catch (\Throwable $e) {
+        $ownBook = (bool) $this->personalHub();
+        if (! $ownBook) {
+            try {
+                $this->conversations->preferPhoneNames($conversations, false);
+            } catch (\Throwable $e) {
+            }
         }
-        $payload['items'] = $conversations->map(function ($row) {
-            $person = $this->personalHub()
-                ? app(\App\Services\Mai\PersonalHub::class)->label($row->contact)
+        $payload['items'] = $conversations->map(function ($row) use ($ownBook) {
+            $person = $ownBook
+                ? app(\App\Services\Mai\PersonalHub::class)->label($row->contact, $row)
                 : (optional($row->contact)->displayName() ?: 'WhatsApp');
             $when = $this->personalHub() ? $row->last_activity_at : ($row->last_activity_at ?: $row->updated_at);
             $preview = trim((string) $row->last_message);
@@ -662,7 +670,9 @@ class WhatsAppHubController extends Controller
                 'id' => (int) $row->id,
                 'name' => $person,
                 'tone' => (int) (sprintf('%u', crc32(strtolower($person))) % 8),
-                'phone' => (string) optional($row->contact)->display_phone,
+                'phone' => $ownBook
+                    ? app(\App\Services\Mai\PersonalHub::class)->phoneLabel($row->contact)
+                    : (string) optional($row->contact)->display_phone,
                 'preview' => $this->chatPreview($preview),
                 'time' => $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '',
                 'at' => $when ? $when->toIso8601String() : '',
