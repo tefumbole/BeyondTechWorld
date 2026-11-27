@@ -7,7 +7,7 @@ import {
   Browsers,
   DisconnectReason,
   downloadMediaMessage,
-  fetchLatestBaileysVersion,
+  fetchLatestWaWebVersion,
   useMultiFileAuthState,
 } from '@whiskeysockets/baileys'
 import pino from 'pino'
@@ -23,6 +23,7 @@ import {
   unsealCreds,
 } from './session-store.mjs'
 import { classifyHistory, historyMarkerComplete } from './history-sync.mjs'
+import { bundledBaileysVersion, chooseClientVersion } from './client-version.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../storage/app/whatsapp-link')
 const tokenPath = path.join(root, 'token')
@@ -522,13 +523,29 @@ function historyIsComplete(dir) {
   }
 }
 
+async function clientVersion() {
+  let latest = null
+  try {
+    latest = await fetchLatestWaWebVersion()
+  } catch (e) {
+    latest = null
+  }
+  return chooseClientVersion(latest, bundledBaileysVersion(path.dirname(fileURLToPath(import.meta.url))))
+}
+
 async function startSocket(id, expected) {
   const existing = sessions.get(id)
   if (expected) {
     if (existing) existing.expected = expected
   }
-  if (existing && existing.sock && existing.status !== 'DISCONNECTED' && existing.status !== 'ERROR') {
+  if (existing && existing.sock && (existing.status === 'CONNECTED' || (existing.qr && existing.status === 'AWAITING_QR'))) {
     return existing
+  }
+  if (existing && existing.sock) {
+    existing.generation = (existing.generation || 0) + 1
+    const previous = existing.sock
+    existing.sock = null
+    try { previous.end(undefined) } catch (e) {}
   }
   const dir = sessionDir(id)
   ensureDir(dir)
@@ -559,18 +576,19 @@ async function startSocket(id, expected) {
       }
     })
   }
-  const version = await fetchLatestBaileysVersion()
+  const version = await clientVersion()
   if (!entry.chats) entry.chats = {}
   if (expected) entry.expected = expected
   const keptQr = entry.qr || null
   entry.registered = !!(state.creds && state.creds.registered)
+  entry.retries = 0
   entry.status = entry.status === 'CONNECTED' ? 'CONNECTED' : (entry.registered && !keptQr ? 'CONNECTING' : 'AWAITING_QR')
   entry.error = null
   entry.qr = keptQr
   entry.pairing = null
   sessions.set(id, entry)
   const sock = makeWASocket({
-    version: version.version,
+    version,
     auth: state,
     logger,
     printQRInTerminal: false,
@@ -711,6 +729,7 @@ async function startSocket(id, expected) {
         ? update.lastDisconnect.error.output.statusCode
         : 0
       entry.sock = null
+      console.error('mai link closed ' + code)
       if (entry.closing || code === DisconnectReason.loggedOut) {
         entry.status = code === DisconnectReason.loggedOut ? 'UNLINKED' : 'DISCONNECTED'
         entry.qr = null
