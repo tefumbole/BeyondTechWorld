@@ -264,6 +264,7 @@ class MaiContactIsolationTest extends TestCase
         ]);
         $this->assertSame(0, $calls);
         $this->assertSame(1, WhatsAppMessage::count());
+        $this->assertSame(0, (int) $chat->fresh()->unread_count);
 
         app(MaiInboxStore::class)->accept([
             'session_id' => $session->worker_session_id,
@@ -288,6 +289,7 @@ class MaiContactIsolationTest extends TestCase
         ]);
         $this->assertSame(2, $calls);
         $this->assertSame(3, WhatsAppMessage::count());
+        $this->assertSame(2, (int) $chat->fresh()->unread_count);
 
         $chat->mode = 'HUMAN';
         $chat->save();
@@ -526,6 +528,62 @@ class MaiContactIsolationTest extends TestCase
         app(\App\Services\Mai\PersonalHub::class)->sync($session);
 
         $this->assertSame(1, WhatsAppMessage::where('provider_message_id', 'DUPCHAT1')->count());
+    }
+
+    public function test_unread_on_mai_matches_the_phone()
+    {
+        $readContact = $this->contact('Read Person');
+        $session = $this->linked(12, 'p23767000012');
+        $read = $this->chat($readContact, $session, 'Read Person');
+        $read->unread_count = 6;
+        $read->save();
+        $waiting = new WhatsAppContact();
+        $waiting->normalized_phone = '237688000444';
+        $waiting->display_phone = '+237688000444';
+        $waiting->wa_name = 'Waiting Person';
+        $waiting->save();
+        $open = $this->chat($waiting, $session, 'Waiting Person');
+        $open->unread_count = 9;
+        $open->save();
+        config(['cloud.whatsapp.link_transport' => function ($method, $path) {
+            if (strpos($path, '/chats') !== false) {
+                return ['chats' => [
+                    [
+                        'jid' => '237699000333@s.whatsapp.net',
+                        'phone' => '237699000333',
+                        'saved_name' => 'Read Person',
+                        'preview' => 'Seen',
+                        'unread' => 0,
+                        'at' => time(),
+                    ],
+                    [
+                        'jid' => '237688000444@s.whatsapp.net',
+                        'phone' => '237688000444',
+                        'saved_name' => 'Waiting Person',
+                        'preview' => 'Hello',
+                        'unread' => 1,
+                        'at' => time(),
+                    ],
+                ]];
+            }
+            if (strpos($path, '/messages') !== false) {
+                return ['messages' => [[
+                    'id' => 'old-read',
+                    'from' => '237699000333@s.whatsapp.net',
+                    'from_me' => false,
+                    'text' => 'Already read on the phone',
+                    'at' => (string) time(),
+                ]]];
+            }
+
+            return ['generation' => 1, 'events' => []];
+        }]);
+
+        app(\App\Services\Mai\PersonalHub::class)->sync($session, false);
+
+        $this->assertSame(0, (int) $read->fresh()->unread_count);
+        $this->assertSame(1, (int) $open->fresh()->unread_count);
+        $this->assertSame('Read Person', app(\App\Services\Mai\PersonalHub::class)->label($readContact->fresh(), $read->fresh()));
     }
 
     public function test_an_edit_uses_the_linked_socket()

@@ -58,46 +58,7 @@ class PersonalHub
         $session = $session->fresh() ?: $session;
         app(CloudTenantContext::class)->withoutIsolation(function () use ($session, $phone, $engine, $outbound, $lookupNames) {
             $identity = app(MaiIdentity::class);
-            if ($lookupNames) {
-            foreach ($engine->chats($phone) as $chat) {
-                if (substr($chat['jid'], -5) === '@g.us' || (int) $chat['at'] <= 0) {
-                    continue;
-                }
-                $store = $chat['phone'] !== '' ? $chat['phone'] : (isset($chat['lid']) ? $chat['lid'] : '');
-                if ($store === '' || strlen($store) < 8 || strlen($store) > 15) {
-                    continue;
-                }
-                $conversation = $outbound->conversation($session, $store);
-                $contact = $conversation->contact;
-                $identity->remember($session, $chat);
-                $saved = $identity->display($conversation, $contact);
-                if ($saved !== '' && $saved !== 'WhatsApp' && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'peer_label')) {
-                    $label = function_exists('mb_substr') ? mb_substr($saved, 0, 191) : substr($saved, 0, 191);
-                    if ((string) $conversation->peer_label !== $label) {
-                        $conversation->peer_label = $label;
-                    }
-                }
-                if ($chat['preview'] !== '' && (string) $conversation->last_message !== $chat['preview']) {
-                    $conversation->last_message = $chat['preview'];
-                }
-                if ((int) $chat['unread'] > (int) $conversation->unread_count) {
-                    $conversation->unread_count = (int) $chat['unread'];
-                }
-                $at = (int) $chat['at'];
-                if ($at > 1000000000000) {
-                    $at = (int) floor($at / 1000);
-                }
-                if ($at > 0) {
-                    $when = Carbon::createFromTimestamp($at);
-                    if (! $conversation->last_activity_at || $when->gt($conversation->last_activity_at)) {
-                        $conversation->last_activity_at = $when;
-                    }
-                }
-                if ($conversation->isDirty()) {
-                    $conversation->save();
-                }
-            }
-            }
+            $phoneChats = $engine->chats($phone);
             $incoming = $engine->messages($phone);
             if (! $lookupNames && count($incoming) > 60) {
                 $incoming = array_slice($incoming, -60);
@@ -173,11 +134,52 @@ class PersonalHub
                 }
                 if (empty($row['from_me'])) {
                     $conversation->last_incoming_at = $stamp;
-                    if (! $lookupNames) {
-                        $conversation->unread_count = (int) $conversation->unread_count + 1;
-                    }
                 }
                 $conversation->save();
+            }
+            foreach ($phoneChats as $chat) {
+                if (substr($chat['jid'], -5) === '@g.us' || (int) $chat['at'] <= 0) {
+                    continue;
+                }
+                $store = $chat['phone'] !== '' ? $chat['phone'] : (isset($chat['lid']) ? $chat['lid'] : '');
+                if ($store === '' || strlen($store) < 8 || strlen($store) > 15) {
+                    continue;
+                }
+                $conversation = $outbound->conversation($session, $store);
+                $contact = $conversation->contact;
+                $identity->remember($session, $chat);
+                $saved = $identity->display($conversation, $contact);
+                if ($saved !== '' && $saved !== 'WhatsApp' && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'peer_label')) {
+                    $label = function_exists('mb_substr') ? mb_substr($saved, 0, 191) : substr($saved, 0, 191);
+                    if ((string) $conversation->peer_label !== $label) {
+                        $conversation->peer_label = $label;
+                    }
+                }
+                if ($lookupNames && $chat['preview'] !== '' && (string) $conversation->last_message !== $chat['preview']) {
+                    $conversation->last_message = $chat['preview'];
+                }
+                $unread = (int) $chat['unread'];
+                if ($unread < 0) {
+                    $unread = max(1, (int) $conversation->unread_count);
+                }
+                if ((int) $conversation->unread_count !== $unread) {
+                    $conversation->unread_count = $unread;
+                }
+                if ($lookupNames) {
+                    $at = (int) $chat['at'];
+                    if ($at > 1000000000000) {
+                        $at = (int) floor($at / 1000);
+                    }
+                    if ($at > 0) {
+                        $when = Carbon::createFromTimestamp($at);
+                        if (! $conversation->last_activity_at || $when->gt($conversation->last_activity_at)) {
+                            $conversation->last_activity_at = $when;
+                        }
+                    }
+                }
+                if ($conversation->isDirty()) {
+                    $conversation->save();
+                }
             }
         });
     }

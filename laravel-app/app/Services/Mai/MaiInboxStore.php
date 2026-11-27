@@ -141,7 +141,9 @@ class MaiInboxStore
             $conversation->last_message = $text;
             $conversation->last_activity_at = now();
             $conversation->last_incoming_at = now();
-            $conversation->unread_count = (int) $conversation->unread_count + 1;
+            if ($this->isLive($event)) {
+                $conversation->unread_count = (int) $conversation->unread_count + 1;
+            }
             $conversation->save();
 
             return $message;

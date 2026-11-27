@@ -189,14 +189,20 @@ function rememberContact(entry, person) {
   const phone = phoneJid(person.phoneNumber || (String(person.id || '').indexOf('@s.whatsapp.net') !== -1 ? person.id : ''))
   const lid = String(person.lid || (String(person.id || '').indexOf('@lid') !== -1 ? person.id : '')).split(':')[0]
   if (!entry.book) entry.book = {}
-  const known = saved && !looksLikeNumber(saved) ? saved : (notify && !looksLikeNumber(notify) ? notify : '')
+  const phoneName = saved && !looksLikeNumber(saved) ? saved.slice(0, 80) : ''
+  const pushName = notify && !looksLikeNumber(notify) ? notify.slice(0, 80) : ''
   const keep = (key) => {
     if (!key) return
     const current = entry.book[key] || { name: '', saved: false }
-    entry.book[key] = {
-      name: (known || current.name || '').slice(0, 80),
-      saved: (saved !== '' && !looksLikeNumber(saved)) || !!current.saved,
+    if (phoneName) {
+      entry.book[key] = { name: phoneName, saved: true }
+      return
     }
+    if (current.saved && current.name) {
+      entry.book[key] = current
+      return
+    }
+    if (pushName) entry.book[key] = { name: pushName, saved: false }
   }
   keep(phone)
   keep(lid)
@@ -208,14 +214,15 @@ function rememberContact(entry, person) {
       jid: phone || lid,
       phone: phone ? jidDigits(phone) : '',
       lid: lid ? jidDigits(lid) : '',
-      saved_name: saved && !looksLikeNumber(saved) ? saved.slice(0, 80) : '',
-      profile_name: !saved && notify && !looksLikeNumber(notify) ? notify.slice(0, 80) : '',
+      saved_name: phoneName,
+      profile_name: pushName,
     })
   }
   const target = phone || (String(person.id || '').indexOf('@g.us') !== -1 ? String(person.id) : '')
   const existing = target && entry.chats && entry.chats[target] ? target : (lid && entry.chats && entry.chats[lid] ? lid : '')
   if (!existing) return
-  touchChat(entry, existing, { name: saved || notify, trusted: saved !== '' && !looksLikeNumber(saved) })
+  if (phoneName) touchChat(entry, existing, { name: phoneName, trusted: true, fromPhone: true })
+  else if (pushName) touchChat(entry, existing, { profile: pushName })
 }
 
 function touchChat(entry, jid, patch) {
@@ -227,8 +234,9 @@ function touchChat(entry, jid, patch) {
   const previousSaved = current.saved_name || ''
   const book = entry.book && entry.book[id]
   if (book && book.saved && book.name) current.saved_name = String(book.name).slice(0, 80)
+  if (patch.fromPhone && patch.name && !looksLikeNumber(patch.name)) current.saved_name = String(patch.name).slice(0, 80)
   if (patch.profile && !looksLikeNumber(patch.profile)) current.profile_name = String(patch.profile).slice(0, 80)
-  else if (patch.trusted && patch.name && !looksLikeNumber(patch.name)) current.saved_name = String(patch.name).slice(0, 80)
+  if (!current.saved_name && patch.trusted && patch.name && !looksLikeNumber(patch.name)) current.saved_name = String(patch.name).slice(0, 80)
   const saved = current.saved_name || ''
   const profile = current.profile_name || ''
   current.name = saved || profile || current.name || ''
@@ -278,7 +286,7 @@ function chatRows(entry) {
         current.preview = row.preview || current.preview
         current.at = row.at || current.at
       }
-      current.unread = row.unread || 0
+      current.unread = typeof row.unread === 'number' ? row.unread : 0
       current.seen = true
     }
     merged[id] = current
@@ -335,11 +343,16 @@ function rememberMessage(entry, msg, live) {
   const at = when(msg.messageTimestamp) || (live ? Math.floor(Date.now() / 1000) : 0)
   const stored = jid.endsWith('@lid') && entry.lids && entry.lids[jid] ? entry.lids[jid] : jid
   if (jid && (jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid') || jid.endsWith('@g.us'))) {
+    const prior = entry.chats && (entry.chats[jid] || entry.chats[stored])
+    const unread = live && !msg.key.fromMe
+      ? ((prior && prior.unread > 0 ? prior.unread : 0) + 1)
+      : undefined
     touchChat(entry, jid, {
       profile: !msg.key.fromMe && msg.pushName ? msg.pushName : '',
       preview: text || (msg.message && msg.message.imageMessage ? 'Photo' : (msg.message && msg.message.audioMessage ? 'Voice note' : '')),
       at: at,
       messaged: true,
+      unread,
     })
   }
   const kind = mediaKind(unwrapMessage(msg.message))
@@ -494,7 +507,7 @@ async function attachLids(entry) {
 function pullAddressBook(entry, sock, dir) {
   if (!sock || typeof sock.resyncAppState !== 'function' || entry.bookAsked) return
   entry.bookAsked = true
-  const mark = path.join(dir, 'address-book.v2')
+  const mark = path.join(dir, 'address-book.v3')
   let first = true
   try { first = !fs.existsSync(mark) } catch (e) { first = true }
   if (first) {
