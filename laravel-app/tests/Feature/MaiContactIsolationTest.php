@@ -545,9 +545,19 @@ class MaiContactIsolationTest extends TestCase
         $open = $this->chat($waiting, $session, 'Waiting Person');
         $open->unread_count = 9;
         $open->save();
+        $leftoverContact = new WhatsAppContact();
+        $leftoverContact->normalized_phone = '237611000555';
+        $leftoverContact->display_phone = '+237611000555';
+        $leftoverContact->wa_name = 'Old Count';
+        $leftoverContact->save();
+        $leftover = $this->chat($leftoverContact, $session, 'Old Count');
+        $leftover->unread_count = 4;
+        $leftover->save();
         config(['cloud.whatsapp.link_transport' => function ($method, $path) {
             if (strpos($path, '/chats') !== false) {
-                return ['chats' => [
+                return [
+                    'read_ready' => true,
+                    'chats' => [
                     [
                         'jid' => '237699000333@s.whatsapp.net',
                         'phone' => '237699000333',
@@ -561,10 +571,11 @@ class MaiContactIsolationTest extends TestCase
                         'phone' => '237688000444',
                         'saved_name' => 'Waiting Person',
                         'preview' => 'Hello',
-                        'unread' => 1,
+                        'unread' => -1,
                         'at' => time(),
                     ],
-                ]];
+                    ],
+                ];
             }
             if (strpos($path, '/messages') !== false) {
                 return ['messages' => [[
@@ -583,6 +594,7 @@ class MaiContactIsolationTest extends TestCase
 
         $this->assertSame(0, (int) $read->fresh()->unread_count);
         $this->assertSame(1, (int) $open->fresh()->unread_count);
+        $this->assertSame(0, (int) $leftover->fresh()->unread_count);
         $this->assertSame('Read Person', app(\App\Services\Mai\PersonalHub::class)->label($readContact->fresh(), $read->fresh()));
     }
 

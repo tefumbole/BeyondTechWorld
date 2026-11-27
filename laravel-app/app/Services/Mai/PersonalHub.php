@@ -59,6 +59,7 @@ class PersonalHub
         app(CloudTenantContext::class)->withoutIsolation(function () use ($session, $phone, $engine, $outbound, $lookupNames) {
             $identity = app(MaiIdentity::class);
             $phoneChats = $engine->chats($phone);
+            $stillUnread = [];
             $incoming = $engine->messages($phone);
             if (! $lookupNames && count($incoming) > 60) {
                 $incoming = array_slice($incoming, -60);
@@ -160,10 +161,18 @@ class PersonalHub
                 }
                 $unread = (int) $chat['unread'];
                 if ($unread < 0) {
-                    $unread = max(1, (int) $conversation->unread_count);
+                    $unread = 1;
                 }
                 if ((int) $conversation->unread_count !== $unread) {
                     $conversation->unread_count = $unread;
+                }
+                $typing = isset($chat['typing']) ? (string) $chat['typing'] : '';
+                $typer = app(\App\Services\WhatsApp\WhatsAppTyping::class);
+                if ($typing === 'composing' || $typing === 'recording') {
+                    $typer->remember($store, $typing);
+                }
+                if ($unread > 0) {
+                    $stillUnread[$store] = true;
                 }
                 if ($lookupNames) {
                     $at = (int) $chat['at'];
@@ -179,6 +188,20 @@ class PersonalHub
                 }
                 if ($conversation->isDirty()) {
                     $conversation->save();
+                }
+            }
+            if ($engine->readReady()) {
+                $open = WhatsAppConversation::where('mai_session_id', $session->id)
+                    ->where('unread_count', '>', 0)
+                    ->with('contact')
+                    ->get();
+                foreach ($open as $row) {
+                    $digits = preg_replace('/\D/', '', (string) optional($row->contact)->normalized_phone);
+                    if ($digits !== '' && isset($stillUnread[$digits])) {
+                        continue;
+                    }
+                    $row->unread_count = 0;
+                    $row->save();
                 }
             }
         });

@@ -108,7 +108,8 @@
     .chats-head-person h2, .chats-head-person p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .load-earlier { align-self: center; border: 0; background: #fff; color: #1565c0; border-radius: 999px; min-height: 32px; padding: 0 16px; font-weight: 700; cursor: pointer; margin: 10px 0; box-shadow: 0 3px 10px rgba(15,31,61,.1); }
     .chat-live { display: none; background: linear-gradient(90deg, #fff4d6, #ffe7b3); color: #7a5b10; text-align: center; font-size: 13px; font-weight: 700; padding: 6px 10px; }
-    .typing-line { margin: 0 18px 4px; color: #5c6b84; font-size: 13px; font-weight: 700; }
+    .typing-line, .chat-preview.is-typing { color: #128c7e; font-weight: 700; }
+    .typing-line { margin: 0 18px 4px; font-size: 13px; }
     .typing-line[hidden] { display: none !important; }
     .chat-live.is-on { display: block; }
     .chats-head h2 { margin: 0; font-size: 16px; font-weight: 700; color: var(--wa-ink); }
@@ -1508,7 +1509,9 @@ window.addEventListener('pageshow', function (event) {
             var ai = item.mode === 'AI' ? '<span class="chat-ai">AI </span>' : '';
             var initial = (item.name || 'W').charAt(0).toUpperCase();
             var when = item.at && window.hubListTime ? window.hubListTime(item.at) : (item.time || '');
-            row.innerHTML = '<span class="chat-avatar" data-tone="' + (item.tone || 0) + '">' + esc(initial) + '</span><span class="chat-main"><span class="chat-top"><span class="chat-name">' + esc(item.name) + '</span>' + state + '<span class="chat-time"' + (item.at ? ' data-at="' + esc(item.at) + '"' : '') + '>' + esc(when) + '</span></span><span class="chat-bottom"><span class="chat-preview">' + ai + esc(item.preview || '') + '</span>' + badge + '</span></span>';
+            var typingLabel = item.typing === 'recording' ? 'recording a voice note…' : (item.typing === 'typing' ? 'typing…' : '');
+            var preview = typingLabel ? '<span class="chat-preview is-typing">' + esc(typingLabel) + '</span>' : '<span class="chat-preview">' + ai + esc(item.preview || '') + '</span>';
+            row.innerHTML = '<span class="chat-avatar" data-tone="' + (item.tone || 0) + '">' + esc(initial) + '</span><span class="chat-main"><span class="chat-top"><span class="chat-name">' + esc(item.name) + '</span>' + state + '<span class="chat-time"' + (item.at ? ' data-at="' + esc(item.at) + '"' : '') + '>' + esc(when) + '</span></span><span class="chat-bottom">' + preview + badge + '</span></span>';
             var next = after ? after.nextSibling : list.firstChild;
             if (next !== row) list.insertBefore(row, next);
             after = row;

@@ -145,6 +145,12 @@ function loadSavedChats(entry) {
     if (!entry.chats) entry.chats = {}
     if (!entry.inbox) entry.inbox = []
   }
+  let counted = false
+  try { counted = fs.existsSync(path.join(sessionDir(entry.id), 'read-state.v1')) } catch (e) { counted = false }
+  if (!counted) {
+    entry.unreadReset = true
+    Object.keys(entry.chats || {}).forEach((jid) => { entry.chats[jid].unread = 0 })
+  }
 }
 
 function looksLikeNumber(name) {
@@ -243,7 +249,9 @@ function touchChat(entry, jid, patch) {
   if (patch.preview) current.preview = String(patch.preview).slice(0, 140)
   const at = when(patch.at)
   if (at && at >= (current.at || 0)) current.at = at
-  if (typeof patch.unread === 'number') current.unread = patch.unread
+  if (typeof patch.unread === 'number' && !(patch.historical && entry.unreadReset)) {
+    current.unread = patch.unread < 0 ? 1 : patch.unread
+  }
   if (patch.messaged) current.messaged = true
   if (typeof patch.archived === 'boolean') current.archived = patch.archived
   entry.chats[id] = current
@@ -274,13 +282,15 @@ function chatRows(entry) {
     }
     const phone = id.endsWith('@s.whatsapp.net') ? jidDigits(id) : ''
     if (phone && (phone.length < 8 || phone.length > 15)) return
-    const current = merged[id] || { jid: id, name: '', saved_name: '', profile_name: '', phone, lid: lid ? jidDigits(lid) : '', preview: '', at: 0, unread: 0, seen: false }
+    const typing = phone && entry.typing ? entry.typing[phone] : null
+    const current = merged[id] || { jid: id, name: '', saved_name: '', profile_name: '', phone, lid: lid ? jidDigits(lid) : '', preview: '', at: 0, unread: 0, typing: '', seen: false }
     const book = entry.book && (entry.book[id] || entry.book[jid])
     const savedName = (book && book.saved && book.name) ? book.name : (row.saved_name || '')
     const profileName = row.profile_name || ''
     current.saved_name = savedName || current.saved_name || ''
     current.profile_name = profileName || current.profile_name || ''
     current.name = current.saved_name || current.profile_name || ''
+    if (typing && typing.kind && Date.now() - typing.at < 8000) current.typing = typing.kind
     if (!current.seen || (row.at || 0) >= (current.at || 0)) {
       if ((row.at || 0) >= (current.at || 0)) {
         current.preview = row.preview || current.preview
@@ -504,6 +514,57 @@ async function attachLids(entry) {
   } catch (e) {}
 }
 
+function pullReadState(entry, sock, dir) {
+  if (!sock || typeof sock.resyncAppState !== 'function' || entry.readAsked) return
+  entry.readAsked = true
+  entry.unreadReset = true
+  const mark = path.join(dir, 'read-state.v1')
+  Object.keys(entry.chats || {}).forEach((jid) => { entry.chats[jid].unread = 0 })
+  scheduleSave(entry)
+  let first = true
+  try { first = !fs.existsSync(mark) } catch (e) { first = true }
+  if (first) {
+    try {
+      fs.readdirSync(dir).forEach((file) => {
+        if (file.indexOf('app-state-sync-version-regular_high') === 0) fs.rmSync(path.join(dir, file), { force: true })
+      })
+    } catch (e) {}
+  }
+  sock.resyncAppState(['regular_high'], true)
+    .then(() => {
+      entry.readReady = true
+      try { fs.writeFileSync(mark, String(Date.now())) } catch (e) {}
+      note(entry, { kind: 'unread-ready' })
+    })
+    .catch(() => { entry.readAsked = false })
+}
+
+function watchTyping(entry, jid) {
+  if (!entry || !entry.sock || typeof entry.sock.presenceSubscribe !== 'function') return
+  let id = String(jid || '').split(':')[0]
+  if (!id || id.indexOf('@broadcast') !== -1) return
+  if (id.endsWith('@lid') && entry.lids && entry.lids[id]) id = entry.lids[id]
+  if (!entry.watching) entry.watching = {}
+  const now = Date.now()
+  if (entry.watching[id] && now - entry.watching[id] < 45000) return
+  entry.watching[id] = now
+  entry.sock.presenceSubscribe(id).catch(() => {})
+}
+
+function watchRecentTyping(entry) {
+  chatRows(entry).slice(0, 30).forEach((row) => watchTyping(entry, row.jid))
+}
+
+function rememberTyping(entry, chatId, person, kind) {
+  const active = kind === 'composing' || kind === 'recording'
+  const source = String(chatId || '').endsWith('@g.us') ? person : chatId
+  const phone = jidDigits(String(source || '').split(':')[0])
+  if (!phone) return
+  if (!entry.typing) entry.typing = {}
+  entry.typing[phone] = { kind: active ? kind : '', at: Date.now() }
+  note(entry, { kind: 'presence', jid: String(chatId || ''), phone, presence: active ? kind : 'paused' })
+}
+
 function pullAddressBook(entry, sock, dir) {
   if (!sock || typeof sock.resyncAppState !== 'function' || entry.bookAsked) return
   entry.bookAsked = true
@@ -650,6 +711,7 @@ async function startSocket(id, expected) {
       trusted: !!(chat.name && !looksLikeNumber(chat.name)),
       at: Number(chat.conversationTimestamp) || 0,
       unread: Number(chat.unreadCount) || 0,
+      historical: true,
       archived: !!chat.archived,
       messaged: !!(Number(chat.conversationTimestamp) || chat.unreadCount),
     }))
@@ -679,6 +741,7 @@ async function startSocket(id, expected) {
       trusted: !!(chat.name && !looksLikeNumber(chat.name)),
       at: Number(chat.conversationTimestamp) || 0,
       unread: Number(chat.unreadCount) || 0,
+      historical: true,
       archived: !!chat.archived,
       messaged: !!(Number(chat.conversationTimestamp) || chat.unreadCount),
     }))
@@ -692,6 +755,7 @@ async function startSocket(id, expected) {
         trusted: !!(chat.name && !looksLikeNumber(chat.name)),
         at: Number(chat.conversationTimestamp) || 0,
         unread: typeof chat.unreadCount === 'number' ? chat.unreadCount : undefined,
+        liveRead: true,
         archived: typeof chat.archived === 'boolean' ? chat.archived : undefined,
       })
     })
@@ -703,6 +767,20 @@ async function startSocket(id, expected) {
   sock.ev.on('contacts.update', (people) => {
     if (!current()) return
     ;(people || []).forEach((person) => rememberContact(entry, person))
+  })
+  sock.ev.on('presence.update', (update) => {
+    if (!current()) return
+    const chatId = String((update && update.id) || '').split(':')[0]
+    const people = update && update.presences ? update.presences : {}
+    const ids = Object.keys(people)
+    if (!ids.length) {
+      rememberTyping(entry, chatId, chatId, 'paused')
+      return
+    }
+    ids.forEach((person) => {
+      const row = people[person] || {}
+      rememberTyping(entry, chatId, person, String(row.lastKnownPresence || 'paused'))
+    })
   })
   sock.ev.on('connection.update', async (update) => {
     if (!current()) return
@@ -721,6 +799,8 @@ async function startSocket(id, expected) {
       const raw = sock.user && sock.user.id ? String(sock.user.id) : ''
       entry.phone = raw.split(':')[0].split('@')[0]
       pullAddressBook(entry, sock, dir)
+      pullReadState(entry, sock, dir)
+      watchRecentTyping(entry)
       if (entry.recoverChats && !entry.historyAsked && typeof sock.resyncAppState === 'function') {
         entry.historyAsked = true
         sock.resyncAppState(['critical_block', 'critical_unblock_low', 'regular_high', 'regular_low', 'regular'], true)
@@ -892,6 +972,7 @@ async function showPresence(id, to, state) {
   }
   const jid = await resolveSendJid(entry, to)
   if (!jid) return { success: false }
+  watchTyping(entry, jid)
   await entry.sock.sendPresenceUpdate(state === 'recording' ? 'recording' : 'composing', jid)
   return { success: true }
 }
@@ -1095,7 +1176,8 @@ const server = http.createServer((req, res) => {
     if (req.method === 'GET' && parts[2] === 'chats') {
       const entry = sessions.get(id) || { chats: {} }
       attachLids(entry).catch(() => {})
-      send(res, 200, { phone: entry.phone || null, chats: chatRows(entry) })
+      watchRecentTyping(entry)
+      send(res, 200, { phone: entry.phone || null, read_ready: !!entry.readReady || !!entry.unreadReset, chats: chatRows(entry) })
       return
     }
     if (req.method === 'GET' && parts[2] === 'contacts') {

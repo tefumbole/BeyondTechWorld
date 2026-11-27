@@ -51,6 +51,7 @@ class MaiWhatsAppEngine
             return [];
         }
         $payload = $this->request('GET', '/sessions/'.$id.'/chats', null, 8);
+        $this->phoneReadReady = is_array($payload) && ! empty($payload['read_ready']);
         if (! is_array($payload) || empty($payload['chats']) || ! is_array($payload['chats'])) {
             return [];
         }
@@ -77,11 +78,17 @@ class MaiWhatsAppEngine
                 'lid' => $lid,
                 'preview' => isset($row['preview']) ? (string) $row['preview'] : '',
                 'unread' => isset($row['unread']) ? (int) $row['unread'] : 0,
+                'typing' => isset($row['typing']) ? (string) $row['typing'] : '',
                 'at' => isset($row['at']) ? (int) $row['at'] : 0,
             ];
         }
 
         return $rows;
+    }
+
+    public function readReady()
+    {
+        return ! empty($this->phoneReadReady);
     }
 
     public function contacts($phone)

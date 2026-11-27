@@ -705,6 +705,9 @@ class WhatsAppHubController extends Controller
                 'time' => $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '',
                 'at' => $when ? $when->toIso8601String() : '',
                 'unread' => (int) $row->unread_count,
+                'typing' => $ownBook
+                    ? app(\App\Services\WhatsApp\WhatsAppTyping::class)->state(optional($row->contact)->normalized_phone)
+                    : '',
                 'mode' => (string) $row->mode,
             ];
         })->values();

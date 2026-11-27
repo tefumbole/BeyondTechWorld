@@ -70,6 +70,17 @@ class MaiSync
                 $identity->remember($session, $event);
                 continue;
             }
+            if ($kind === 'presence') {
+                $typing = app(\App\Services\WhatsApp\WhatsAppTyping::class);
+                $who = isset($event['phone']) ? (string) $event['phone'] : '';
+                $presence = isset($event['presence']) ? (string) $event['presence'] : '';
+                if ($presence === 'composing' || $presence === 'recording') {
+                    $typing->remember($who, $presence);
+                } else {
+                    $typing->forget($who);
+                }
+                continue;
+            }
             if ($kind === 'receipt') {
                 $store->applyReceipt($session, $event);
                 continue;
