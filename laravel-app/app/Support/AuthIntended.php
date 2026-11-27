@@ -94,7 +94,8 @@ class AuthIntended
             $parts = parse_url($url);
             $host = isset($parts['host']) ? strtolower($parts['host']) : '';
             $appHost = strtolower((string) parse_url(config('app.url'), PHP_URL_HOST));
-            if ($host !== '' && $appHost !== '' && $host !== $appHost) {
+            $sameSite = $host === $appHost || \App\Support\SiteSession::family($host);
+            if ($host !== '' && $appHost !== '' && ! $sameSite) {
                 return null;
             }
             $path = isset($parts['path']) ? $parts['path'] : '/';
