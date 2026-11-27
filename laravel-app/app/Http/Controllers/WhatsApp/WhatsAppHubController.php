@@ -1096,7 +1096,7 @@ class WhatsAppHubController extends Controller
 
             return $this->answerAboutMessage($row, $instruction, false, $material);
         }
-        $rows = WhatsAppMessage::visible()->where('conversation_id', $id)->orderByDesc('id')->limit(40)->get()->reverse()->values();
+        $rows = WhatsAppMessage::visible()->where('conversation_id', $id)->orderByDesc('id')->limit(120)->get()->reverse()->values();
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
         $latestAudio = null;
         foreach ($rows as $row) {
@@ -1106,7 +1106,7 @@ class WhatsAppHubController extends Controller
         }
         if ($latestAudio) {
             $translator->hearVoiceNote($latestAudio);
-            $rows = WhatsAppMessage::visible()->where('conversation_id', $id)->orderByDesc('id')->limit(40)->get()->reverse()->values();
+            $rows = WhatsAppMessage::visible()->where('conversation_id', $id)->orderByDesc('id')->limit(120)->get()->reverse()->values();
         }
         $lines = [];
         foreach ($rows as $row) {
@@ -1115,8 +1115,19 @@ class WhatsAppHubController extends Controller
             if ($aside !== '') {
                 $line = trim($line."\n".$aside);
             }
+            $type = strtoupper((string) $row->type);
             if ($line === '' || $translator->isVoicePlaceholder($line)) {
-                $line = strtoupper((string) $row->type) === 'AUDIO' ? 'Voice note' : '';
+                if ($type === 'AUDIO') {
+                    $line = 'Voice note';
+                } elseif ($type === 'IMAGE' || $type === 'STICKER') {
+                    $line = 'Photo';
+                } elseif ($type === 'VIDEO') {
+                    $line = 'Video';
+                } elseif ($type === 'DOCUMENT') {
+                    $line = 'Document';
+                } else {
+                    $line = '';
+                }
             }
             if ($line === '') {
                 continue;
@@ -1125,17 +1136,18 @@ class WhatsAppHubController extends Controller
             $lines[] = $who.': '.$line;
         }
         $text = trim(implode("\n", $lines));
-        if (mb_strlen($text) > 6000) {
-            $text = mb_substr($text, -6000);
+        if (mb_strlen($text) > 12000) {
+            $text = mb_substr($text, -12000);
         }
-        if ($text === '' && $material['text'] === '' && empty($material['image'])) {
+        $material['images'] = $this->chatAskImages($rows);
+        if ($text === '' && $material['text'] === '' && empty($material['image']) && empty($material['images'])) {
             return response()->json(['ok' => false, 'error' => 'This chat has no text to work from yet.'], 422);
         }
         if ($text === '') {
             $text = '(No text in this chat yet.)';
         }
 
-        return $this->answerAbout($text, $instruction, 'You answer only about the current WhatsApp chat. You cannot see the rest of the company system, other chats, accounts, or records. Use the messages from this chat, and a file only when one is attached to this question. If the answer is not in this chat or that file, say it is not in this chat. Do not invent facts, names, prices, or medical details. When the request asks for a reply, write only the message that can be sent. When it asks for a summary or a list, write that clearly.', true, $material);
+        return $this->answerAbout($text, $instruction, 'You answer only about the current WhatsApp chat. You cannot see the rest of the company system, other chats, accounts, or records. Use the messages from this chat, the photos from this chat, and a file only when one is attached to this question. Read amounts, names, and dates that are visible in those photos. If the answer is not in this chat or that file, say it is not in this chat. Do not invent facts, names, prices, or medical details. When the request asks for a reply, write only the message that can be sent. When it asks for a summary or a list, write that clearly.', true, $material);
     }
 
     public function askChatMessage(Request $request, $id, $message)
@@ -1196,12 +1208,25 @@ class WhatsAppHubController extends Controller
         if ($fileText !== '') {
             $body .= "\n\nAttached file".($fileName !== '' ? ' ('.$fileName.')' : '').":\n".$fileText;
         }
+        $images = [];
+        if (! empty($material['image']) && is_string($material['image'])) {
+            $images[] = $material['image'];
+        }
+        if (! empty($material['images']) && is_array($material['images'])) {
+            foreach ($material['images'] as $url) {
+                if (is_string($url) && $url !== '') {
+                    $images[] = $url;
+                }
+            }
+        }
         $content = $body;
-        if (! empty($material['image'])) {
+        if ($images) {
             $content = [
-                ['type' => 'text', 'text' => $body."\n\nAn image was attached for this question about the current chat. Read that image only."],
-                ['type' => 'image_url', 'image_url' => ['url' => $material['image']]],
+                ['type' => 'text', 'text' => $body."\n\nPhotos from this chat are attached in order. Read the text and amounts in those photos."],
             ];
+            foreach ($images as $url) {
+                $content[] = ['type' => 'image_url', 'image_url' => ['url' => $url]];
+            }
         }
         $result = $provider->complete([
             ['role' => 'system', 'content' => $system],
@@ -1224,6 +1249,72 @@ class WhatsAppHubController extends Controller
             'text' => $hideSource ? '' : $text,
             'answer' => trim((string) $result['content']),
         ]);
+    }
+
+    protected function chatAskImages($rows)
+    {
+        $images = [];
+        foreach ($rows as $row) {
+            $type = strtoupper((string) $row->type);
+            if ($type !== 'IMAGE' && $type !== 'STICKER') {
+                continue;
+            }
+            $data = $this->askImageData($row);
+            if ($data !== '') {
+                $images[] = $data;
+            }
+        }
+        if (count($images) > 4) {
+            $images = array_slice($images, -4);
+        }
+
+        return $images;
+    }
+
+    protected function askImageData(WhatsAppMessage $row)
+    {
+        $media = $row->media();
+        $stored = isset($media['stored']) ? str_replace('\\', '/', trim((string) $media['stored'])) : '';
+        if ($stored === '' || strpos($stored, '..') !== false || strpos($stored, 'whatsapp-media/') !== 0) {
+            return '';
+        }
+        $path = storage_path('app/'.$stored);
+        if (! is_file($path)) {
+            return '';
+        }
+        $raw = file_get_contents($path);
+        if (! is_string($raw) || strlen($raw) < 32) {
+            return '';
+        }
+        if (function_exists('imagecreatefromstring')) {
+            $img = @imagecreatefromstring($raw);
+            if ($img) {
+                $width = imagesx($img);
+                $height = imagesy($img);
+                $max = 1280;
+                if ($width > $max && $width > 0) {
+                    $nextHeight = (int) max(1, round($height * ($max / $width)));
+                    $copy = imagecreatetruecolor($max, $nextHeight);
+                    imagecopyresampled($copy, $img, 0, 0, 0, 0, $max, $nextHeight, $width, $height);
+                    imagedestroy($img);
+                    $img = $copy;
+                }
+                ob_start();
+                imagejpeg($img, null, 72);
+                $jpeg = ob_get_clean();
+                imagedestroy($img);
+                if (is_string($jpeg) && $jpeg !== '') {
+                    return 'data:image/jpeg;base64,'.base64_encode($jpeg);
+                }
+            }
+        }
+        if (strlen($raw) > 1500000) {
+            return '';
+        }
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime = $ext === 'png' ? 'image/png' : ($ext === 'webp' ? 'image/webp' : ($ext === 'gif' ? 'image/gif' : 'image/jpeg'));
+
+        return 'data:'.$mime.';base64,'.base64_encode($raw);
     }
 
     protected function attachedAskMaterial(Request $request)

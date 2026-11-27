@@ -13,6 +13,9 @@
 
     function isImageInput(inp) {
         if (!inp || inp.type !== 'file') return false;
+        if (inp.id === 'askFile' || inp.id === 'chatFile' || (inp.closest && inp.closest('.ask-clip, .chats-compose'))) {
+            return false;
+        }
         if (inp.getAttribute('data-skip-image-paste') === '1' || (inp.classList && (inp.classList.contains('js-no-image-paste') || inp.classList.contains('dz-hidden-input')))) {
             return false;
         }

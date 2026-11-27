@@ -164,6 +164,7 @@
     .ask-line { max-width: 88%; padding: 8px 12px; }
     .ask-line span { display: block; margin-bottom: 2px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
     .ask-line p { margin: 0; font-size: 14px; line-height: 1.35; }
+    .ask-line img.ask-photo { display: block; width: 100%; max-width: 280px; margin-top: 6px; border-radius: 10px; background: #fff; }
     .ask-line.is-them { align-self: flex-start; background: #fff; color: #16315c; border: 1px solid #e3ebf7; border-radius: 6px 16px 16px 16px; }
     .ask-line.is-them span { color: #0b3f90; }
     .ask-line.is-mine { align-self: flex-end; background: linear-gradient(145deg, #0b3f90, #124eaa); color: #fff; border-radius: 16px 6px 16px 16px; }
@@ -1975,6 +1976,8 @@
     function bubbleAskText(bubble) {
         var text = messageBody(bubble);
         if ((bubble.getAttribute('data-audio') === '1' || bubble.querySelector('audio')) && !text) text = 'Voice note';
+        if (!text && bubble.querySelector('img.chat-photo')) text = 'Photo';
+        if (!text && bubble.querySelector('a.chat-file')) text = 'File';
         return text;
     }
     function paintAskPreview(bubbles) {
@@ -1984,15 +1987,26 @@
         var shown = 0;
         (bubbles || []).forEach(function (bubble) {
             var text = bubbleAskText(bubble);
-            if (!text) return;
-            box.appendChild(askLine(bubble.getAttribute('data-out') === '1', text));
+            var photo = bubble.querySelector('img.chat-photo');
+            if (!text && !photo) return;
+            var row = askLine(bubble.getAttribute('data-out') === '1', text || 'Photo');
+            if (photo && photo.getAttribute('src')) {
+                var img = document.createElement('img');
+                img.className = 'ask-photo';
+                img.alt = photo.getAttribute('alt') || 'Photo';
+                img.src = photo.getAttribute('src');
+                row.appendChild(img);
+            }
+            box.appendChild(row);
             shown += 1;
         });
         if (!shown) box.innerHTML = '<p class="ask-empty">No messages in this chat yet.</p>';
+        var thread = document.getElementById('askThread');
+        if (thread) thread.scrollTop = thread.scrollHeight;
     }
     function paintRecentChat() {
         var bubbles = Array.prototype.slice.call(document.querySelectorAll('#chatStream .bubble'));
-        paintAskPreview(bubbles.slice(Math.max(0, bubbles.length - 3)));
+        paintAskPreview(bubbles);
     }
     function fillTranscribe(status, text) {
         var statusNode = document.getElementById('transcribeStatus');
@@ -2088,13 +2102,19 @@
         if (sheet) sheet.setAttribute('data-kind', 'chat');
         if (result) { result.hidden = true; result.textContent = ''; }
         if (use) use.hidden = true;
-        if (prompt) prompt.value = '';
+        var draft = document.getElementById('chatBody');
+        var typed = draft ? draft.value.trim() : '';
+        if (prompt) prompt.value = typed;
         if (ask) { ask.disabled = false; ask.textContent = 'MAI'; }
         clearAskFile();
         var statusNode = document.getElementById('transcribeStatus');
-        if (statusNode) statusNode.textContent = 'Latest messages. MAI reads this chat.';
+        if (statusNode) statusNode.textContent = typed ? 'Answering the message you typed.' : 'This chat, including the photos.';
         paintRecentChat();
         openSheet('transcribeSheet');
+        if (typed) {
+            runAsk(typed);
+            return;
+        }
         if (prompt) setTimeout(function () { prompt.focus(); }, 40);
     }
     function runAsk(instruction) {
