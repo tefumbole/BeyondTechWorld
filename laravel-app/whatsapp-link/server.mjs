@@ -80,7 +80,7 @@ function publicState(entry, withQr) {
   return {
     status: entry.status,
     phone: entry.phone || null,
-    qr: withQr && entry.status === 'AWAITING_QR' ? entry.qr : null,
+    qr: withQr && entry.status !== 'CONNECTED' ? (entry.qr || null) : null,
     pairing_code: entry.pairing || null,
     error: entry.error || null,
   }
@@ -553,9 +553,11 @@ async function startSocket(id, expected) {
   const version = await fetchLatestBaileysVersion()
   if (!entry.chats) entry.chats = {}
   if (expected) entry.expected = expected
-  entry.status = entry.status === 'CONNECTED' ? 'CONNECTED' : 'AWAITING_QR'
+  const keptQr = entry.qr || null
+  entry.registered = !!(state.creds && state.creds.registered)
+  entry.status = entry.status === 'CONNECTED' ? 'CONNECTED' : (entry.registered && !keptQr ? 'CONNECTING' : 'AWAITING_QR')
   entry.error = null
-  entry.qr = null
+  entry.qr = keptQr
   entry.pairing = null
   sessions.set(id, entry)
   const sock = makeWASocket({
@@ -650,8 +652,11 @@ async function startSocket(id, expected) {
   sock.ev.on('connection.update', async (update) => {
     if (!current()) return
     if (update.qr) {
-      entry.qr = await QRCode.toDataURL(update.qr)
+      const image = await QRCode.toDataURL(update.qr)
+      if (!current()) return
+      entry.qr = image
       entry.status = 'AWAITING_QR'
+      entry.error = null
     }
     if (update.connection === 'open') {
       entry.status = 'CONNECTED'
@@ -693,15 +698,20 @@ async function startSocket(id, expected) {
         emit(entry, { event_id: 'unlink-' + Date.now(), kind: 'status', status: 'UNLINKED' })
         return
       }
-      entry.retries += 1
-      entry.status = 'ERROR'
-      if (entry.retries <= 5) {
-        setTimeout(() => {
-          startSocket(id).catch(() => {
-            entry.status = 'ERROR'
-          })
-        }, backoffMs(entry.retries))
+      const restart = code === DisconnectReason.restartRequired || code === 515
+      if (!restart) entry.retries += 1
+      if (entry.retries > 8) {
+        entry.status = 'ERROR'
+        entry.error = entry.qr ? '' : 'The QR code could not be created. Refresh this page.'
+        return
       }
+      entry.status = entry.qr ? 'AWAITING_QR' : (entry.registered ? 'CONNECTING' : 'AWAITING_QR')
+      setTimeout(() => {
+        startSocket(id).catch(() => {
+          entry.status = 'ERROR'
+          entry.error = 'The QR code could not be created. Refresh this page.'
+        })
+      }, restart ? 250 : backoffMs(entry.retries))
     }
   })
   return entry
@@ -1144,8 +1154,25 @@ const server = http.createServer((req, res) => {
       return
     }
     if (req.method === 'GET' && !parts[2]) {
-      const entry = sessions.get(id) || { status: 'NOT_CONNECTED', phone: null, qr: null, pairing: null, error: null }
-      send(res, 200, publicState(entry, url.searchParams.get('qr') === '1'))
+      const wantQr = url.searchParams.get('qr') === '1'
+      const finish = (entry) => {
+        const state = entry || { status: 'NOT_CONNECTED', phone: null, qr: null, pairing: null, error: null }
+        const ready = !wantQr || state.qr || state.status === 'CONNECTED' || state.status === 'ERROR'
+          ? Promise.resolve()
+          : waitForQr(state, 6000)
+        ready.then(() => send(res, 200, publicState(state, wantQr)))
+      }
+      const entry = sessions.get(id)
+      const stale = !entry || !entry.sock || entry.status === 'ERROR' || entry.status === 'DISCONNECTED' || entry.status === 'UNLINKED' || entry.status === 'NOT_CONNECTED'
+      if (wantQr && stale) {
+        const expected = id.indexOf('p') === 0 ? id.slice(1) : ''
+        startSocket(id, expected).then(finish).catch((error) => {
+          const message = error && error.message ? String(error.message).slice(0, 180) : 'The QR code could not be created.'
+          send(res, 200, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: message })
+        })
+        return
+      }
+      finish(entry)
       return
     }
     if (req.method === 'DELETE' && !parts[2]) {

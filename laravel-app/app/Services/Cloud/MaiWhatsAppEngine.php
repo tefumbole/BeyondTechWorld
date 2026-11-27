@@ -31,7 +31,7 @@ class MaiWhatsAppEngine
             $path .= '?qr=1';
         }
 
-        return $this->shape($this->request('GET', $path, null, 8));
+        return $this->shape($this->request('GET', $path, null, $withQr ? 12 : 8));
     }
 
     public function pair($phone)

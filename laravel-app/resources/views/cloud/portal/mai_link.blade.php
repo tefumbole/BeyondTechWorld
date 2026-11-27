@@ -103,13 +103,16 @@
             window.location = @json(route('whatsapp.mai.home'));
             return;
         }
-        if (data.error && wait && !data.qr) {
-            wait.textContent = data.error;
-        }
         if (qr && data.qr) {
             qr.src = data.qr;
             qr.classList.remove('is-off');
             if (wait) wait.classList.add('is-off');
+            return;
+        }
+        if (wait) {
+            wait.classList.remove('is-off');
+            if (qr) qr.classList.add('is-off');
+            wait.textContent = data.error || (data.status === 'CONNECTING' ? 'Connecting your WhatsApp.' : 'Preparing the QR code');
         }
     }
     function tick() {
