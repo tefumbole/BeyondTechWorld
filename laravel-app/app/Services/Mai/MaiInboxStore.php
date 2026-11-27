@@ -131,6 +131,12 @@ class MaiInboxStore
             $message->status = WhatsAppMessage::STATUS_DELIVERED;
             $message->sender_type = 'CONTACT';
             $message->delivered_at = now();
+            $stamp = $this->stampFrom($event);
+            if ($stamp) {
+                $message->timestamps = false;
+                $message->created_at = $stamp;
+                $message->updated_at = $stamp;
+            }
             $message->save();
             $conversation->last_message = $text;
             $conversation->last_activity_at = now();
@@ -249,6 +255,22 @@ class MaiInboxStore
         }
 
         return $relative;
+    }
+
+    protected function stampFrom(array $event)
+    {
+        if (! isset($event['at']) || ! is_numeric($event['at'])) {
+            return null;
+        }
+        $value = (int) $event['at'];
+        if ($value > 1000000000000) {
+            $value = (int) floor($value / 1000);
+        }
+        if ($value < 1) {
+            return null;
+        }
+
+        return \Carbon\Carbon::createFromTimestamp($value);
     }
 
     protected function isLive(array $event)

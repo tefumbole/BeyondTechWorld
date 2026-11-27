@@ -207,8 +207,8 @@
     .file-clear { width: 22px; height: 22px; border: 0; border-radius: 50%; background: #9b1c1c; color: #fff; font-size: 14px; font-weight: 800; line-height: 1; cursor: pointer; flex: none; }
     .bubble { position: relative; }
     .bubble-more { position: absolute; top: 4px; right: 4px; z-index: 2; width: 26px; height: 26px; border: 0; border-radius: 8px; background: rgba(255,255,255,.9); color: #16315c; font-size: 18px; font-weight: 900; line-height: 1; cursor: pointer; box-shadow: 0 1px 3px rgba(15,31,61,.15); }
-    .chats-compose { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; padding: 12px 18px; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); position: relative; }
-    .chats-compose textarea { flex: 1; border: 1px solid transparent; border-radius: 22px; background: #f1f4fa; color: var(--wa-ink); min-height: 44px; max-height: 120px; padding: 11px 16px; resize: none; font-size: 16px; transition: border-color .18s, box-shadow .18s, background-color .18s; }
+    .chats-compose { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 18px; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); position: relative; }
+    .chats-compose textarea { flex: 1 1 100%; order: -1; border: 1px solid transparent; border-radius: 18px; background: #f1f4fa; color: var(--wa-ink); min-height: 112px; max-height: 220px; padding: 14px 16px; resize: vertical; font-size: 16px; line-height: 1.4; transition: border-color .18s, box-shadow .18s, background-color .18s; }
     .chats-compose textarea:focus { outline: none; background: #fff; border-color: #9cc2ff; box-shadow: 0 0 0 4px rgba(21, 101, 192, .12); }
     .chats-compose button[type="submit"] { border: 0; border-radius: 50%; width: 46px; height: 46px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; flex: none; box-shadow: 0 6px 16px rgba(18, 140, 126, .35); transition: transform .15s, box-shadow .15s; }
     .chats-compose button[type="submit"]:hover { transform: scale(1.06); box-shadow: 0 8px 20px rgba(18, 140, 126, .45); }
@@ -248,9 +248,18 @@
         .chats-stream { padding: 8px 12px 12px; }
         .bubble { max-width: 90%; }
         .chats-compose { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
-        .chats-head { padding: 8px 10px; flex-wrap: wrap; align-items: flex-start; }
-        .chats-head-person { flex: 1 1 180px; }
-        .mode-switch { flex-wrap: wrap; justify-content: flex-end; }
+        .chats-compose textarea { min-height: 132px; max-height: 240px; }
+        .chats-head { padding: 8px 10px; flex-direction: column; align-items: stretch; gap: 8px; }
+        .chats-head-person { width: 100%; flex: none; }
+        .chats-head-person h2, .chats-head-person p { white-space: normal; }
+        .mode-switch { width: 100%; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; overflow: visible; justify-content: stretch; }
+        .mode-switch > .call-btn { grid-column: span 2; }
+        .mode-switch > .chat-gear { grid-column: span 1; }
+        .mode-switch > #threadTranslate { grid-column: span 3; }
+        .mode-switch > #threadAi, .mode-switch > #threadHuman { grid-column: span 3; }
+        .mode-switch > .announce-btn { grid-column: 1 / -1; }
+        .mode-switch form { display: flex; min-width: 0; }
+        .mode-switch button, .announce-btn, .call-btn { width: 100%; justify-content: center; padding: 0 8px; white-space: nowrap; }
         .mode-switch button, .announce-btn, .call-btn { min-height: 36px; }
         .chats-search input, .chats-compose textarea { font-size: 16px; }
         .hub-install { flex: none; }
@@ -377,7 +386,7 @@
                 </a>
             @endforeach
             @if(!empty($personalHub) && empty($historyReady))
-                <div class="chat-note">Linked. Your chats are still syncing.</div>
+                <div class="chat-note">Your chats are still syncing.@if($historyProgress !== null) {{ (int) $historyProgress }}% received.@endif</div>
             @endif
             @elseif($pane === 'calls' && !empty($personalHub))
                 <div class="chats-empty"><strong>Calls are not available</strong>Whats MAI does not place calls. Status, Communities, and Channels are not in this app.</div>
@@ -607,7 +616,7 @@
                         <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
                     </span>
                     <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
-                    <textarea name="body" id="chatBody" placeholder="{{ $replyCode !== 'off' && $replyCode !== '' ? ('Type in '.$writeName.'. Paste a photo or a document. It is sent in '.$replyName.'.') : 'Type a message. Paste a photo or a document.' }}"></textarea>
+                    <textarea name="body" id="chatBody" rows="4" autocomplete="off" aria-label="Message" placeholder=""></textarea>
                     <button type="button" id="openAsk" class="mai-open" aria-label="MAI, Mbole AI" title="MAI"><i></i>MAI</button>
                     <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
                     <button type="submit" aria-label="Send">➤</button>
@@ -682,7 +691,7 @@
                         <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
                     </span>
                     <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
-                    <textarea name="body" id="chatBody" placeholder="Message the group. Paste a photo or a document."></textarea>
+                    <textarea name="body" id="chatBody" rows="4" autocomplete="off" aria-label="Message" placeholder=""></textarea>
                     <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
@@ -795,7 +804,7 @@
             <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
         </span>
         <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
-        <textarea name="body" id="chatBody" placeholder="Type a message. Paste a photo or a document."></textarea>
+        <textarea name="body" id="chatBody" rows="4" autocomplete="off" aria-label="Message" placeholder=""></textarea>
         <button type="button" id="openAsk" class="mai-open" aria-label="MAI, Mbole AI" title="MAI"><i></i>MAI</button>
         <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
         <button type="submit" aria-label="Send">➤</button>
@@ -1698,12 +1707,7 @@
             option.classList.toggle('is-on', (option.getAttribute('data-code') || '') === replyCode);
         });
         var composeField = document.getElementById('chatBody');
-        if (composeField && !composeField.value) {
-            var writeIn = (chat.staff && chat.staff.name) ? chat.staff.name : '';
-            var sentIn = document.getElementById('threadReplyName');
-            var sentName = sentIn ? sentIn.textContent : '';
-            composeField.placeholder = (writeIn && sentName && sentName !== 'Off') ? ('Type in ' + writeIn + '. Paste a photo or a document. It is sent in ' + sentName + '.') : 'Type a message. Paste a photo or a document.';
-        }
+        if (composeField && !composeField.value) composeField.placeholder = '';
         paintThread(data);
         var app = document.querySelector('.chats-app');
         if (app) app.classList.add('has-open');
@@ -1908,7 +1912,18 @@
                     placeMessages(data.earlier || [], true);
                     var button = document.getElementById('loadEarlier');
                     if (button) {
-                        if (data.history === 'unavailable') {
+                        if (data.history === 'pending') {
+                            button.textContent = 'Looking for older messages';
+                            button.disabled = true;
+                            setTimeout(function () {
+                                button.disabled = false;
+                                button.textContent = 'Earlier messages';
+                                poll('&before=' + button.getAttribute('data-before'));
+                            }, 2000);
+                        } else if (data.history === 'failed') {
+                            button.textContent = 'Older messages could not be loaded';
+                            button.disabled = false;
+                        } else if (data.history === 'unavailable') {
                             button.textContent = 'Older history is not available';
                             button.disabled = true;
                         } else if (data.has_earlier && data.earlier && data.earlier.length) button.setAttribute('data-before', data.earlier[0].id);

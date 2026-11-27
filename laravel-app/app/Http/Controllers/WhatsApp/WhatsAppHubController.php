@@ -473,6 +473,7 @@ class WhatsAppHubController extends Controller
 
         $personalHub = (bool) $personal;
         $historyReady = ! $personal || ! Schema::hasColumn('mai_sessions', 'history_ready') || (bool) $personal->history_ready;
+        $historyProgress = $personal ? \Illuminate\Support\Facades\Cache::get('mai.sync.'.$personal->id) : null;
         $announce = ($personal && $pane === 'announcements')
             ? app(\App\Http\Controllers\AnnouncementManagerController::class)->composeState($request)
             : null;
@@ -480,7 +481,7 @@ class WhatsAppHubController extends Controller
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
             'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
-            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady'
+            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady', 'historyProgress'
         ));
     }
 
@@ -589,6 +590,22 @@ class WhatsAppHubController extends Controller
             $payload['has_earlier'] = $first
                 ? WhatsAppMessage::visible()->where('conversation_id', $chatId)->where('id', '<', $first->id)->exists()
                 : false;
+            if ($older->isEmpty() && ($personal = $this->personalHub())) {
+                $cursor = WhatsAppMessage::find($before);
+                if ($cursor && $cursor->created_at) {
+                    $older = WhatsAppMessage::visible()->where('conversation_id', $chatId)
+                        ->where('created_at', '<', $cursor->created_at)
+                        ->orderByDesc('created_at')
+                        ->limit(40)
+                        ->get()
+                        ->reverse()
+                        ->values();
+                    $payload['earlier'] = $older->map(function ($message) {
+                        return $this->chatFeedMessage($message);
+                    })->values();
+                    $payload['has_earlier'] = $older->count() === 40;
+                }
+            }
             if ($older->isEmpty() && ($personal = $this->personalHub())) {
                 $payload['history'] = $this->askOlderHistory($personal, $chatId);
             }
@@ -785,10 +802,21 @@ class WhatsAppHubController extends Controller
 
     protected function askOlderHistory($session, $chatId)
     {
-        $oldest = WhatsAppMessage::where('conversation_id', $chatId)->orderBy('id')->first();
+        $oldest = WhatsAppMessage::where('conversation_id', $chatId)->orderBy('created_at')->orderBy('id')->first();
         $media = $oldest ? $oldest->media() : [];
         $key = isset($media['key']) && is_array($media['key']) ? $media['key'] : [];
         $phone = preg_replace('/\D/', '', (string) optional($oldest ? $oldest->contact : null)->normalized_phone);
+        $cacheKey = 'mai.older.'.$session->id.'.'.$phone;
+        $known = $phone !== '' ? \Illuminate\Support\Facades\Cache::get($cacheKey) : null;
+        if ($known === 'pending') {
+            return 'pending';
+        }
+        if ($known === 'failed') {
+            return 'failed';
+        }
+        if ($known === 'unavailable') {
+            return 'unavailable';
+        }
         if ($phone === '' || empty($key['id']) || strlen($phone) > 15) {
             return 'unavailable';
         }
@@ -801,8 +829,13 @@ class WhatsAppHubController extends Controller
                 'at' => $oldest->created_at ? $oldest->created_at->timestamp : 0,
             ]
         );
+        $state = is_array($asked) && isset($asked['state']) ? (string) $asked['state'] : 'unavailable';
+        if (! in_array($state, ['pending', 'received', 'failed', 'unavailable'], true)) {
+            $state = 'unavailable';
+        }
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $state, now()->addMinutes(10));
 
-        return ! empty($asked['unsupported']) ? 'unavailable' : 'requested';
+        return $state;
     }
 
     protected function chatPreview($preview)

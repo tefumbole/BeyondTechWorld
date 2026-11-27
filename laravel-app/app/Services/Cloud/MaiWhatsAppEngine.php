@@ -225,7 +225,7 @@ class MaiWhatsAppEngine
     {
         $id = $this->id($phone);
         if ($id === '' || $jid === '' || empty($oldest['id'])) {
-            return ['success' => false, 'unsupported' => true];
+            return ['state' => 'unavailable'];
         }
         $payload = $this->request('POST', '/sessions/'.$id.'/history', [
             'jid' => $jid,
@@ -234,10 +234,17 @@ class MaiWhatsAppEngine
             'at' => isset($oldest['at']) ? (int) $oldest['at'] : 0,
         ], 12);
         if (! is_array($payload)) {
-            return ['success' => false, 'unsupported' => true];
+            return ['state' => 'unavailable'];
+        }
+        if (! empty($payload['unsupported'])) {
+            return ['state' => 'unavailable'];
+        }
+        $state = isset($payload['state']) ? (string) $payload['state'] : '';
+        if (! in_array($state, ['pending', 'received', 'failed', 'unavailable'], true)) {
+            return ['state' => 'failed'];
         }
 
-        return $payload;
+        return ['state' => $state];
     }
 
     public function markRead($phone, $to)

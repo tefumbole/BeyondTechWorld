@@ -22,6 +22,7 @@ import {
   unlinkKeepHistory,
   unsealCreds,
 } from './session-store.mjs'
+import { classifyHistory, historyMarkerComplete } from './history-sync.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../storage/app/whatsapp-link')
 const tokenPath = path.join(root, 'token')
@@ -513,6 +514,14 @@ function sessionDir(id) {
   return path.join(sessionRoot, id)
 }
 
+function historyIsComplete(dir) {
+  try {
+    return historyMarkerComplete(fs.readFileSync(path.join(dir, 'history.ready'), 'utf8'))
+  } catch (e) {
+    return false
+  }
+}
+
 async function startSocket(id, expected) {
   const existing = sessions.get(id)
   if (expected) {
@@ -566,7 +575,7 @@ async function startSocket(id, expected) {
     logger,
     printQRInTerminal: false,
     browser: Browsers.macOS('Whats MAI'),
-    syncFullHistory: !fs.existsSync(path.join(dir, 'history.ready')),
+    syncFullHistory: !historyIsComplete(dir),
     markOnlineOnConnect: false,
     getMessage: async (key) => {
       const found = key && entry.keys ? entry.keys[key.id] : null
@@ -612,9 +621,21 @@ async function startSocket(id, expected) {
     }))
     contacts.forEach((person) => rememberContact(entry, person))
     messages.forEach((msg) => rememberMessage(entry, msg, false))
-    if (payload && payload.isLatest) {
-      try { fs.writeFileSync(path.join(sessionDir(entry.id), 'history.ready'), '1') } catch (e) {}
-      note(entry, { kind: 'history', ready: true })
+    const decision = classifyHistory(payload, entry.historyAsk && entry.historyAsk.jid)
+    if (decision.page) {
+      if (entry.historyAsk) entry.historyAsk.state = decision.state
+      note(entry, {
+        kind: 'history-page',
+        jid: decision.jid,
+        state: decision.state,
+        count: decision.count,
+        request_id: entry.historyAsk && entry.historyAsk.id ? entry.historyAsk.id : '',
+      })
+      return
+    }
+    note(entry, { kind: 'history', syncType: decision.syncType, progress: decision.progress, ready: decision.complete })
+    if (decision.complete) {
+      try { fs.writeFileSync(path.join(sessionDir(entry.id), 'history.ready'), '100') } catch (e) {}
     }
   })
   sock.ev.on('chats.upsert', (chats) => {
@@ -1056,7 +1077,7 @@ const server = http.createServer((req, res) => {
       const after = Number(url.searchParams.get('after') || 0)
       send(res, 200, {
         generation: entry.generation || 1,
-        history_ready: fs.existsSync(path.join(sessionDir(id), 'history.ready')),
+        history_ready: historyIsComplete(sessionDir(id)),
         events: readEvents(entry, after),
       })
       return
@@ -1065,13 +1086,18 @@ const server = http.createServer((req, res) => {
       readBody(req, 4000, (body) => {
         const entry = sessions.get(id)
         if (!entry || !entry.sock || typeof entry.sock.fetchMessageHistory !== 'function' || !body || !body.id || !body.jid) {
-          send(res, 200, { success: false, unsupported: true })
+          send(res, 200, { state: 'unavailable' })
           return
         }
         const oldest = { remoteJid: String(body.jid), fromMe: !!body.from_me, id: String(body.id) }
+        entry.historyAsk = { jid: String(body.jid), id: String(body.id), state: 'pending' }
         entry.sock.fetchMessageHistory(40, oldest, Number(body.at || 0) * 1000)
-          .then(() => send(res, 200, { success: true }))
-          .catch(() => send(res, 200, { success: false, unsupported: true }))
+          .then(() => send(res, 200, { state: 'pending' }))
+          .catch(() => {
+            entry.historyAsk.state = 'failed'
+            note(entry, { kind: 'history-page', jid: String(body.jid), state: 'failed', count: 0, request_id: String(body.id) })
+            send(res, 200, { state: 'failed' })
+          })
       })
       return
     }

@@ -4,6 +4,7 @@ namespace App\Services\Mai;
 
 use App\Mai\MaiSession;
 use App\Services\Cloud\MaiWhatsAppEngine;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -37,6 +38,16 @@ class MaiSync
             $events = isset($payload['events']) && is_array($payload['events']) ? $payload['events'] : [];
         }
         $events = isset($payload['events']) && is_array($payload['events']) ? $payload['events'] : [];
+        $this->ingest($session, $events, $generation);
+    }
+
+    /**
+     * Stores one already-downloaded batch. Progress is recorded only after the
+     * messages in that batch have been written.
+     */
+    public function ingest(MaiSession $session, array $events, $generation = null)
+    {
+        $generation = $generation === null ? (int) $session->sync_generation : (int) $generation;
         $store = app(MaiInboxStore::class);
         $identity = app(MaiIdentity::class);
         $last = (int) $session->sync_seq;
@@ -44,14 +55,16 @@ class MaiSync
             if (! is_array($event)) {
                 continue;
             }
-            if ((int) (isset($event['generation']) ? $event['generation'] : 0) !== $generation) {
+            if ($generation > 0 && (int) (isset($event['generation']) ? $event['generation'] : 0) !== $generation) {
                 continue;
             }
             $seq = (int) (isset($event['seq']) ? $event['seq'] : 0);
-            if ($seq <= $last) {
+            if ($seq > 0 && $seq <= $last) {
                 continue;
             }
-            $last = $seq;
+            if ($seq > $last) {
+                $last = $seq;
+            }
             $kind = isset($event['kind']) ? (string) $event['kind'] : '';
             if ($kind === 'contact' || $kind === 'chat') {
                 $identity->remember($session, $event);
@@ -59,6 +72,14 @@ class MaiSync
             }
             if ($kind === 'receipt') {
                 $store->applyReceipt($session, $event);
+                continue;
+            }
+            if ($kind === 'history-page') {
+                $this->rememberPage($session, $event);
+                continue;
+            }
+            if ($kind === 'history') {
+                $this->rememberProgress($session, $event);
                 continue;
             }
             if ($kind === 'message') {
@@ -70,9 +91,30 @@ class MaiSync
             }
         }
         $session->sync_seq = $last;
-        if (! empty($payload['history_ready'])) {
+        $session->save();
+    }
+
+    protected function rememberPage(MaiSession $session, array $event)
+    {
+        $jid = isset($event['jid']) ? (string) $event['jid'] : '';
+        $digits = preg_replace('/\D/', '', strtok($jid, '@'));
+        $state = isset($event['state']) ? (string) $event['state'] : 'received';
+        if (! in_array($state, ['pending', 'received', 'failed', 'unavailable'], true)) {
+            $state = 'received';
+        }
+        if ($digits !== '') {
+            Cache::put('mai.older.'.$session->id.'.'.$digits, $state, now()->addMinutes(10));
+        }
+    }
+
+    protected function rememberProgress(MaiSession $session, array $event)
+    {
+        $progress = isset($event['progress']) ? (int) $event['progress'] : null;
+        if ($progress !== null) {
+            Cache::put('mai.sync.'.$session->id, max(0, min(100, $progress)), now()->addDay());
+        }
+        if (! empty($event['ready']) && $progress !== null && $progress >= 100 && Schema::hasColumn('mai_sessions', 'history_ready')) {
             $session->history_ready = 1;
         }
-        $session->save();
     }
 }

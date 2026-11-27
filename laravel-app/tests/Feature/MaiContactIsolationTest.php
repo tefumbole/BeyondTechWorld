@@ -16,6 +16,7 @@ use Tests\TestCase;
 
 class MaiContactIsolationTest extends TestCase
 {
+    public static $hooks = 0;
     protected function setUp(): void
     {
         parent::setUp();
@@ -182,32 +183,59 @@ class MaiContactIsolationTest extends TestCase
     {
         $contact = $this->contact('Owner Book');
         $ada = $this->linked(4, 'p237670000444');
-        $chat = $this->chat($contact, $ada, 'Owner Book');
+        $bola = $this->linked(9, 'p237670000999');
+        $same = $this->linked(10, 'p237670001010');
+        $adaChat = $this->chat($contact, $ada, 'Owner Book');
+        $bolaChat = $this->chat($contact, $bola, 'Owner Book');
+        $sameChat = $this->chat($contact, $same, 'Owner Book');
+        $business = new WhatsAppConversation();
+        $business->contact_id = $contact->id;
+        $business->peer_label = 'Owner Book';
+        $business->mode = 'HUMAN';
+        $business->status = 'OPEN';
+        $business->save();
         app(MaiIdentity::class)->remember($ada, [
             'jid' => '237699000333@s.whatsapp.net',
             'phone' => '237699000333',
             'saved_name' => 'Ada Name',
         ]);
+        app(MaiIdentity::class)->remember($bola, [
+            'jid' => '237699000333@s.whatsapp.net',
+            'phone' => '237699000333',
+        ]);
+        app(MaiIdentity::class)->remember($same, [
+            'jid' => '237699000333@s.whatsapp.net',
+            'phone' => '237699000333',
+            'saved_name' => 'Owner Book',
+        ]);
         Cache::put('wa.book.237699000333', 'Owner Book', now()->addDay());
         Cache::put('wa.address_book.v2', ['237699000333' => 'Owner Book'], now()->addDay());
 
-        $this->artisan('mai:repair-labels', ['--dry-run' => true, '--session' => $ada->id])
-            ->expectsOutput('rebuilt=1 cleared=0 kept=0 dry=yes')
+        $this->artisan('mai:repair-labels', ['--dry-run' => true])
+            ->expectsOutput('rebuilt=1 cleared=1 kept=1 dry=yes')
             ->assertExitCode(0);
-        $this->assertSame('Owner Book', $chat->fresh()->peer_label);
+        $this->assertSame('Owner Book', $adaChat->fresh()->peer_label);
         $this->assertSame('Owner Book', $contact->fresh()->wa_name);
-
-        $this->artisan('mai:repair-labels', ['--session' => $ada->id])
-            ->expectsOutput('rebuilt=1 cleared=0 kept=0 dry=no')
-            ->assertExitCode(0);
-        $this->assertSame('Ada Name', $chat->fresh()->peer_label);
-        $this->assertSame('Owner Book', $contact->fresh()->wa_name);
-        $this->assertNull(Cache::get('wa.book.237699000333'));
+        $this->assertSame('Owner Book', $contact->fresh()->displayName());
+        $this->assertSame('Owner Book', $business->fresh()->peer_label);
+        $this->assertSame('Owner Book', Cache::get('wa.book.237699000333'));
         $this->assertSame(['237699000333' => 'Owner Book'], Cache::get('wa.address_book.v2'));
 
-        $this->artisan('mai:repair-labels', ['--session' => $ada->id])
-            ->expectsOutput('rebuilt=0 cleared=0 kept=1 dry=no')
+        $this->artisan('mai:repair-labels')
+            ->expectsOutput('rebuilt=1 cleared=1 kept=1 dry=no')
             ->assertExitCode(0);
+        $this->assertSame('Ada Name', $adaChat->fresh()->peer_label);
+        $this->assertSame('+237699000333', $bolaChat->fresh()->peer_label);
+        $this->assertSame('Owner Book', $sameChat->fresh()->peer_label);
+        $this->assertSame('Owner Book', $contact->fresh()->wa_name);
+        $this->assertSame('Owner Book', $business->fresh()->peer_label);
+        $this->assertSame('Owner Book', Cache::get('wa.book.237699000333'));
+        $this->assertSame(['237699000333' => 'Owner Book'], Cache::get('wa.address_book.v2'));
+
+        $this->artisan('mai:repair-labels')
+            ->expectsOutput('rebuilt=0 cleared=0 kept=3 dry=no')
+            ->assertExitCode(0);
+        $this->assertSame('Owner Book', Cache::get('wa.book.237699000333'));
     }
 
     public function test_history_does_not_reply_and_a_live_message_still_can()
@@ -271,6 +299,114 @@ class MaiContactIsolationTest extends TestCase
             'text' => 'After takeover',
         ]);
         $this->assertSame(2, $calls);
+    }
+
+    public function test_history_stays_incomplete_until_the_batch_is_stored()
+    {
+        self::$hooks = 0;
+        $this->app->bind(\App\Services\Mai\MaiWebhookService::class, function () {
+            return new class extends \App\Services\Mai\MaiWebhookService {
+                public function dispatch($session, $eventId, array $payload)
+                {
+                    \Tests\Feature\MaiContactIsolationTest::$hooks++;
+                }
+            };
+        });
+        $session = $this->linked(11, 'p237670001111');
+        $session->ai_enabled = 1;
+        $session->sync_generation = 1;
+        $session->sync_seq = 0;
+        $session->history_ready = 0;
+        $session->save();
+        $calls = 0;
+        config(['cloud.mai_customer.ai_reply' => function () use (&$calls) {
+            $calls++;
+
+            return 'auto';
+        }]);
+        $chat = $this->chat($this->contact(''), $session, '');
+        $chat->mode = 'AI';
+        $chat->save();
+        $old = time() - 86400;
+        $sync = app(\App\Services\Mai\MaiSync::class);
+        $sync->ingest($session, [
+            $this->historyMessage(1, 'h1', 'Old', $old),
+            ['generation' => 1, 'seq' => 2, 'kind' => 'history', 'progress' => 40, 'ready' => true],
+        ], 1);
+
+        $session = $session->fresh();
+        $this->assertSame(0, (int) $session->history_ready);
+        $this->assertSame(40, (int) Cache::get('mai.sync.'.$session->id));
+        $this->assertSame(0, $calls);
+        $this->assertSame(0, self::$hooks);
+        $this->assertSame(1, WhatsAppMessage::count());
+
+        $sync->ingest($session, [
+            $this->historyMessage(1, 'h1', 'Old', $old),
+            ['generation' => 1, 'seq' => 3, 'kind' => 'message', 'id' => 'live-9', 'live' => true, 'remote' => '237699000333', 'jid' => '237699000333@s.whatsapp.net', 'text' => 'Now', 'at' => time()],
+            $this->historyMessage(4, 'h2', 'Older still', $old - 30),
+            ['generation' => 1, 'seq' => 5, 'kind' => 'history-page', 'jid' => '237699000333@s.whatsapp.net', 'state' => 'received', 'count' => 1],
+            ['generation' => 1, 'seq' => 6, 'kind' => 'history', 'progress' => 100, 'ready' => true],
+        ], 1);
+
+        $session = $session->fresh();
+        $this->assertSame(1, (int) $session->history_ready);
+        $this->assertSame(1, $calls);
+        $this->assertSame(1, self::$hooks);
+        $this->assertSame(3, WhatsAppMessage::count());
+        $this->assertSame('received', Cache::get('mai.older.'.$session->id.'.237699000333'));
+        $older = WhatsAppMessage::where('body', 'Older still')->first();
+        $live = WhatsAppMessage::where('body', 'Now')->first();
+        $this->assertTrue($older->created_at->lt($live->created_at));
+
+        $sync->ingest($session->fresh(), [[
+            'generation' => 1,
+            'seq' => 7,
+            'kind' => 'history-page',
+            'jid' => '237688000111@s.whatsapp.net',
+            'state' => 'failed',
+        ]], 1);
+        $this->assertSame('failed', Cache::get('mai.older.'.$session->id.'.237688000111'));
+        $this->assertSame(1, (int) $session->fresh()->history_ready);
+    }
+
+    public function test_a_file_flag_does_not_finish_history_before_the_batch()
+    {
+        $session = $this->linked(12, 'p237670001212');
+        $session->phone_number = '237670001212';
+        $session->sync_generation = 1;
+        $session->sync_seq = 0;
+        $session->history_ready = 0;
+        $session->save();
+        config(['cloud.whatsapp.link_transport' => function () {
+            return [
+                'generation' => 1,
+                'history_ready' => true,
+                'events' => [
+                    ['generation' => 1, 'seq' => 1, 'kind' => 'history', 'progress' => 40, 'ready' => false],
+                ],
+            ];
+        }]);
+        app(\App\Services\Mai\MaiSync::class)->pull($session->fresh());
+        $this->assertSame(0, (int) $session->fresh()->history_ready);
+        $this->assertSame(40, (int) Cache::get('mai.sync.'.$session->id));
+
+        $phone = '237670001212';
+        config(['cloud.whatsapp.link_transport' => function ($method, $path) use ($phone) {
+            if (strpos($path, '/history') !== false) {
+                if (strpos($path, 'p'.$phone) === false) {
+                    return ['state' => 'failed'];
+                }
+
+                return ['state' => 'pending'];
+            }
+
+            return ['state' => 'unavailable'];
+        }]);
+        $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
+        $this->assertSame('pending', $engine->olderHistory($phone, '237699000333@s.whatsapp.net', ['id' => 'abc'])['state']);
+        $this->assertSame('unavailable', $engine->olderHistory($phone, '237699000333@s.whatsapp.net', [])['state']);
+        $this->assertSame('failed', $engine->olderHistory('237670009999', '237699000333@s.whatsapp.net', ['id' => 'abc'])['state']);
     }
 
     public function test_groups_quotes_receipts_and_media_stay_on_that_connection()
@@ -384,6 +520,21 @@ class MaiContactIsolationTest extends TestCase
         $this->assertTrue(! empty($result['success']));
         $this->assertSame('Hello there', $message->fresh()->body);
         $this->assertContains('POST /sessions/p237670000888/edit', $seen);
+    }
+
+    protected function historyMessage($seq, $id, $text, $at)
+    {
+        return [
+            'generation' => 1,
+            'seq' => $seq,
+            'kind' => 'message',
+            'id' => $id,
+            'live' => false,
+            'remote' => '237699000333',
+            'jid' => '237699000333@s.whatsapp.net',
+            'text' => $text,
+            'at' => $at,
+        ];
     }
 
     protected function contact($name)

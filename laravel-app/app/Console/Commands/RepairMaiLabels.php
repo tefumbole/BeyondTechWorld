@@ -3,10 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Services\Mai\MaiIdentity;
-use App\WhatsApp\WhatsAppContact;
 use App\WhatsApp\WhatsAppConversation;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
 class RepairMaiLabels extends Command
@@ -33,58 +31,24 @@ class RepairMaiLabels extends Command
         $kept = 0;
         $identity = app(MaiIdentity::class);
         foreach ($query->get() as $conversation) {
-            $trusted = Schema::hasTable('mai_peers') ? $identity->trusted($conversation, $conversation->contact) : '';
+            $next = $identity->display($conversation, $conversation->contact);
             $current = trim((string) $conversation->peer_label);
-            $phone = preg_replace('/\D/', '', (string) optional($conversation->contact)->normalized_phone);
-            $leaked = $current !== '' && $current !== $trusted && $this->leaked($conversation, $current, $phone);
-            if ($trusted !== '' && $current !== $trusted) {
+            if ($current === $next) {
+                $kept++;
+                continue;
+            }
+            if ($identity->trusted($conversation, $conversation->contact) !== '') {
                 $rebuilt++;
-                if (! $dry) {
-                    $conversation->peer_label = $trusted;
-                    $conversation->save();
-                    if ($leaked) {
-                        $this->forgetPhone($phone);
-                    }
-                }
-                continue;
-            }
-            if ($leaked) {
+            } else {
                 $cleared++;
-                if (! $dry) {
-                    $conversation->peer_label = null;
-                    $conversation->save();
-                    $this->forgetPhone($phone);
-                }
-                continue;
             }
-            $kept++;
+            if (! $dry) {
+                $conversation->peer_label = $next;
+                $conversation->save();
+            }
         }
         $this->line('rebuilt='.$rebuilt.' cleared='.$cleared.' kept='.$kept.' dry='.($dry ? 'yes' : 'no'));
 
         return 0;
-    }
-
-    protected function leaked(WhatsAppConversation $conversation, $label, $phone)
-    {
-        $cached = $phone !== '' ? Cache::get('wa.book.'.$phone) : null;
-        if (is_string($cached) && trim($cached) === $label) {
-            return true;
-        }
-        $contact = $conversation->contact;
-        if ($contact && trim((string) $contact->wa_name) === $label) {
-            return true;
-        }
-
-        return WhatsAppContact::where('wa_name', $label)
-            ->where('id', '!=', (int) $conversation->contact_id)
-            ->exists();
-    }
-
-    protected function forgetPhone($phone)
-    {
-        if ($phone === '') {
-            return;
-        }
-        Cache::forget('wa.book.'.$phone);
     }
 }
