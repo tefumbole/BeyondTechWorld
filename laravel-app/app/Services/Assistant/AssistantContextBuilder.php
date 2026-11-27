@@ -12,7 +12,8 @@ class AssistantContextBuilder
     public function build(WhatsAppConversation $conversation)
     {
         $contact = $conversation->contact;
-        if ($contact) {
+        $personal = (bool) $conversation->mai_session_id;
+        if ($contact && ! $personal) {
             $contact->load('links');
         }
         $roles = [];
@@ -20,7 +21,7 @@ class AssistantContextBuilder
         $internUserId = null;
         $employeeId = null;
         $tenancyIds = [];
-        if ($contact) {
+        if ($contact && ! $personal) {
             foreach ($contact->links as $link) {
                 $roles[] = $link->role;
                 if ($link->role === 'customer') {
@@ -38,7 +39,7 @@ class AssistantContextBuilder
             }
         }
         $lead = null;
-        if ($contact && Schema::hasTable('leads')) {
+        if ($contact && ! $personal && Schema::hasTable('leads')) {
             $row = Lead::where('contact_id', $contact->id)->orderByDesc('id')->first();
             if ($row) {
                 $lead = ['id' => $row->id, 'status' => $row->status, 'category' => $row->category];
@@ -50,7 +51,9 @@ class AssistantContextBuilder
             'conversation' => $conversation,
             'conversation_id' => $conversation->id,
             'contact_id' => $contact ? $contact->id : null,
-            'contact_name' => app(AssistantContactVoice::class)->preferredName($contact),
+            'contact_name' => $personal && \Illuminate\Support\Facades\Schema::hasTable('mai_peers')
+                ? app(\App\Services\Mai\MaiIdentity::class)->display($conversation, $contact)
+                : app(AssistantContactVoice::class)->preferredName($contact),
             'contact_voice' => app(AssistantContactVoice::class)->line($contact),
             'phone' => $contact ? $contact->normalized_phone : null,
             'roles' => array_values(array_unique($roles)),

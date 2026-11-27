@@ -1,0 +1,428 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Mai\MaiPeer;
+use App\Mai\MaiSession;
+use App\Services\Mai\MaiIdentity;
+use App\Services\Mai\MaiInboxStore;
+use App\WhatsApp\WhatsAppContact;
+use App\WhatsApp\WhatsAppConversation;
+use App\WhatsApp\WhatsAppMessage;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
+
+class MaiContactIsolationTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['cloud.mai_customer.enabled' => true]);
+        Schema::create('whatsapp_contacts', function (Blueprint $table) {
+            $table->bigIncrements('id');
+            $table->string('normalized_phone', 32)->unique();
+            $table->string('display_phone', 48)->nullable();
+            $table->string('wa_name', 191)->nullable();
+            $table->timestamps();
+        });
+        Schema::create('whatsapp_conversations', function (Blueprint $table) {
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('contact_id')->index();
+            $table->unsignedInteger('mai_session_id')->nullable()->index();
+            $table->string('peer_label', 191)->nullable();
+            $table->string('mode', 16)->default('HUMAN');
+            $table->string('status', 16)->default('OPEN');
+            $table->string('channel', 32)->nullable();
+            $table->unsignedInteger('unread_count')->default(0);
+            $table->text('last_message')->nullable();
+            $table->timestamp('last_activity_at')->nullable();
+            $table->timestamp('last_incoming_at')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('whatsapp_messages', function (Blueprint $table) {
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('conversation_id')->index();
+            $table->unsignedBigInteger('contact_id')->nullable();
+            $table->string('direction', 16);
+            $table->string('type', 24)->default('TEXT');
+            $table->string('provider_message_id', 128)->nullable();
+            $table->text('body')->nullable();
+            $table->text('media_json')->nullable();
+            $table->string('status', 16)->default('DELIVERED');
+            $table->string('sender_type', 16)->nullable();
+            $table->timestamp('sent_at')->nullable();
+            $table->timestamp('delivered_at')->nullable();
+            $table->timestamp('read_at')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('mai_sessions', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('public_id', 64);
+            $table->unsignedInteger('user_id')->nullable();
+            $table->unsignedInteger('cloud_tenant_id')->nullable();
+            $table->string('provider', 32);
+            $table->string('worker_session_id', 64)->nullable();
+            $table->string('phone_number', 32)->nullable();
+            $table->string('expected_phone', 32)->nullable();
+            $table->string('status', 32)->default('CONNECTED');
+            $table->boolean('ai_enabled')->default(0);
+            $table->unsignedInteger('sync_generation')->default(0);
+            $table->unsignedInteger('sync_seq')->default(0);
+            $table->boolean('history_ready')->default(0);
+            $table->timestamps();
+        });
+        Schema::create('mai_peers', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('mai_session_id')->index();
+            $table->string('remote_jid', 191);
+            $table->string('phone_digits', 32)->nullable();
+            $table->string('lid', 64)->nullable();
+            $table->string('saved_name', 191)->nullable();
+            $table->string('profile_name', 191)->nullable();
+            $table->timestamps();
+            $table->unique(['mai_session_id', 'remote_jid']);
+        });
+        Schema::create('mai_webhooks', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('user_id')->index();
+            $table->unsignedInteger('mai_session_id')->nullable();
+            $table->string('url', 500);
+            $table->text('secret');
+            $table->boolean('active')->default(1);
+            $table->timestamps();
+        });
+        Schema::create('mai_webhook_deliveries', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('mai_webhook_id')->index();
+            $table->string('event_id', 80);
+            $table->text('payload');
+            $table->unsignedSmallInteger('attempts')->default(0);
+            $table->timestamp('next_attempt_at')->nullable();
+            $table->timestamp('delivered_at')->nullable();
+            $table->string('last_error', 191)->nullable();
+            $table->timestamps();
+        });
+        Schema::create('mai_outbound_messages', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('mai_session_id')->index();
+            $table->string('idempotency_key', 80);
+            $table->string('to_phone', 32);
+            $table->text('body');
+            $table->string('status', 16)->default('pending');
+            $table->string('provider_message_id', 128)->nullable();
+            $table->string('last_error', 191)->nullable();
+            $table->timestamps();
+        });
+        Schema::create('mai_inbound_events', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('mai_session_id')->index();
+            $table->string('event_id', 80);
+            $table->string('kind', 32);
+            $table->timestamps();
+            $table->unique(['mai_session_id', 'event_id']);
+        });
+    }
+
+    public function test_two_accounts_in_one_tenant_keep_their_own_names()
+    {
+        $contact = $this->contact('Owner Book');
+        $ada = $this->linked(1, 'p237670000111');
+        $bola = $this->linked(2, 'p237670000222');
+        $adaChat = $this->chat($contact, $ada, 'Owner Book');
+        $bolaChat = $this->chat($contact, $bola, 'Owner Book');
+        app(MaiIdentity::class)->remember($ada, [
+            'jid' => '237699000333@s.whatsapp.net',
+            'phone' => '237699000333',
+            'saved_name' => 'Ada Name',
+        ]);
+        app(MaiIdentity::class)->remember($bola, [
+            'jid' => '237699000333@s.whatsapp.net',
+            'phone' => '237699000333',
+            'saved_name' => 'Bola Name',
+            'profile_name' => 'Profile Only',
+        ]);
+
+        $this->assertSame('Ada Name', app(MaiIdentity::class)->display($adaChat->fresh(), $contact));
+        $this->assertSame('Bola Name', app(MaiIdentity::class)->display($bolaChat->fresh(), $contact));
+        $this->assertNotSame('Owner Book', app(MaiIdentity::class)->display($adaChat, $contact));
+
+        $peer = MaiPeer::where('mai_session_id', $ada->id)->first();
+        $peer->saved_name = 'Ada Two';
+        $peer->save();
+        $adaChat = $adaChat->fresh();
+        $bolaChat = $bolaChat->fresh();
+        $this->assertSame('Ada Two', app(MaiIdentity::class)->display($adaChat, $contact->fresh()));
+        $this->assertSame('Bola Name', app(MaiIdentity::class)->display($bolaChat, $contact->fresh()));
+        $this->assertSame('Owner Book', $contact->fresh()->wa_name);
+        $this->assertSame(0, MaiPeer::where('mai_session_id', $bola->id)->where('saved_name', 'Ada Two')->count());
+    }
+
+    public function test_a_lid_is_not_turned_into_a_phone_number()
+    {
+        $contact = $this->contact('');
+        $contact->normalized_phone = '1555123499999999';
+        $contact->wa_name = 'Owner Book';
+        $contact->save();
+        $session = $this->linked(3, 'p237670000333');
+        $chat = $this->chat($contact, $session, 'Owner Book');
+        app(MaiIdentity::class)->remember($session, [
+            'jid' => '1555123499999999@lid',
+            'lid' => '1555123499999999',
+            'profile_name' => 'Lid Profile',
+        ]);
+
+        $peer = MaiPeer::where('mai_session_id', $session->id)->first();
+        $this->assertSame('', (string) $peer->phone_digits);
+        $this->assertSame('Lid Profile', app(MaiIdentity::class)->display($chat->fresh(), $contact));
+    }
+
+    public function test_repair_rebuilds_trusted_labels_and_leaves_the_business_book()
+    {
+        $contact = $this->contact('Owner Book');
+        $ada = $this->linked(4, 'p237670000444');
+        $chat = $this->chat($contact, $ada, 'Owner Book');
+        app(MaiIdentity::class)->remember($ada, [
+            'jid' => '237699000333@s.whatsapp.net',
+            'phone' => '237699000333',
+            'saved_name' => 'Ada Name',
+        ]);
+        Cache::put('wa.book.237699000333', 'Owner Book', now()->addDay());
+        Cache::put('wa.address_book.v2', ['237699000333' => 'Owner Book'], now()->addDay());
+
+        $this->artisan('mai:repair-labels', ['--dry-run' => true, '--session' => $ada->id])
+            ->expectsOutput('rebuilt=1 cleared=0 kept=0 dry=yes')
+            ->assertExitCode(0);
+        $this->assertSame('Owner Book', $chat->fresh()->peer_label);
+        $this->assertSame('Owner Book', $contact->fresh()->wa_name);
+
+        $this->artisan('mai:repair-labels', ['--session' => $ada->id])
+            ->expectsOutput('rebuilt=1 cleared=0 kept=0 dry=no')
+            ->assertExitCode(0);
+        $this->assertSame('Ada Name', $chat->fresh()->peer_label);
+        $this->assertSame('Owner Book', $contact->fresh()->wa_name);
+        $this->assertNull(Cache::get('wa.book.237699000333'));
+        $this->assertSame(['237699000333' => 'Owner Book'], Cache::get('wa.address_book.v2'));
+
+        $this->artisan('mai:repair-labels', ['--session' => $ada->id])
+            ->expectsOutput('rebuilt=0 cleared=0 kept=1 dry=no')
+            ->assertExitCode(0);
+    }
+
+    public function test_history_does_not_reply_and_a_live_message_still_can()
+    {
+        $contact = $this->contact('');
+        $session = $this->linked(5, 'p237670000555');
+        $session->ai_enabled = 1;
+        $session->save();
+        $chat = $this->chat($contact, $session, '');
+        $chat->mode = 'AI';
+        $chat->save();
+        $calls = 0;
+        config(['cloud.mai_customer.ai_reply' => function () use (&$calls) {
+            $calls++;
+
+            return 'auto';
+        }]);
+
+        app(MaiInboxStore::class)->accept([
+            'session_id' => $session->worker_session_id,
+            'event_id' => 'old-1',
+            'live' => false,
+            'remote' => '237699000333',
+            'jid' => '237699000333@s.whatsapp.net',
+            'text' => 'Imported',
+        ]);
+        $this->assertSame(0, $calls);
+        $this->assertSame(1, WhatsAppMessage::count());
+
+        app(MaiInboxStore::class)->accept([
+            'session_id' => $session->worker_session_id,
+            'event_id' => 'old-1',
+            'live' => false,
+            'remote' => '237699000333',
+            'text' => 'Imported',
+        ]);
+        app(MaiInboxStore::class)->accept([
+            'session_id' => $session->worker_session_id,
+            'event_id' => 'live-2',
+            'live' => true,
+            'remote' => '237699000333',
+            'text' => 'Second',
+        ]);
+        app(MaiInboxStore::class)->accept([
+            'session_id' => $session->worker_session_id,
+            'event_id' => 'live-1',
+            'live' => true,
+            'remote' => '237699000333',
+            'text' => 'First',
+        ]);
+        $this->assertSame(2, $calls);
+        $this->assertSame(3, WhatsAppMessage::count());
+
+        $chat->mode = 'HUMAN';
+        $chat->save();
+        app(MaiInboxStore::class)->accept([
+            'session_id' => $session->worker_session_id,
+            'event_id' => 'live-3',
+            'live' => true,
+            'remote' => '237699000333',
+            'text' => 'After takeover',
+        ]);
+        $this->assertSame(2, $calls);
+    }
+
+    public function test_groups_quotes_receipts_and_media_stay_on_that_connection()
+    {
+        $ada = $this->linked(6, 'p237670000666');
+        $bola = $this->linked(7, 'p237670000777');
+        $ada->ai_enabled = 1;
+        $ada->save();
+        $calls = 0;
+        config(['cloud.mai_customer.ai_reply' => function () use (&$calls) {
+            $calls++;
+
+            return 'auto';
+        }]);
+        $jid = '120363123456789012@g.us';
+        app(MaiInboxStore::class)->accept([
+            'session_id' => $ada->worker_session_id,
+            'event_id' => 'g-1',
+            'id' => 'g-1',
+            'live' => true,
+            'jid' => $jid,
+            'saved_name' => 'Ada Group',
+            'participant' => '237611111111@s.whatsapp.net',
+            'participant_saved' => 'Ada Friend',
+            'text' => 'In the group',
+            'quote' => 'Earlier line',
+            'type' => 'IMAGE',
+        ]);
+        app(MaiInboxStore::class)->accept([
+            'session_id' => $bola->worker_session_id,
+            'event_id' => 'g-1',
+            'id' => 'g-1',
+            'live' => false,
+            'jid' => $jid,
+            'saved_name' => 'Bola Group',
+            'participant' => '237611111111@s.whatsapp.net',
+            'participant_saved' => 'Bola Friend',
+            'text' => 'In the group',
+        ]);
+        $this->assertSame(0, $calls);
+        $adaChat = WhatsAppConversation::where('mai_session_id', $ada->id)->first();
+        $bolaChat = WhatsAppConversation::where('mai_session_id', $bola->id)->first();
+        $this->assertSame('Ada Group', app(MaiIdentity::class)->display($adaChat, $adaChat->contact));
+        $this->assertSame('Bola Group', app(MaiIdentity::class)->display($bolaChat, $bolaChat->contact));
+        $adaMessage = WhatsAppMessage::where('conversation_id', $adaChat->id)->first();
+        $this->assertSame('Earlier line', $adaMessage->quoteText());
+        $this->assertTrue(! empty($adaMessage->media()['unavailable']));
+        $this->assertSame('Ada Friend', $adaMessage->media()['participant_label']);
+        $this->assertSame('Bola Friend', WhatsAppMessage::where('conversation_id', $bolaChat->id)->first()->media()['participant_label']);
+
+        $dir = storage_path('app/whatsapp-link/sessions/'.$ada->worker_session_id.'/media');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        file_put_contents($dir.'/pic.jpg', 'picture');
+        app(MaiInboxStore::class)->accept([
+            'session_id' => $ada->worker_session_id,
+            'event_id' => 'pic-1',
+            'id' => 'pic-1',
+            'live' => false,
+            'remote' => '237699000333',
+            'jid' => '237699000333@s.whatsapp.net',
+            'text' => 'Photo',
+            'type' => 'IMAGE',
+            'file' => 'sessions/'.$ada->worker_session_id.'/media/pic.jpg',
+        ]);
+        $photo = WhatsAppMessage::where('provider_message_id', 'mai:'.$ada->id.':pic-1')->first();
+        $this->assertSame('whatsapp-media/mai/'.$ada->id.'/pic.jpg', $photo->media()['stored']);
+        $this->assertTrue(empty($photo->media()['unavailable']));
+        $this->assertTrue(is_file(storage_path('app/'.$photo->media()['stored'])));
+
+        $photo->direction = WhatsAppMessage::DIR_OUT;
+        $photo->status = WhatsAppMessage::STATUS_SENT;
+        $photo->save();
+        app(MaiInboxStore::class)->accept([
+            'session_id' => $ada->worker_session_id,
+            'event_id' => 'rcpt-pic-1',
+            'kind' => 'receipt',
+            'id' => 'pic-1',
+            'receipt' => 4,
+        ]);
+        $this->assertSame(WhatsAppMessage::STATUS_READ, $photo->fresh()->status);
+        @unlink($dir.'/pic.jpg');
+        @unlink(storage_path('app/'.$photo->media()['stored']));
+    }
+
+    public function test_an_edit_uses_the_linked_socket()
+    {
+        $contact = $this->contact('Owner Book');
+        $session = $this->linked(8, 'p237670000888');
+        $session->phone_number = '237670000888';
+        $session->save();
+        $chat = $this->chat($contact, $session, '');
+        $message = new WhatsAppMessage();
+        $message->conversation_id = $chat->id;
+        $message->contact_id = $contact->id;
+        $message->direction = WhatsAppMessage::DIR_OUT;
+        $message->type = 'TEXT';
+        $message->body = 'Hello';
+        $message->status = WhatsAppMessage::STATUS_SENT;
+        $message->media_json = json_encode(['key' => ['id' => 'abc', 'from_me' => true]]);
+        $message->sent_at = now();
+        $message->save();
+        $seen = [];
+        config(['cloud.whatsapp.link_transport' => function ($method, $path) use (&$seen) {
+            $seen[] = $method.' '.$path;
+
+            return ['success' => true];
+        }]);
+        $result = app(\App\Services\WhatsApp\WhatsAppConversationService::class)->editOutgoing($chat, $message->fresh(), 'Hello there');
+        $this->assertTrue(! empty($result['success']));
+        $this->assertSame('Hello there', $message->fresh()->body);
+        $this->assertContains('POST /sessions/p237670000888/edit', $seen);
+    }
+
+    protected function contact($name)
+    {
+        $contact = new WhatsAppContact();
+        $contact->normalized_phone = '237699000333';
+        $contact->display_phone = '+237699000333';
+        $contact->wa_name = $name;
+        $contact->save();
+
+        return $contact;
+    }
+
+    protected function linked($id, $worker)
+    {
+        $session = new MaiSession();
+        $session->id = $id;
+        $session->public_id = 'c'.$id;
+        $session->user_id = $id;
+        $session->cloud_tenant_id = 9;
+        $session->provider = 'mai';
+        $session->worker_session_id = $worker;
+        $session->phone_number = '237670000'.$id;
+        $session->status = 'CONNECTED';
+        $session->save();
+
+        return $session;
+    }
+
+    protected function chat(WhatsAppContact $contact, MaiSession $session, $label)
+    {
+        $chat = new WhatsAppConversation();
+        $chat->contact_id = $contact->id;
+        $chat->mai_session_id = $session->id;
+        $chat->peer_label = $label;
+        $chat->mode = 'HUMAN';
+        $chat->status = 'OPEN';
+        $chat->save();
+
+        return $chat;
+    }
+}

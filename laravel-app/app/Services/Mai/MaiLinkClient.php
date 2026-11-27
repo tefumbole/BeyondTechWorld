@@ -25,12 +25,21 @@ class MaiLinkClient
         return $this->call('GET', '/sessions/'.$workerId, null);
     }
 
-    public function send($workerId, $to, $text)
+    public function send($workerId, $to, $text, array $quote = null)
     {
-        return $this->call('POST', '/sessions/'.$workerId.'/send', [
+        $body = [
             'to' => $to,
             'text' => $text,
-        ]);
+        ];
+        if ($quote && ! empty($quote['id'])) {
+            $body['quote'] = [
+                'id' => substr((string) $quote['id'], 0, 128),
+                'from_me' => ! empty($quote['from_me']),
+                'text' => isset($quote['text']) ? substr((string) $quote['text'], 0, 300) : '',
+            ];
+        }
+
+        return $this->call('POST', '/sessions/'.$workerId.'/send', $body);
     }
 
     public function disconnect($workerId)

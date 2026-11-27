@@ -42,7 +42,7 @@ class MaiOutboundService
         return $this->deliver($conversation, $text, $idempotencyKey, null);
     }
 
-    public function deliver(WhatsAppConversation $conversation, $text, $idempotencyKey, WhatsAppMessage $existing = null)
+    public function deliver(WhatsAppConversation $conversation, $text, $idempotencyKey, WhatsAppMessage $existing = null, array $quote = null)
     {
         $session = MaiSession::find((int) $conversation->mai_session_id);
         if (! $session || ! app(MaiProviderRouter::class)->usesMai($conversation)) {
@@ -65,7 +65,7 @@ class MaiOutboundService
         $row->body = $text;
         $row->status = 'pending';
         $row->save();
-        $payload = $this->link->send($session->worker_session_id, $to, $text);
+        $payload = $this->link->send($session->worker_session_id, $to, $text, $quote);
         if (! empty($payload['timeout'])) {
             $row->status = 'uncertain';
             $row->last_error = 'Delivery was not confirmed. It was not sent again.';

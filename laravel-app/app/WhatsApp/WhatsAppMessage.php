@@ -253,7 +253,7 @@ class WhatsAppMessage extends Model
             && ! $this->wasDeleted()
             && $this->status !== self::STATUS_FAILED
             && $this->withinWhatsAppWindow()
-            && ($this->isWebsiteMessage() || $this->wasenderId() !== '');
+            && ($this->isWebsiteMessage() || $this->wasenderId() !== '' || $this->maiKey() !== '');
     }
 
     public function canDeleteForEveryone()
@@ -261,6 +261,16 @@ class WhatsAppMessage extends Model
         return $this->direction === self::DIR_OUT
             && ! $this->wasDeleted()
             && $this->withinWhatsAppWindow()
-            && ($this->isWebsiteMessage() || $this->wasenderId() !== '');
+            && ($this->isWebsiteMessage() || $this->wasenderId() !== '' || $this->maiKey() !== '');
+    }
+
+    public function maiKey()
+    {
+        $key = $this->media()['key'] ?? null;
+        if (! is_array($key) || empty($key['id'])) {
+            return '';
+        }
+
+        return (string) $key['id'];
     }
 }

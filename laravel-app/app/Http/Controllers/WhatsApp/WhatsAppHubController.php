@@ -472,6 +472,7 @@ class WhatsAppHubController extends Controller
         }
 
         $personalHub = (bool) $personal;
+        $historyReady = ! $personal || ! Schema::hasColumn('mai_sessions', 'history_ready') || (bool) $personal->history_ready;
         $announce = ($personal && $pane === 'announcements')
             ? app(\App\Http\Controllers\AnnouncementManagerController::class)->composeState($request)
             : null;
@@ -479,7 +480,7 @@ class WhatsAppHubController extends Controller
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
             'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
-            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce'
+            'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady'
         ));
     }
 
@@ -530,7 +531,9 @@ class WhatsAppHubController extends Controller
             ->values();
         $first = $messages->first();
         $contact = $conversation->contact;
-        $name = $contact ? $contact->displayName() : 'WhatsApp';
+        $name = ($this->personalHub() && $conversation->mai_session_id)
+            ? app(\App\Services\Mai\PersonalHub::class)->label($contact, $conversation)
+            : ($contact ? $contact->displayName() : 'WhatsApp');
         $digits = preg_replace('/\D/', '', (string) ($contact ? $contact->normalized_phone : ''));
         $destination = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->destinationFor($conversation->id);
         $staff = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->staffLanguage();
@@ -586,6 +589,9 @@ class WhatsAppHubController extends Controller
             $payload['has_earlier'] = $first
                 ? WhatsAppMessage::visible()->where('conversation_id', $chatId)->where('id', '<', $first->id)->exists()
                 : false;
+            if ($older->isEmpty() && ($personal = $this->personalHub())) {
+                $payload['history'] = $this->askOlderHistory($personal, $chatId);
+            }
         } elseif ($chatId > 0) {
             $current = $this->inboxConversation($chatId);
             if ($current) {
@@ -777,6 +783,28 @@ class WhatsAppHubController extends Controller
         return $query->first();
     }
 
+    protected function askOlderHistory($session, $chatId)
+    {
+        $oldest = WhatsAppMessage::where('conversation_id', $chatId)->orderBy('id')->first();
+        $media = $oldest ? $oldest->media() : [];
+        $key = isset($media['key']) && is_array($media['key']) ? $media['key'] : [];
+        $phone = preg_replace('/\D/', '', (string) optional($oldest ? $oldest->contact : null)->normalized_phone);
+        if ($phone === '' || empty($key['id']) || strlen($phone) > 15) {
+            return 'unavailable';
+        }
+        $asked = app(\App\Services\Cloud\MaiWhatsAppEngine::class)->olderHistory(
+            $session->phone_number ?: $session->expected_phone,
+            $phone.'@s.whatsapp.net',
+            [
+                'id' => $key['id'],
+                'from_me' => ! empty($key['from_me']),
+                'at' => $oldest->created_at ? $oldest->created_at->timestamp : 0,
+            ]
+        );
+
+        return ! empty($asked['unsupported']) ? 'unavailable' : 'requested';
+    }
+
     protected function chatPreview($preview)
     {
         return \App\WhatsApp\WhatsAppMessage::listPreview($preview);
@@ -806,6 +834,7 @@ class WhatsAppHubController extends Controller
                 && $message->direction === WhatsAppMessage::DIR_IN
                 && trim((string) (isset($message->translationMeta()['english']) ? $message->translationMeta()['english'] : '')) === '',
             'quote' => $message->quoteText(),
+            'unavailable' => ! empty($media['unavailable']) && ! $message->chatMediaUrl(),
             'starred' => $message->isStarred(),
             'edited' => $message->wasEdited(),
             'deleted' => $message->wasDeleted(),
@@ -916,7 +945,7 @@ class WhatsAppHubController extends Controller
         } else {
         $file = $request->file('file');
         if ($file) {
-            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx'];
+            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'mp4', 'mov', 'ogg', 'mp3', 'm4a'];
             $ext = strtolower((string) $file->getClientOriginalExtension());
             if (! in_array($ext, $allowed, true) || $file->getSize() > 8 * 1024 * 1024) {
                 if ($tokenKey !== '') {
@@ -1071,7 +1100,12 @@ class WhatsAppHubController extends Controller
             ], 422);
         }
         $saved = isset($result['message']) ? $result['message'] : null;
-        $name = $action === 'forward' && isset($target) && $target->contact ? $target->contact->displayName() : '';
+        $name = '';
+        if ($action === 'forward' && isset($target) && $target->contact) {
+            $name = $this->personalHub()
+                ? app(\App\Services\Mai\PersonalHub::class)->label($target->contact, $target)
+                : $target->contact->displayName();
+        }
 
         return response()->json([
             'ok' => true,
@@ -1119,7 +1153,19 @@ class WhatsAppHubController extends Controller
         }
         $conversation = WhatsAppConversation::with('contact')->find($id);
         $phone = $conversation && $conversation->contact ? $conversation->contact->normalized_phone : '';
-        if ($phone !== '' && ! $conversation->isWebsite()) {
+        if ($conversation && app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+            $session = \App\Mai\MaiSession::find((int) $conversation->mai_session_id);
+            if ($session && $phone !== '') {
+                app(\App\Services\Cloud\MaiWhatsAppEngine::class)->presence(
+                    $session->phone_number ?: $session->expected_phone,
+                    $phone,
+                    $state
+                );
+            }
+
+            return response()->json(['ok' => true]);
+        }
+        if ($phone !== '' && $conversation && ! $conversation->isWebsite()) {
             app(\App\Services\BeyondWasenderService::class)->sendPresence($phone, $state);
         }
 
@@ -1576,7 +1622,7 @@ class WhatsAppHubController extends Controller
         $file = $request->file('file');
         $back = route('whatsapp.chats', ['pane' => 'announcements']);
         if ($file) {
-            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx'];
+            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'mp4', 'mov', 'ogg', 'mp3', 'm4a'];
             $ext = strtolower((string) $file->getClientOriginalExtension());
             if (! in_array($ext, $allowed, true) || $file->getSize() > 8 * 1024 * 1024) {
                 return redirect()->to($back)->with('not_permitted', 'Attach a photo or document up to 8 MB.');
@@ -1679,7 +1725,18 @@ class WhatsAppHubController extends Controller
             $json = $request->ajax() || $request->wantsJson() || $request->filled('send_token');
             $file = $request->file('file');
             if ($file) {
-                $result = $this->personalFile($jid, $file->getRealPath(), stripos((string) $file->getMimeType(), 'image/') === 0 ? 'image' : 'document', $file->getMimeType(), $file->getClientOriginalName(), $body);
+                $mime = (string) $file->getMimeType();
+                $kind = 'document';
+                if (stripos($mime, 'webp') !== false) {
+                    $kind = 'sticker';
+                } elseif (stripos($mime, 'image/') === 0) {
+                    $kind = 'image';
+                } elseif (stripos($mime, 'video/') === 0) {
+                    $kind = 'video';
+                } elseif (stripos($mime, 'audio/') === 0) {
+                    $kind = 'audio';
+                }
+                $result = $this->personalFile($jid, $file->getRealPath(), $kind, $mime, $file->getClientOriginalName(), $body);
                 if (empty($result['success'])) {
                     $error = isset($result['error']) ? $result['error'] : 'The file was not sent.';
                     if ($json) {
@@ -1740,7 +1797,7 @@ class WhatsAppHubController extends Controller
         $file = $request->file('file');
         $sentFile = false;
         if ($file && substr($jid, -5) === '@g.us') {
-            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx'];
+            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'mp4', 'mov', 'ogg', 'mp3', 'm4a'];
             $ext = strtolower((string) $file->getClientOriginalExtension());
             if (! in_array($ext, $allowed, true) || $file->getSize() > 8 * 1024 * 1024) {
                 if ($json) {
@@ -1888,6 +1945,26 @@ class WhatsAppHubController extends Controller
             return $query;
         }
         $like = '%'.$q.'%';
+        if ($session && Schema::hasTable('mai_peers')) {
+            $phones = \App\Mai\MaiPeer::where('mai_session_id', $session->id)
+                ->where(function ($rows) use ($like) {
+                    $rows->where('saved_name', 'like', $like)
+                        ->orWhere('profile_name', 'like', $like)
+                        ->orWhere('phone_digits', 'like', $like);
+                })
+                ->pluck('phone_digits')
+                ->filter()
+                ->all();
+            $query->where(function ($rows) use ($like, $phones) {
+                $rows->where('display_phone', 'like', $like)
+                    ->orWhere('normalized_phone', 'like', $like);
+                if ($phones) {
+                    $rows->orWhereIn('normalized_phone', $phones);
+                }
+            });
+
+            return $query;
+        }
         $query->where(function ($rows) use ($like) {
             $rows->where('wa_name', 'like', $like)
                 ->orWhere('display_phone', 'like', $like)
@@ -3242,6 +3319,31 @@ class WhatsAppHubController extends Controller
     protected function personalGroupMessages($session, $jid)
     {
         $rows = collect();
+        $digits = preg_replace('/\D/', '', strtok((string) $jid, '@'));
+        $conversation = $digits !== ''
+            ? WhatsAppConversation::where('mai_session_id', $session->id)
+                ->whereHas('contact', function ($query) use ($digits) {
+                    $query->where('normalized_phone', $digits);
+                })
+                ->first()
+            : null;
+        if ($conversation) {
+            foreach (WhatsAppMessage::where('conversation_id', $conversation->id)->orderBy('id')->limit(200)->get() as $message) {
+                $media = $message->media();
+                $item = new \App\WhatsApp\WhatsAppGroupMessage();
+                $item->id = $message->id;
+                $item->body = $message->body;
+                $item->media_json = $message->media_json;
+                $item->message_at = $message->created_at;
+                $item->participant_name = $message->direction === WhatsAppMessage::DIR_OUT
+                    ? ''
+                    : (isset($media['participant_label']) && $media['participant_label'] !== '' ? $media['participant_label'] : 'WhatsApp');
+                $rows->push($item);
+            }
+            if ($rows->count()) {
+                return $rows;
+            }
+        }
         $index = 1;
         foreach (app(\App\Services\Cloud\MaiWhatsAppEngine::class)->messages($session->phone_number ?: $session->expected_phone) as $row) {
             if ((string) $row['from'] !== $jid) {

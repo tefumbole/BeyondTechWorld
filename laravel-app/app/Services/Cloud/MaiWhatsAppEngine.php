@@ -71,6 +71,8 @@ class MaiWhatsAppEngine
             $rows[] = [
                 'jid' => $jid,
                 'name' => isset($row['name']) ? (string) $row['name'] : '',
+                'saved_name' => isset($row['saved_name']) ? (string) $row['saved_name'] : '',
+                'profile_name' => isset($row['profile_name']) ? (string) $row['profile_name'] : '',
                 'phone' => $phoneDigits,
                 'lid' => $lid,
                 'preview' => isset($row['preview']) ? (string) $row['preview'] : '',
@@ -103,7 +105,10 @@ class MaiWhatsAppEngine
             }
             $rows[] = [
                 'phone' => $digits,
-                'name' => isset($row['name']) ? (string) $row['name'] : '',
+                'name' => ! empty($row['saved_name']) ? (string) $row['saved_name'] : (isset($row['name']) ? (string) $row['name'] : ''),
+                'saved_name' => isset($row['saved_name']) ? (string) $row['saved_name'] : '',
+                'profile_name' => isset($row['profile_name']) ? (string) $row['profile_name'] : '',
+                'saved' => ! empty($row['saved']),
             ];
         }
 
@@ -186,13 +191,53 @@ class MaiWhatsAppEngine
             if (strlen($digits) < 8) {
                 continue;
             }
+            $saved = isset($person['saved_name']) ? trim((string) $person['saved_name']) : '';
+            if (strlen($digits) > 15) {
+                $rows[] = [
+                    'phone' => '',
+                    'name' => $saved !== '' ? $saved : 'WhatsApp',
+                    'saved_name' => $saved,
+                ];
+                continue;
+            }
             $rows[] = [
                 'phone' => $digits,
-                'name' => isset($person['name']) ? (string) $person['name'] : '',
+                'name' => $saved !== '' ? $saved : '+'.$digits,
+                'saved_name' => $saved,
             ];
         }
 
         return $rows;
+    }
+
+    public function events($phone, $after = 0)
+    {
+        $id = $this->id($phone);
+        if ($id === '') {
+            return [];
+        }
+        $payload = $this->request('GET', '/sessions/'.$id.'/events?after='.(int) $after, null, 8);
+
+        return is_array($payload) ? $payload : [];
+    }
+
+    public function olderHistory($phone, $jid, array $oldest)
+    {
+        $id = $this->id($phone);
+        if ($id === '' || $jid === '' || empty($oldest['id'])) {
+            return ['success' => false, 'unsupported' => true];
+        }
+        $payload = $this->request('POST', '/sessions/'.$id.'/history', [
+            'jid' => $jid,
+            'id' => (string) $oldest['id'],
+            'from_me' => ! empty($oldest['from_me']),
+            'at' => isset($oldest['at']) ? (int) $oldest['at'] : 0,
+        ], 12);
+        if (! is_array($payload)) {
+            return ['success' => false, 'unsupported' => true];
+        }
+
+        return $payload;
     }
 
     public function markRead($phone, $to)
@@ -204,6 +249,54 @@ class MaiWhatsAppEngine
         $payload = $this->request('POST', '/sessions/'.$id.'/read', ['to' => trim((string) $to)], 12);
 
         return ['success' => is_array($payload) && ! empty($payload['success'])];
+    }
+
+    public function presence($phone, $to, $state)
+    {
+        $id = $this->id($phone);
+        if ($id === '') {
+            return ['success' => false];
+        }
+        $payload = $this->request('POST', '/sessions/'.$id.'/presence', [
+            'to' => preg_replace('/\D/', '', (string) $to),
+            'state' => $state === 'recording' ? 'recording' : 'composing',
+        ], 8);
+
+        return ['success' => is_array($payload) && ! empty($payload['success'])];
+    }
+
+    public function editMessage($phone, $to, $key, $text)
+    {
+        return $this->changeMessage($phone, $to, $key, $text, false);
+    }
+
+    public function deleteMessage($phone, $to, $key)
+    {
+        return $this->changeMessage($phone, $to, $key, '', true);
+    }
+
+    protected function changeMessage($phone, $to, $key, $text, $delete)
+    {
+        $id = $this->id($phone);
+        if ($id === '' || $key === '') {
+            return ['success' => false, 'error' => 'This message cannot be changed on the phone yet.'];
+        }
+        $target = trim((string) $to);
+        if (substr($target, -5) !== '@g.us') {
+            $target = preg_replace('/\D/', '', $target);
+        }
+        $payload = $this->request('POST', '/sessions/'.$id.($delete ? '/delete' : '/edit'), [
+            'to' => $target,
+            'id' => substr((string) $key, 0, 128),
+            'text' => function_exists('mb_substr') ? mb_substr((string) $text, 0, 1000) : substr((string) $text, 0, 1000),
+        ], 20);
+        if (! is_array($payload) || empty($payload['success'])) {
+            $error = is_array($payload) && isset($payload['error']) ? (string) $payload['error'] : 'WhatsApp did not change that message.';
+
+            return ['success' => false, 'error' => $error];
+        }
+
+        return ['success' => true];
     }
 
     public function send($phone, $to, $text)

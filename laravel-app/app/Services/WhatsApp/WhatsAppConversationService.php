@@ -672,11 +672,26 @@ class WhatsAppConversationService
             $message->save();
             $result = ['success' => true, 'msg_id' => $message->provider_message_id, 'channel' => 'website'];
         } elseif (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+            $quoteKey = null;
+            if ($quote) {
+                $stored = $quote->media();
+                if (! empty($stored['key']['id'])) {
+                    $quoteKey = [
+                        'id' => (string) $stored['key']['id'],
+                        'from_me' => ! empty($stored['key']['from_me']),
+                        'text' => $quoteSnippet,
+                    ];
+                    $sendBody = $translation ? $translation['text'] : $body;
+                    $message->body = $sendBody;
+                    $message->save();
+                }
+            }
             $result = app(\App\Services\Mai\MaiOutboundService::class)->deliver(
                 $conversation,
                 $sendBody,
                 'hub-'.$message->id,
-                $message
+                $message,
+                $quoteKey
             );
             if (! empty($result['uncertain'])) {
                 $message->error = 'Delivery was not confirmed. It was not sent again.';
@@ -803,7 +818,12 @@ class WhatsAppConversationService
         if ($translation) {
             $sendBody = $translation['text'];
         }
-        if (! $message->isWebsiteMessage() && ! $conversation->isWebsite() && ! app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+        if (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+            $result = $this->maiChange($conversation, $message, $sendBody, false);
+            if (empty($result['success'])) {
+                return ['success' => false, 'error' => isset($result['error']) ? $result['error'] : 'WhatsApp did not change that message.'];
+            }
+        } elseif (! $message->isWebsiteMessage() && ! $conversation->isWebsite()) {
             $result = app(\App\Services\BeyondWasenderService::class)->editSentMessage($message->wasenderId(), $sendBody);
             if (empty($result['success'])) {
                 return ['success' => false, 'error' => isset($result['error']) ? $result['error'] : 'WhatsApp did not change that message.'];
@@ -836,7 +856,12 @@ class WhatsAppConversationService
             if (! $message->canDeleteForEveryone()) {
                 return ['success' => false, 'error' => 'WhatsApp only lets you delete a message for everyone for 15 minutes after it is sent.'];
             }
-            if (! $message->isWebsiteMessage() && ! $conversation->isWebsite() && ! app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+            if (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+                $result = $this->maiChange($conversation, $message, '', true);
+                if (empty($result['success'])) {
+                    return ['success' => false, 'error' => isset($result['error']) ? $result['error'] : 'WhatsApp did not delete that message.'];
+                }
+            } elseif (! $message->isWebsiteMessage() && ! $conversation->isWebsite()) {
                 $result = app(\App\Services\BeyondWasenderService::class)->deleteSentMessage($message->wasenderId());
                 if (empty($result['success'])) {
                     return ['success' => false, 'error' => isset($result['error']) ? $result['error'] : 'WhatsApp did not delete that message.'];
@@ -902,6 +927,21 @@ class WhatsAppConversationService
             $message->sent_at = now();
             $message->save();
             $result = ['success' => true];
+        } elseif (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($target)) {
+            $result = app(\App\Services\Mai\MaiOutboundService::class)->deliver($target, $text, 'hub-forward-'.$message->id, $message);
+            if (! empty($result['success'])) {
+                $message->provider_message_id = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
+                $message->status = WhatsAppMessage::STATUS_SENT;
+                $message->sent_at = now();
+                $message->save();
+            } else {
+                $message->status = ! empty($result['uncertain']) ? WhatsAppMessage::STATUS_QUEUED : WhatsAppMessage::STATUS_FAILED;
+                $message->error = isset($result['error']) ? substr((string) $result['error'], 0, 500) : 'send failed';
+                $message->save();
+                if (empty($result['uncertain'])) {
+                    return ['success' => false, 'error' => $message->error, 'message' => $message];
+                }
+            }
         } else {
             $result = $this->provider->sendText($contact->normalized_phone, $text);
             if (! empty($result['success'])) {
@@ -1057,6 +1097,26 @@ class WhatsAppConversationService
         return ['success' => true, 'message' => $message];
     }
 
+    protected function maiChange(WhatsAppConversation $conversation, WhatsAppMessage $message, $text, $delete)
+    {
+        $key = $message->maiKey();
+        if ($key === '') {
+            return ['success' => false, 'error' => 'This message cannot be changed on the phone yet.'];
+        }
+        $session = \App\Mai\MaiSession::find((int) $conversation->mai_session_id);
+        $contact = $conversation->contact;
+        if (! $session || ! $contact) {
+            return ['success' => false, 'error' => 'Link the phone again to change that message.'];
+        }
+        $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
+        $phone = $session->phone_number ?: $session->expected_phone;
+        if ($delete) {
+            return $engine->deleteMessage($phone, $contact->normalized_phone, $key, true);
+        }
+
+        return $engine->editMessage($phone, $contact->normalized_phone, $key, $text);
+    }
+
     protected function sendMaiFile(WhatsAppConversation $conversation, $to, $path, $kind, $mime, $name, $caption)
     {
         $session = \App\Mai\MaiSession::find((int) $conversation->mai_session_id);
@@ -1153,8 +1213,21 @@ class WhatsAppConversationService
             }
         }
 
-        $isImage = stripos((string) $mime, 'image/') === 0;
-        $type = $isImage ? 'IMAGE' : 'DOCUMENT';
+        $isImage = stripos((string) $mime, 'image/') === 0 && stripos((string) $mime, 'webp') === false;
+        $isSticker = stripos((string) $mime, 'webp') !== false;
+        $isVideo = stripos((string) $mime, 'video/') === 0;
+        $isAudio = stripos((string) $mime, 'audio/') === 0;
+        if ($isSticker) {
+            $type = 'STICKER';
+        } elseif ($isVideo) {
+            $type = 'VIDEO';
+        } elseif ($isAudio) {
+            $type = 'AUDIO';
+        } elseif ($isImage) {
+            $type = 'IMAGE';
+        } else {
+            $type = 'DOCUMENT';
+        }
         $dir = public_path('whatsapp-chat');
         if (! is_dir($dir) && ! @mkdir($dir, 0755, true)) {
             return ['success' => false, 'error' => 'Could not store the file.'];
@@ -1198,7 +1271,17 @@ class WhatsAppConversationService
             $message->save();
             $result = ['success' => true];
         } elseif (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
-            $result = $this->sendMaiFile($conversation, $contact->normalized_phone, $dest, $isImage ? 'image' : 'document', $mime, $originalName, $sendCaption);
+            $kind = 'document';
+            if ($type === 'IMAGE') {
+                $kind = 'image';
+            } elseif ($type === 'VIDEO') {
+                $kind = 'video';
+            } elseif ($type === 'AUDIO') {
+                $kind = 'audio';
+            } elseif ($type === 'STICKER') {
+                $kind = 'sticker';
+            }
+            $result = $this->sendMaiFile($conversation, $contact->normalized_phone, $dest, $kind, $mime, $originalName, $sendCaption);
         } elseif ($isImage) {
             $result = $this->provider->sendImage($contact->normalized_phone, $dest, $sendCaption !== '' ? $sendCaption : null, true);
         } else {
@@ -1629,6 +1712,14 @@ class WhatsAppConversationService
 
     protected function knownPersonName(WhatsAppConversation $conversation)
     {
+        if ($conversation->mai_session_id && \Illuminate\Support\Facades\Schema::hasTable('mai_peers')) {
+            $name = app(\App\Services\Mai\MaiIdentity::class)->trusted($conversation, $conversation->contact);
+            if ($name === '' || preg_match('/^\+?[\d\s\-\(\)]+$/', $name)) {
+                return '';
+            }
+
+            return $name;
+        }
         $contact = $conversation->contact;
         if (! $contact) {
             return '';

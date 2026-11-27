@@ -287,7 +287,9 @@
     <aside class="chats-side {{ !empty($personalHub) ? 'is-personal' : '' }}">
         <nav class="hub-screens">
             <a class="{{ $screen === 'chats' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}">Chats</a>
+            @if(empty($personalHub))
             <a class="{{ $screen === 'calls' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
+            @endif
             <a class="{{ $screen === 'more' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}">More</a>
             <button type="button" class="hub-gear hub-install" id="hubInstall">App</button>
             <a href="{{ url('/logout') }}">Sign out</a>
@@ -374,10 +376,17 @@
                     </span>
                 </a>
             @endforeach
+            @if(!empty($personalHub) && empty($historyReady))
+                <div class="chat-note">Linked. Your chats are still syncing.</div>
+            @endif
+            @elseif($pane === 'calls' && !empty($personalHub))
+                <div class="chats-empty"><strong>Calls are not available</strong>Whats MAI does not place calls. Status, Communities, and Channels are not in this app.</div>
             @elseif($pane === 'calls')
                 @forelse($calls as $call)
                     @php
-                        $person = optional($call->contact)->displayName() ?: ($call->caller_phone ?: 'Unknown');
+                        $person = !empty($personalHub)
+                            ? app(\App\Services\Mai\PersonalHub::class)->label($call->contact, isset($callChats[$call->contact_id]) ? $conversations->firstWhere('id', $callChats[$call->contact_id]) : null)
+                            : (optional($call->contact)->displayName() ?: ($call->caller_phone ?: 'Unknown'));
                         $when = $call->called_at ?: $call->created_at;
                         $chatId = $call->contact_id && isset($callChats[$call->contact_id]) ? $callChats[$call->contact_id] : null;
                     @endphp
@@ -434,7 +443,9 @@
                 <div class="hub-label">Media</div>
                 @forelse($mediaItems as $item)
                     @php
-                        $person = optional($item->contact)->displayName() ?: 'WhatsApp';
+                        $person = !empty($personalHub)
+                            ? app(\App\Services\Mai\PersonalHub::class)->label($item->contact, $conversations->firstWhere('id', $item->conversation_id))
+                            : (optional($item->contact)->displayName() ?: 'WhatsApp');
                         $labels = ['IMAGE' => 'Photo', 'AUDIO' => 'Voice message', 'VIDEO' => 'Video', 'DOCUMENT' => 'Document'];
                         $label = isset($labels[$item->type]) ? $labels[$item->type] : $item->type;
                     @endphp
@@ -729,7 +740,7 @@
                     <select name="person" id="letterPeople" style="margin-top:8px">
                         <option value="">Choose a person</option>
                         @foreach($conversations as $row)
-                            @php $person = optional($row->contact)->displayName() ?: 'WhatsApp'; @endphp
+                            @php $person = !empty($personalHub) ? app(\App\Services\Mai\PersonalHub::class)->label($row->contact, $row) : (optional($row->contact)->displayName() ?: 'WhatsApp'); @endphp
                             <option value="{{ $row->id }}" data-name="{{ strtolower($person.' '.optional($row->contact)->display_phone) }}">{{ $person }}</option>
                         @endforeach
                     </select>
@@ -1338,6 +1349,8 @@
             media = '<video controls preload="none" src="' + esc(message.media) + '"></video>';
         } else if (message.media && (message.type === 'DOCUMENT' || message.type === 'LOCATION')) {
             media = '<a class="chat-file" target="_blank" rel="noopener" href="' + esc(message.media) + '">' + esc(message.name || 'Document') + '</a>';
+        } else if (message.unavailable) {
+            media = '<span class="aside">This attachment is no longer available.</span>';
         } else if (photo) {
             media = '<span class="aside">Photo</span>';
         } else if (message.type === 'VIDEO') {
@@ -1895,7 +1908,10 @@
                     placeMessages(data.earlier || [], true);
                     var button = document.getElementById('loadEarlier');
                     if (button) {
-                        if (data.has_earlier && data.earlier && data.earlier.length) button.setAttribute('data-before', data.earlier[0].id);
+                        if (data.history === 'unavailable') {
+                            button.textContent = 'Older history is not available';
+                            button.disabled = true;
+                        } else if (data.has_earlier && data.earlier && data.earlier.length) button.setAttribute('data-before', data.earlier[0].id);
                         else button.remove();
                     }
                 } else {

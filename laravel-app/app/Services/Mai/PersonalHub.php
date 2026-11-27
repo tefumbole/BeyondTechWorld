@@ -51,8 +51,13 @@ class PersonalHub
         $phone = $session->phone_number ?: $session->expected_phone;
         $engine = app(MaiWhatsAppEngine::class);
         $outbound = app(MaiOutboundService::class);
+        try {
+            app(MaiSync::class)->pull($session->fresh() ?: $session);
+        } catch (\Throwable $e) {
+        }
+        $session = $session->fresh() ?: $session;
         app(CloudTenantContext::class)->withoutIsolation(function () use ($session, $phone, $engine, $outbound, $lookupNames) {
-            $lookups = 0;
+            $identity = app(MaiIdentity::class);
             if ($lookupNames) {
             foreach ($engine->chats($phone) as $chat) {
                 if (substr($chat['jid'], -5) === '@g.us' || (int) $chat['at'] <= 0) {
@@ -64,18 +69,9 @@ class PersonalHub
                 }
                 $conversation = $outbound->conversation($session, $store);
                 $contact = $conversation->contact;
-                $saved = $this->savedName($chat['name'], $store);
-                if ($lookupNames && $saved === '' && strpos($chat['phone'], '237') === 0 && strlen($chat['phone']) === 12 && $lookups < 8) {
-                    $lookups++;
-                    try {
-                        $found = app(\App\Services\MobileMoneyHolderService::class)->lookup($chat['phone'], false, true);
-                        if (! empty($found['name'])) {
-                            $saved = $this->savedName($found['name'], $store);
-                        }
-                    } catch (\Throwable $e) {
-                    }
-                }
-                if ($saved !== '' && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'peer_label')) {
+                $identity->remember($session, $chat);
+                $saved = $identity->display($conversation, $contact);
+                if ($saved !== '' && $saved !== 'WhatsApp' && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'peer_label')) {
                     $label = function_exists('mb_substr') ? mb_substr($saved, 0, 191) : substr($saved, 0, 191);
                     if ((string) $conversation->peer_label !== $label) {
                         $conversation->peer_label = $label;
@@ -185,6 +181,10 @@ class PersonalHub
     public function groups(MaiSession $session)
     {
         $phone = $session->phone_number ?: $session->expected_phone;
+        $listed = app(MaiWhatsAppEngine::class)->groups($phone);
+        if ($listed) {
+            return $listed;
+        }
         $groups = [];
         foreach (app(MaiWhatsAppEngine::class)->chats($phone) as $chat) {
             if (substr($chat['jid'], -5) !== '@g.us') {
@@ -218,6 +218,9 @@ class PersonalHub
 
     public function label($contact, $conversation = null)
     {
+        if ($conversation && $conversation->mai_session_id && \Illuminate\Support\Facades\Schema::hasTable('mai_peers')) {
+            return app(MaiIdentity::class)->display($conversation, $contact);
+        }
         $phone = preg_replace('/\D/', '', (string) optional($contact)->normalized_phone);
         $own = $conversation ? trim((string) $conversation->peer_label) : '';
         if ($own !== '') {
