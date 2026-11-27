@@ -16,7 +16,7 @@ const fallback = chooseClientVersion({ isLatest: false, version: [2, 3000, 1] },
 assert.deepStrictEqual(fallback, bundled)
 
 const source = fs.readFileSync(path.join(root, 'server.mjs'), 'utf8')
-assert.strictEqual(source.includes('fetchLatestBaileysVersion'), false)
-assert.ok(source.includes('fetchLatestWaWebVersion'))
+assert.ok(source.includes('fetchLatestBaileysVersion'))
+assert.strictEqual(source.includes('fetchLatestWaWebVersion'), false)
 
 console.log('client-version ok')

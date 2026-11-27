@@ -7,7 +7,7 @@ import {
   Browsers,
   DisconnectReason,
   downloadMediaMessage,
-  fetchLatestWaWebVersion,
+  fetchLatestBaileysVersion,
   useMultiFileAuthState,
 } from '@whiskeysockets/baileys'
 import pino from 'pino'
@@ -526,7 +526,7 @@ function historyIsComplete(dir) {
 async function clientVersion() {
   let latest = null
   try {
-    latest = await fetchLatestWaWebVersion()
+    latest = await fetchLatestBaileysVersion()
   } catch (e) {
     latest = null
   }
@@ -540,6 +540,10 @@ async function startSocket(id, expected) {
   }
   if (existing && existing.sock && (existing.status === 'CONNECTED' || (existing.qr && existing.status === 'AWAITING_QR'))) {
     return existing
+  }
+  if (existing && (existing.status === 'ERROR' || existing.status === 'DISCONNECTED' || existing.status === 'UNLINKED')) {
+    existing.retries = 0
+    existing.error = null
   }
   if (existing && existing.sock) {
     existing.generation = (existing.generation || 0) + 1
@@ -581,7 +585,6 @@ async function startSocket(id, expected) {
   if (expected) entry.expected = expected
   const keptQr = entry.qr || null
   entry.registered = !!(state.creds && state.creds.registered)
-  entry.retries = 0
   entry.status = entry.status === 'CONNECTED' ? 'CONNECTED' : (entry.registered && !keptQr ? 'CONNECTING' : 'AWAITING_QR')
   entry.error = null
   entry.qr = keptQr
