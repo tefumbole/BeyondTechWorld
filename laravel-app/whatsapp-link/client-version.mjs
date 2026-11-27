@@ -10,6 +10,10 @@ export function bundledBaileysVersion(packageRoot) {
   return parsed.version.map((part) => Number(part))
 }
 
+export function shouldSyncFullHistory(registered, historyComplete) {
+  return !!registered && !historyComplete
+}
+
 export function chooseClientVersion(latest, bundled) {
   if (latest && latest.isLatest && Array.isArray(latest.version) && latest.version.length >= 3) {
     return latest.version.map((part) => Number(part))

@@ -2,7 +2,7 @@ import assert from 'assert'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { bundledBaileysVersion, chooseClientVersion } from './client-version.mjs'
+import { bundledBaileysVersion, chooseClientVersion, shouldSyncFullHistory } from './client-version.mjs'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 const bundled = bundledBaileysVersion(root)
@@ -14,6 +14,9 @@ assert.deepStrictEqual(live, [2, 3000, 1056426862])
 
 const fallback = chooseClientVersion({ isLatest: false, version: [2, 3000, 1] }, bundled)
 assert.deepStrictEqual(fallback, bundled)
+assert.strictEqual(shouldSyncFullHistory(false, false), false)
+assert.strictEqual(shouldSyncFullHistory(true, false), true)
+assert.strictEqual(shouldSyncFullHistory(true, true), false)
 
 const source = fs.readFileSync(path.join(root, 'server.mjs'), 'utf8')
 assert.ok(source.includes('fetchLatestBaileysVersion'))

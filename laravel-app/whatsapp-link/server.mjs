@@ -23,7 +23,7 @@ import {
   unsealCreds,
 } from './session-store.mjs'
 import { classifyHistory, historyMarkerComplete } from './history-sync.mjs'
-import { bundledBaileysVersion, chooseClientVersion } from './client-version.mjs'
+import { bundledBaileysVersion, chooseClientVersion, shouldSyncFullHistory } from './client-version.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../storage/app/whatsapp-link')
 const tokenPath = path.join(root, 'token')
@@ -596,7 +596,7 @@ async function startSocket(id, expected) {
     logger,
     printQRInTerminal: false,
     browser: Browsers.macOS('Whats MAI'),
-    syncFullHistory: !historyIsComplete(dir),
+    syncFullHistory: shouldSyncFullHistory(entry.registered, historyIsComplete(dir)),
     markOnlineOnConnect: false,
     getMessage: async (key) => {
       const found = key && entry.keys ? entry.keys[key.id] : null
