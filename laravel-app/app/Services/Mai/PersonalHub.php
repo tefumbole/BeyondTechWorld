@@ -53,6 +53,7 @@ class PersonalHub
         $outbound = app(MaiOutboundService::class);
         app(CloudTenantContext::class)->withoutIsolation(function () use ($session, $phone, $engine, $outbound, $lookupNames) {
             $lookups = 0;
+            if ($lookupNames) {
             foreach ($engine->chats($phone) as $chat) {
                 if (substr($chat['jid'], -5) === '@g.us' || (int) $chat['at'] <= 0) {
                     continue;
@@ -83,7 +84,7 @@ class PersonalHub
                 if ($chat['preview'] !== '' && (string) $conversation->last_message !== $chat['preview']) {
                     $conversation->last_message = $chat['preview'];
                 }
-                if ((int) $conversation->unread_count !== (int) $chat['unread']) {
+                if ((int) $chat['unread'] > (int) $conversation->unread_count) {
                     $conversation->unread_count = (int) $chat['unread'];
                 }
                 $at = (int) $chat['at'];
@@ -100,7 +101,12 @@ class PersonalHub
                     $conversation->save();
                 }
             }
-            foreach ($engine->messages($phone) as $row) {
+            }
+            $incoming = $engine->messages($phone);
+            if (! $lookupNames && count($incoming) > 60) {
+                $incoming = array_slice($incoming, -60);
+            }
+            foreach ($incoming as $row) {
                 $from = (string) $row['from'];
                 if (substr($from, -5) === '@g.us') {
                     continue;
@@ -160,6 +166,18 @@ class PersonalHub
                 $message->created_at = $stamp;
                 $message->updated_at = $stamp;
                 $message->save();
+                $preview = function_exists('mb_substr') ? mb_substr($row['text'], 0, 191) : substr($row['text'], 0, 191);
+                $conversation->last_message = $preview;
+                if (! $conversation->last_activity_at || $stamp->gt($conversation->last_activity_at)) {
+                    $conversation->last_activity_at = $stamp;
+                }
+                if (empty($row['from_me'])) {
+                    $conversation->last_incoming_at = $stamp;
+                    if (! $lookupNames) {
+                        $conversation->unread_count = (int) $conversation->unread_count + 1;
+                    }
+                }
+                $conversation->save();
             }
         });
     }

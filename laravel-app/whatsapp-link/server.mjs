@@ -85,14 +85,26 @@ function publicState(entry, withQr) {
   }
 }
 
+function unwrapMessage(message) {
+  let current = message
+  for (let i = 0; i < 6 && current; i++) {
+    const wrapped = current.ephemeralMessage || current.viewOnceMessage || current.viewOnceMessageV2
+      || current.viewOnceMessageV2Extension || current.documentWithCaptionMessage || current.editedMessage
+    if (!wrapped || !wrapped.message) break
+    current = wrapped.message
+  }
+  return current
+}
+
 function messageText(message) {
+  message = unwrapMessage(message)
   if (!message) return ''
   if (typeof message.conversation === 'string') return message.conversation
   if (message.extendedTextMessage && message.extendedTextMessage.text) return message.extendedTextMessage.text
   if (message.imageMessage) return message.imageMessage.caption || '[image]'
-  if (message.videoMessage) return '[video]'
+  if (message.videoMessage) return message.videoMessage.caption || '[video]'
   if (message.audioMessage) return '[voice]'
-  if (message.documentMessage) return '[document]'
+  if (message.documentMessage) return message.documentMessage.caption || message.documentMessage.fileName || '[document]'
   return ''
 }
 
@@ -826,8 +838,8 @@ const server = http.createServer((req, res) => {
     }
     if (req.method === 'GET' && parts[2] === 'messages') {
       const entry = sessions.get(id) || { inbox: [] }
-      const ready = entry.lidScan ? Promise.resolve() : attachLids(entry).catch(() => {})
-      ready.then(() => send(res, 200, { messages: entry.inbox || [] }))
+      if (!entry.lidScan) attachLids(entry).catch(() => {})
+      send(res, 200, { messages: entry.inbox || [] })
       return
     }
     if (req.method === 'POST' && parts[2] === 'read') {

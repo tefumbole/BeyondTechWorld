@@ -1291,6 +1291,10 @@
         });
     });
     var chatPage = @json(route('whatsapp.chats'));
+    try {
+        var chatUrl = new URL(chatPage, window.location.href);
+        if (chatUrl.origin !== window.location.origin) chatPage = window.location.pathname;
+    } catch (e) {}
     var openChat = {{ $open ? (int) $open->id : 0 }};
     var quoteId = 0;
     var activeMessage = null;
@@ -1937,7 +1941,7 @@
             if (before) poll('&before=' + before);
         });
     }
-    if (liveReady()) setInterval(poll, 2500);
+    if (liveReady()) setInterval(poll, 2000);
     var installBtn = document.getElementById('hubInstall');
     var deferredInstall = null;
     if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches && installBtn) installBtn.hidden = true;
@@ -1954,6 +1958,7 @@
             : 'On a Mac, Chrome shows Install in the address bar. Safari: File, then Add to Dock. No App Store.');
     });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
+    window.addEventListener('focus', function () { poll(); });
     function liveReady() { return true; }
     function clearQuote() {
         quoteId = 0;

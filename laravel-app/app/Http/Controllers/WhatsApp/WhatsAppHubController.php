@@ -734,7 +734,10 @@ class WhatsAppHubController extends Controller
                     return $row->last_activity_at && strlen($digits) >= 8 && strlen($digits) <= 15;
                 })->values();
             }
-            $stamp = (string) WhatsAppConversation::max('updated_at').'|'.(int) WhatsAppConversation::sum('unread_count');
+            $stamp = (string) $rows->max('updated_at').'|'.(int) $rows->sum('unread_count');
+            if ($personal && $rows->isNotEmpty()) {
+                $stamp .= '|'.(int) WhatsAppMessage::whereIn('conversation_id', $rows->pluck('id')->all())->max('id');
+            }
 
             return [$rows, $stamp];
         };
