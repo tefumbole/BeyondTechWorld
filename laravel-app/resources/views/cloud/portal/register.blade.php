@@ -667,9 +667,18 @@
             var data = new FormData();
             data.append('_token', token);
             Object.keys(body).forEach(function (key) { data.append(key, body[key]); });
-            fetch(url, { method: 'POST', body: data, headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(function (response) { return response.json().then(function (json) { done(response.ok, json); }); })
-                .catch(function () { done(false, { message: 'Try again.' }); });
+            fetch(url, {
+                method: 'POST',
+                body: data,
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': token }
+            }).then(function (response) {
+                if (response.status === 419) {
+                    window.location.reload();
+                    return null;
+                }
+                return response.json().then(function (json) { done(response.ok, json); });
+            }).catch(function () { done(false, { message: 'Try again.' }); });
         }
         function splitName(value) {
             var name = (value || '').replace(/\s+/g, ' ').trim();

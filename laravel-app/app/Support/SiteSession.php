@@ -19,6 +19,7 @@ class SiteSession
             $lifetime = 60 * 24 * 30;
         }
         config([
+            'session.cookie' => 'beyond_site_session',
             'session.domain' => '.beyondtechworld.com',
             'session.secure' => true,
             'session.same_site' => 'lax',

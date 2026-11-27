@@ -269,6 +269,13 @@
         .beyond-module-tab { padding: 8px 12px; font-size: 12px; }
         .chat-row { padding: 12px; }
         .hub-screens { padding-top: 8px; }
+        .chats-app.is-announce { height: 100dvh; min-height: 0; overflow: hidden; }
+        .chats-app.is-announce .chats-thread { overflow: auto; -webkit-overflow-scrolling: touch; }
+        .chats-app.is-announce .an-compose.is-embedded { width: 100%; margin: 0; }
+        .letter-card { width: calc(100% - 16px); margin: 12px auto; padding: 14px; }
+        .letter-card input, .letter-card textarea, .letter-card select { font-size: 16px; }
+        .letter-row { flex-direction: column; }
+        .chats-head-person h2 { font-size: 16px; }
     }
     body.whatsapp-hub-app .header,
     body.whatsapp-hub-app nav.side-navbar,

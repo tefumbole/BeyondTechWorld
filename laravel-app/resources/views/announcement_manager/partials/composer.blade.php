@@ -64,7 +64,45 @@
     .an-compose.is-embedded { width: min(1180px, calc(100% - 28px)); margin: 8px auto 32px; }
     .chats-app.is-announce .chat-rail,
     .chats-app.is-announce .chats-side { display: none !important; }
-    .chats-app.is-announce .chats-thread { display: flex !important; overflow: auto; background: #e8eef8; }
+    .chats-app.is-announce .chats-thread { display: flex !important; overflow: auto; background: #e8eef8; -webkit-overflow-scrolling: touch; }
+    @media (max-width: 900px) {
+        .an-compose { width: 100%; }
+        .an-compose.is-embedded { width: 100%; margin: 0; padding: 0 0 calc(12px + env(safe-area-inset-bottom)); }
+        .an-compose .an-layout,
+        .an-layout { display: flex; flex-direction: column; gap: 12px; }
+        .an-compose .an-page-card,
+        .an-page-card { padding: 14px; border-radius: 16px; }
+        .an-topbar { flex-direction: column; align-items: stretch; padding: 14px; border-radius: 16px; }
+        .an-topbar h1 { font-size: 20px; }
+        .an-topbar nav a { min-height: 40px; display: inline-flex; align-items: center; }
+        .an-compose .an-field,
+        .an-field,
+        .an-compose textarea.an-field { font-size: 16px; }
+        .an-compose textarea.an-field { min-height: 160px; }
+        #an-template-pick,
+        .an-rsearch,
+        .an-csearch,
+        .an-group-search { width: 100% !important; min-width: 0 !important; }
+        .an-compose .d-flex,
+        .an-layout .d-flex { align-items: stretch !important; }
+        .an-pill,
+        .an-btn-outline,
+        .an-btn-primary,
+        .an-send-opt { min-height: 44px; }
+        .an-compose .an-btn-primary,
+        .an-compose .an-btn-outline { width: 100%; justify-content: center; }
+        .an-user-list { max-height: 240px; }
+        .an-ph { min-height: 32px; padding: 6px 10px; }
+        #an-preview .row > [class*="col-"] { flex: 0 0 100%; max-width: 100%; }
+        .an-compose input[type="file"] { max-width: 100%; }
+        .an-compose .row { margin-left: 0; margin-right: 0; }
+    }
+    @media (max-width: 380px) {
+        .an-compose .an-page-card,
+        .an-page-card { padding: 12px; }
+        .an-topbar h1 { font-size: 18px; }
+        .an-pill { padding: 8px 10px; }
+    }
 </style>
 
         <form method="POST" action="{{ route('announcements.store') }}" enctype="multipart/form-data" id="an-form">

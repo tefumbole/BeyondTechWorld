@@ -111,4 +111,16 @@
         background: #f8fbff;
         padding: 12px 14px;
     }
+    @media (max-width: 900px) {
+        .an-shell { padding-left: 12px; padding-right: 12px; }
+        .an-nav { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+        .an-nav a { flex: none; min-height: 44px; }
+        .an-title { font-size: 1.35rem; }
+        .an-page-card { padding: 12px; }
+        .an-shell .form-inline { display: flex; flex-direction: column; align-items: stretch; }
+        .an-shell .form-inline .form-control,
+        .an-shell .form-inline .an-btn-primary { width: 100%; margin-right: 0 !important; font-size: 16px; min-height: 44px; }
+        .an-shell .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .an-btn-primary, .an-btn-outline { min-height: 44px; }
+    }
 </style>

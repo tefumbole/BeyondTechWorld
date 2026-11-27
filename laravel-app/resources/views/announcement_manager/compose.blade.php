@@ -43,5 +43,12 @@
     body.mai-announce .main-footer,
     body.mai-announce #beyond-module-tabs { display:none !important; }
     body.mai-announce .page { margin:0 !important; width:100% !important; }
+    @media (max-width: 900px) {
+        .forms { padding: 8px 0 24px !important; }
+        .an-shell.an-compose { padding-left: 10px; padding-right: 10px; }
+        .an-topbar { flex-direction: column; align-items: stretch; padding: 14px; border-radius: 16px; }
+        .an-topbar h1 { font-size: 20px; }
+        .an-topbar nav a { min-height: 40px; display: inline-flex; align-items: center; }
+    }
 </style>
 @endsection

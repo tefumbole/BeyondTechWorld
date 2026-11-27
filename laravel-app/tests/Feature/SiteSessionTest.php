@@ -16,6 +16,7 @@ class SiteSessionTest extends TestCase
         $this->assertNull(config('session.domain'));
 
         $this->assertTrue(SiteSession::apply('mai.beyondtechworld.com'));
+        $this->assertSame('beyond_site_session', config('session.cookie'));
         $this->assertSame('.beyondtechworld.com', config('session.domain'));
         $this->assertSame('lax', config('session.same_site'));
         $this->assertTrue(config('session.secure'));
