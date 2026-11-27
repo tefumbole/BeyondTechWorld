@@ -215,6 +215,7 @@ class SiteMenu
     public static function whatsappItems()
     {
         return [
+            'settings' => 'Settings',
             'twilio' => 'Twilio log',
             'conversations' => 'Conversations',
             'leads' => 'Leads',
@@ -235,6 +236,7 @@ class SiteMenu
     public static function whatsappLiKeyMap()
     {
         return [
+            'whatsapp-settings-menu' => 'settings',
             'whatsapp-twilio-log-menu' => 'twilio',
             'whatsapp-conversations-menu' => 'conversations',
             'whatsapp-leads-menu' => 'leads',

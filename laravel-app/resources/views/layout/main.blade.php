@@ -1061,6 +1061,7 @@
                         @if($whatsapp_module_active)
                             <li data-nav-key="whatsapp"><a href="#whatsapp-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-whatsapp"></i><span>WhatsApp Hub</span></a>
                                 <ul id="whatsapp-module" class="collapse list-unstyled ">
+                                    <li id="whatsapp-settings-menu"><a href="{{ route('whatsapp.settings') }}">Settings</a></li>
                                     <li id="whatsapp-twilio-log-menu"><a href="{{ route('whatsapp.twilio_log') }}">Twilio log</a></li>
                                     <li id="whatsapp-conversations-menu"><a href="{{ route('whatsapp.chats') }}">Conversations</a></li>
                                     <li id="whatsapp-leads-menu"><a href="{{ route('whatsapp.leads') }}">Leads</a></li>

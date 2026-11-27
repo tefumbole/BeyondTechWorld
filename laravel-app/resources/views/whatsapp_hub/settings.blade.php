@@ -10,16 +10,6 @@
         @include('whatsapp_hub.partials.business_line')
 
         <div class="wa-card">
-            <h5>Provider</h5>
-            <p>Connection: <span class="wa-badge {{ !empty($session['connected']) ? 'wa-badge-ok' : 'wa-badge-bad' }}">{{ $session['status'] }}</span></p>
-            <p>Session name: {{ $session['session_name'] ?: '—' }}</p>
-            <p>API key: {{ !empty(config('services.whatsapp.wasender_api_key')) ? 'Configured' : 'Missing' }}</p>
-            <p>Webhook secret: {{ trim((string) config('services.whatsapp.wasender_webhook_secret')) !== '' ? 'Configured' : 'Missing' }}</p>
-            <p>Webhook URL (subscribe this in WaSender): <code>{{ $webhookUrl }}</code></p>
-            <p class="small text-muted">Subscribe events: messages.received, messages-group.received, messages.update, message-receipt.update, call.</p>
-        </div>
-
-        <div class="wa-card">
             <h5>Linked WhatsApp sessions</h5>
             <p class="small text-muted">Each connected phone has its own session id and API key. Other applications send with that key, the same way Wasender does: <code>POST {{ url('/api/send-message') }}</code> with <code>Authorization: Bearer</code> the key, and JSON <code>{"to":"2507…","text":"Hello"}</code>.</p>
             <div class="table-responsive">
@@ -39,6 +29,16 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <div class="wa-card">
+            <h5>Provider</h5>
+            <p>Connection: <span class="wa-badge {{ !empty($session['connected']) ? 'wa-badge-ok' : 'wa-badge-bad' }}">{{ $session['status'] }}</span></p>
+            <p>Session name: {{ $session['session_name'] ?: '—' }}</p>
+            <p>API key: {{ !empty(config('services.whatsapp.wasender_api_key')) ? 'Configured' : 'Missing' }}</p>
+            <p>Webhook secret: {{ trim((string) config('services.whatsapp.wasender_webhook_secret')) !== '' ? 'Configured' : 'Missing' }}</p>
+            <p>Webhook URL (subscribe this in WaSender): <code>{{ $webhookUrl }}</code></p>
+            <p class="small text-muted">Subscribe events: messages.received, messages-group.received, messages.update, message-receipt.update, call.</p>
         </div>
 
         <div class="wa-card">

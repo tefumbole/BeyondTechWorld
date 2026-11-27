@@ -2136,7 +2136,9 @@ class WhatsAppHubController extends Controller
 
     public function settings()
     {
-        if ($deny = $this->denyUnless(['whatsapp.settings', 'whatsapp.manage'])) {
+        $user = Auth::user();
+        $owner = $user && in_array((int) $user->role_id, [1, 2], true);
+        if (! $owner && ($deny = $this->denyUnless(['whatsapp.settings', 'whatsapp.manage', 'whatsapp.view']))) {
             return $deny;
         }
         $session = $this->provider->sessionStatus();
