@@ -273,7 +273,7 @@
 @php
     $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
-<div class="chats-app {{ ($open || $group || $pane === 'announcements') ? 'has-open' : '' }}">
+<div class="chats-app {{ ($open || $group || $pane === 'announcements' || $pane === 'help') ? 'has-open' : '' }}">
     <aside class="chats-side">
         <nav class="hub-screens">
             <a class="{{ $screen === 'chats' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}">Chats</a>
@@ -381,6 +381,7 @@
             @else
                 @php
                     $more = [
+                        ['Help', 'How to use Whats MAI', route('whatsapp.chats', ['pane' => 'help'])],
                         ['People', 'Names and numbers', route('whatsapp.people')],
                         ['Groups', 'WhatsApp groups', route('whatsapp.groups')],
                         ['Leads', 'Enquiries from chats', route('whatsapp.leads')],
@@ -648,6 +649,8 @@
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
             @endif
+        @elseif($pane === 'help')
+            @include('whatsapp_hub.partials.help')
         @elseif($pane === 'announcements')
             <header class="chats-head">
                 <div class="chats-head-person">

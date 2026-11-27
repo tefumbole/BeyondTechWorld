@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420">
+  <rect width="720" height="420" rx="28" fill="#eef3fb"/>
+  <rect x="36" y="36" width="250" height="348" rx="28" fill="#072f6b"/>
+  <rect x="118" y="120" width="86" height="86" rx="22" fill="#0b3f90" stroke="#c6ab47" stroke-width="3"/>
+  <circle cx="184" cy="142" r="6" fill="#c6ab47"/>
+  <text x="161" y="176" text-anchor="middle" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">MAI</text>
+  <text x="161" y="232" text-anchor="middle" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">Whats MAI</text>
+  <text x="161" y="292" text-anchor="middle" fill="#c6ab47" font-family="Arial, Helvetica, sans-serif" font-size="13">Share → Add to Home Screen</text>
+  <rect x="320" y="36" width="364" height="348" rx="22" fill="#fff" stroke="#d7e2f4"/>
+  <text x="348" y="84" fill="#0b3f90" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">After you send</text>
+  <rect x="348" y="112" width="308" height="52" rx="14" fill="#f7faff" stroke="#e3ebf7"/>
+  <text x="368" y="144" fill="#16315c" font-family="Arial, Helvetica, sans-serif" font-size="16">Sent</text>
+  <text x="560" y="144" fill="#6b7a99" font-family="Arial, Helvetica, sans-serif" font-size="15">left this app</text>
+  <rect x="348" y="176" width="308" height="52" rx="14" fill="#f7faff" stroke="#e3ebf7"/>
+  <text x="368" y="208" fill="#16315c" font-family="Arial, Helvetica, sans-serif" font-size="16">Delivered</text>
+  <text x="530" y="208" fill="#6b7a99" font-family="Arial, Helvetica, sans-serif" font-size="15">reached the phone</text>
+  <rect x="348" y="240" width="308" height="52" rx="14" fill="#fff8e6" stroke="#c6ab47"/>
+  <text x="368" y="272" fill="#072f6b" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">Read</text>
+  <text x="560" y="272" fill="#072f6b" font-family="Arial, Helvetica, sans-serif" font-size="15">they opened it</text>
+  <text x="348" y="332" fill="#3b4a6b" font-family="Arial, Helvetica, sans-serif" font-size="14">Not sent: refresh the chat once, then send again.</text>
+  <text x="348" y="356" fill="#3b4a6b" font-family="Arial, Helvetica, sans-serif" font-size="14">Do not pair a different number for this inbox.</text>
+</svg>

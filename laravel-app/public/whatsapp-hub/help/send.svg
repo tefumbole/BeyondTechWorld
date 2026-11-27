@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420">
+  <rect width="720" height="420" rx="28" fill="#eef3fb"/>
+  <rect x="28" y="24" width="664" height="372" rx="22" fill="#f7faff" stroke="#d7e2f4"/>
+  <rect x="48" y="48" width="280" height="72" rx="18" fill="#fff" stroke="#e3ebf7"/>
+  <text x="66" y="78" fill="#0b3f90" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700">THEM</text>
+  <text x="66" y="102" fill="#16315c" font-family="Arial, Helvetica, sans-serif" font-size="16">Hello, is this Beyond?</text>
+  <rect x="340" y="140" width="320" height="72" rx="18" fill="#0b3f90"/>
+  <text x="358" y="170" fill="#c6ab47" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700">YOU</text>
+  <text x="358" y="194" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="16">Yes. How can I help?</text>
+  <text x="600" y="194" fill="#c6ab47" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700">Read</text>
+  <rect x="48" y="250" width="624" height="112" rx="22" fill="#fff" stroke="#e1e8f4"/>
+  <circle cx="92" cy="306" r="22" fill="#eef2f9"/>
+  <text x="92" y="314" text-anchor="middle" fill="#1565c0" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700">+</text>
+  <text x="132" y="312" fill="#6b7a99" font-family="Arial, Helvetica, sans-serif" font-size="16">Type a message. Paste a photo or a document.</text>
+  <rect x="560" y="280" width="84" height="52" rx="16" fill="#0b3f90"/>
+  <text x="602" y="313" text-anchor="middle" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="22">➤</text>
+  <text x="48" y="392" fill="#3b4a6b" font-family="Arial, Helvetica, sans-serif" font-size="15">+ attaches a file. The arrow sends. Read means they opened it.</text>
+</svg>

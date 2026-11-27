@@ -366,7 +366,7 @@ class WhatsAppHubController extends Controller
         }
         $canReply = $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
         $pane = (string) $request->get('pane', 'chats');
-        if (! in_array($pane, ['chats', 'updates', 'calls', 'media', 'more', 'announcements'], true)) {
+        if (! in_array($pane, ['chats', 'updates', 'calls', 'media', 'more', 'announcements', 'help'], true)) {
             $pane = 'chats';
         }
         $calls = collect();
