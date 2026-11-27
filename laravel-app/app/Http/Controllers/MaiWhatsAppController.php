@@ -21,7 +21,9 @@ class MaiWhatsAppController extends Controller
         $engine->open($user->phone);
         $session = $engine->status($user->phone, true);
         if (($session['status'] ?? '') === 'CONNECTED') {
-            return redirect()->route('whatsapp.mai.home');
+            app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLinkOnce($user->phone);
+
+            return redirect()->route('whatsapp.mai.inbox');
         }
 
         return view('cloud.portal.mai_link', [
@@ -94,13 +96,74 @@ class MaiWhatsAppController extends Controller
         $engine = app(MaiWhatsAppEngine::class);
         $state = $engine->status($user->phone, true);
 
+        $redirect = null;
+        if ($state['status'] === 'CONNECTED' && ! \App\Services\Mai\MaiBusinessLine::is($user->phone)) {
+            app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLinkOnce($user->phone);
+            $redirect = route('whatsapp.mai.inbox');
+        }
+
         return response()->json([
             'status' => $state['status'],
             'qr' => $state['qr'],
             'pairing_code' => $state['pairing_code'],
             'error' => $state['error'],
+            'redirect' => $redirect,
             'messages' => $state['status'] === 'CONNECTED' ? $engine->messages($user->phone) : [],
         ]);
+    }
+
+    public function inbox(Request $request)
+    {
+        $user = $this->person();
+        if (! $user) {
+            return redirect()->to(url('/login?mai=1'));
+        }
+        if (\App\Services\Mai\MaiBusinessLine::is($user->phone)) {
+            return redirect()->route('whatsapp.mai')->with('not_permitted', 'Use your personal WhatsApp number. The business line stays separate.');
+        }
+        $engine = app(MaiWhatsAppEngine::class);
+        $engine->open($user->phone);
+        $state = $engine->status($user->phone, false);
+        if (($state['status'] ?? '') !== 'CONNECTED') {
+            return redirect()->route('whatsapp.mai.link');
+        }
+        $chats = $engine->chats($user->phone);
+        $jid = trim((string) $request->get('jid'));
+        if (! preg_match('/^([1-9][0-9]{6,16}@s\.whatsapp\.net|[0-9]+(-[0-9]+)?@g\.us)$/', $jid)) {
+            $jid = '';
+        }
+        $open = null;
+        $messages = [];
+        if ($jid !== '') {
+            foreach ($chats as $chat) {
+                if ($chat['jid'] === $jid) {
+                    $open = $chat;
+                    break;
+                }
+            }
+            if (! $open) {
+                $open = ['jid' => $jid, 'name' => '', 'phone' => preg_replace('/\D/', '', strtok($jid, '@')), 'preview' => '', 'unread' => 0];
+            }
+            $openDigits = preg_replace('/\D/', '', (string) strtok($jid, '@'));
+            foreach ($engine->messages($user->phone) as $row) {
+                $from = (string) ($row['from'] ?? '');
+                $fromDigits = preg_replace('/\D/', '', (string) strtok($from, '@'));
+                if ($from === $jid || ($openDigits !== '' && $fromDigits !== '' && substr($fromDigits, -9) === substr($openDigits, -9))) {
+                    $messages[] = $row;
+                }
+            }
+        }
+
+        return response()
+            ->view('whatsapp_hub.linked_phone', [
+                'phone' => preg_replace('/\D/', '', (string) $user->phone),
+                'session' => $state,
+                'chats' => $chats,
+                'open' => $open,
+                'messages' => $messages,
+                'private' => true,
+            ])
+            ->header('Cache-Control', 'no-store');
     }
 
     public function pair()
@@ -134,10 +197,22 @@ class MaiWhatsAppController extends Controller
         if ($state['status'] !== 'CONNECTED') {
             return $backTo()->with('not_permitted', 'Approve WhatsApp on your phone before sending.');
         }
-        $to = preg_replace('/\D/', '', (string) $request->input('to'));
+        $to = trim((string) $request->input('to'));
+        if (substr($to, -5) !== '@g.us') {
+            $to = preg_replace('/\D/', '', $to);
+        }
         $text = trim((string) $request->input('text'));
-        if (! preg_match('/^[1-9][0-9]{7,14}$/', $to) || $text === '') {
+        if ($to === '' || $text === '') {
             return $backTo()->with('not_permitted', 'Enter the other phone number and a message.');
+        }
+        if ($request->input('next') === 'inbox') {
+            $sent = $engine->send($user->phone, $to, $text);
+            $back = redirect()->route('whatsapp.mai.inbox', ['jid' => $request->input('to')]);
+            if (empty($sent['success'])) {
+                return $back->with('not_permitted', isset($sent['error']) ? $sent['error'] : 'The message was not sent.');
+            }
+
+            return $back;
         }
         $result = $engine->send($user->phone, $to, $text);
         if (empty($result['success'])) {

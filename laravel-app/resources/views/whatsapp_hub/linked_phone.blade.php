@@ -60,6 +60,8 @@
 </style>
 @php
     $openJid = !empty($open['jid']) ? $open['jid'] : '';
+    $privateHub = !empty($private);
+    $inboxRoute = $privateHub ? 'whatsapp.mai.inbox' : 'whatsapp.chats';
 @endphp
 <div class="chats-app {{ $openJid !== '' ? 'is-open' : '' }}">
     <aside class="chats-side">
@@ -73,7 +75,7 @@
                     $tone = abs(crc32($label)) % 6;
                     $when = !empty($chat['at']) ? date('H:i', (int) $chat['at']) : '';
                 @endphp
-                <a class="chat-row {{ $openJid === $chat['jid'] ? 'is-on' : '' }}" data-name="{{ strtolower($label) }}" href="{{ route('whatsapp.chats', ['jid' => $chat['jid']]) }}">
+                <a class="chat-row {{ $openJid === $chat['jid'] ? 'is-on' : '' }}" data-name="{{ strtolower($label) }}" href="{{ route($inboxRoute, ['jid' => $chat['jid']]) }}">
                     <span class="chat-avatar" data-tone="{{ $tone }}">{{ strtoupper($initial) }}</span>
                     <span class="chat-main">
                         <span class="chat-top"><span class="chat-name">{{ $label }}</span><span class="chat-time">{{ $when }}</span></span>
@@ -88,13 +90,15 @@
     <section class="chats-thread">
         <header class="chats-head">
             <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-                <a class="chat-back" href="{{ route('whatsapp.chats') }}">Back</a>
+                <a class="chat-back" href="{{ route($inboxRoute) }}">Back</a>
                 <div style="min-width:0;">
                     <h2>{{ !empty($open) ? ($open['name'] ?: $open['jid']) : 'WhatsApp +'.$phone }}</h2>
                     <p>{{ !empty($open['phone']) ? '+'.$open['phone'] : 'Choose a chat' }}</p>
                 </div>
             </div>
+            @if(!$privateHub)
             <a class="main-line" href="{{ route('whatsapp.chats', ['line' => 'main']) }}">Main line</a>
+            @endif
         </header>
         <div class="chats-stream">
             @if(session('message'))<p class="bubble">{{ session('message') }}</p>@endif
@@ -111,8 +115,9 @@
             @endif
         </div>
         @if(!empty($open))
-            <form class="chats-compose" method="POST" action="{{ route('whatsapp.chats.linked_send') }}">
+            <form class="chats-compose" method="POST" action="{{ $privateHub ? route('whatsapp.mai.link.send') : route('whatsapp.chats.linked_send') }}">
                 @csrf
+                @if($privateHub)<input type="hidden" name="next" value="inbox">@endif
                 <input type="hidden" name="to" value="{{ $open['jid'] }}">
                 <input name="text" placeholder="Type a message" required autocomplete="off">
                 <button type="submit">Send</button>

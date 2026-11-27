@@ -284,6 +284,9 @@ class WhatsAppHubController extends Controller
 
     public function chats(Request $request)
     {
+        if (\App\Support\MaiHost::is($request)) {
+            return redirect()->route('whatsapp.mai.inbox');
+        }
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
             return $deny;
         }

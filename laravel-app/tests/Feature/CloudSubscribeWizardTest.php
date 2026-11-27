@@ -433,7 +433,7 @@ class CloudSubscribeWizardTest extends TestCase
         $this->get('/whatsapp-mai/enter/'.$user->id)->assertRedirect('/whatsapp-mai');
         $url = \URL::temporarySignedRoute('whatsapp.mai.enter', now()->addDay(), ['user' => $user->id]);
         $parts = parse_url($url);
-        $this->get($parts['path'].'?'.$parts['query'])->assertRedirect('/whatsapp-mai/home');
+        $this->get($parts['path'].'?'.$parts['query'])->assertRedirect('/whatsapp-mai/inbox');
         $this->get('/whatsapp-mai/home')
             ->assertOk()
             ->assertSee('Whats MAI')

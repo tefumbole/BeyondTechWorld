@@ -87,6 +87,16 @@ class CloudSignupOtp
      * Sent only after signup is finished. The link signs the person in.
      * It does not connect WhatsApp.
      */
+    public function sendAppLinkOnce($phone)
+    {
+        $normalized = app(CloudTrialEligibility::class)->normalizePhone($phone);
+        if ($normalized === '' || session('mai_phone_link_sent') === $normalized) {
+            return;
+        }
+        $this->sendAppLink($normalized);
+        session(['mai_phone_link_sent' => $normalized]);
+    }
+
     public function sendAppLink($phone)
     {
         if (app()->environment('testing')) {

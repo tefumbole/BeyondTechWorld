@@ -119,7 +119,7 @@
         @endif
       </head>
 
-      <body onload="myFunction()" class="{{ trim((Route::is('whatsapp.chats') ? 'whatsapp-hub-app' : '').' '.(Route::is('asset.*', 'assetCategory.*', 'region.*', 'station.*', 'donor.*', 'expense_asset.*', 'activity_asset.*') ? 'fixed-assets-app' : '')) }}">
+      <body onload="myFunction()" class="{{ trim((Route::is('whatsapp.chats', 'whatsapp.mai.inbox') ? 'whatsapp-hub-app' : '').' '.(Route::is('asset.*', 'assetCategory.*', 'region.*', 'station.*', 'donor.*', 'expense_asset.*', 'activity_asset.*') ? 'fixed-assets-app' : '')) }}">
         <div id="loader" style="display:none"></div>
           <!-- Side Navbar -->
           <nav class="side-navbar">

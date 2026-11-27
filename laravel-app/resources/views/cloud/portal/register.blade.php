@@ -86,6 +86,15 @@
             max-width: calc((100% - 10.35rem) * 0.55);
         }
     }
+    .phone-line { display: flex; gap: 12px; align-items: flex-end; }
+    .phone-line .field-row { flex: 1 1 240px; margin-top: 0.85rem; }
+    .phone-line .field-row label { flex: 0 0 auto; }
+    .phone-line .field-row input,
+    .phone-line .field-row select { width: 100%; max-width: none; flex: 1 1 auto; }
+    .mai-qr { width: 220px; height: 220px; margin: 12px auto; background: #fff; border-radius: 16px; object-fit: contain; }
+    @media (max-width: 700px) {
+        .phone-line { flex-direction: column; align-items: stretch; }
+    }
     .known-name {
         text-align: left;
         font-size: 1.25rem;
@@ -332,6 +341,7 @@
             @csrf
             <input type="hidden" name="onboard_token" value="{{ $onboardToken }}">
             <input type="hidden" name="account_kind" id="account-kind" value="{{ old('account_kind', 'company') }}">
+            <input type="hidden" name="mai_plan" id="mai-plan" value="trial">
             @if(($selected ?? '') === 'MESSAGING')
                 <input type="hidden" name="mai" value="1">
                 <div class="mai-top">
@@ -371,7 +381,7 @@
                 @endif
                 <div class="flex flex-col sm:flex-row items-stretch justify-center gap-3 mt-6">
                     <button type="button" id="pick-personal" class="subscribe-choice bg-brand-gold hover:bg-[#b5952f] text-brand-blue px-7 shadow-[0_0_15px_rgba(212,175,55,0.45)]">{{ ($selected ?? '') === 'MESSAGING' ? 'Start free trial' : 'Individual' }}</button>
-                    <button type="button" id="pick-company" class="subscribe-choice bg-white/15 hover:bg-white/25 border border-brand-gold text-brand-gold px-7">Company</button>
+                    <button type="button" id="pick-company" class="subscribe-choice bg-white/15 hover:bg-white/25 border border-brand-gold text-brand-gold px-7">{{ ($selected ?? '') === 'MESSAGING' ? 'Paid account' : 'Company' }}</button>
                 </div>
                 @if(($selected ?? '') === 'MESSAGING')
                     <button type="button" id="install-app" class="install-android">Install on Android</button>
@@ -383,6 +393,7 @@
                 <button type="button" class="back-step" data-back="1">Back</button>
                 <h2 class="text-xl font-bold">{{ ($selected ?? '') === 'MESSAGING' ? 'Enter your phone number' : 'Phone number' }}</h2>
                 <p class="hint mt-1">A verification code is sent on WhatsApp before any service is shown. That code only signs you in. It does not connect WhatsApp.</p>
+                <div class="{{ ($selected ?? '') === 'MESSAGING' ? 'phone-line' : '' }}">
                 <div class="field-row">
                     <label for="country-search">Country</label>
                     @if(($selected ?? '') === 'MESSAGING')
@@ -415,9 +426,20 @@
                     <label for="phone">Phone number</label>
                     <input class="px-4 py-2" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel" inputmode="tel" data-wa-phone="local">
                 </div>
+                </div>
                 <button type="button" id="send-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Send WhatsApp code</button>
                 <p class="form-error mt-3 rounded-xl px-3 py-2" id="send-error" hidden></p>
             </section>
+            @if(($selected ?? '') === 'MESSAGING')
+            <section class="step" data-step="8">
+                <button type="button" class="back-step" data-back="3">Back</button>
+                <h2 class="text-xl font-bold">Scan to link WhatsApp</h2>
+                <p class="hint mt-1">On your phone, open WhatsApp, then Linked devices, then Link a device, and scan this code.</p>
+                <img id="mai-qr" class="mai-qr" alt="WhatsApp QR code" hidden>
+                <p class="hint" id="mai-qr-wait">Preparing the QR code.</p>
+                <p class="form-error mt-3 rounded-xl px-3 py-2" id="mai-qr-error" hidden></p>
+            </section>
+            @endif
 
             <section class="step" data-step="3">
                 <button type="button" class="back-step" data-back="2">Back</button>
@@ -745,12 +767,21 @@
         }
         document.getElementById('pick-personal').onclick = function () {
             kind.value = 'personal';
+            var plan = document.getElementById('mai-plan');
+            if (plan) plan.value = 'trial';
             if (form.getAttribute('data-mai') !== '1') {
                 document.getElementById('name-title').textContent = 'Your name';
             }
             show(2);
         };
         document.getElementById('pick-company').onclick = function () {
+            if (form.getAttribute('data-mai') === '1') {
+                kind.value = 'personal';
+                var paid = document.getElementById('mai-plan');
+                if (paid) paid.value = 'paid';
+                show(2);
+                return;
+            }
             kind.value = 'company';
             document.getElementById('name-title').textContent = 'Contact person';
             show(2);
@@ -760,6 +791,53 @@
             if (this.disabled) return;
             sendCode('code-error');
         };
+        var maiLinkTimer = null;
+        function paintMaiQr(json) {
+            var image = document.getElementById('mai-qr');
+            var wait = document.getElementById('mai-qr-wait');
+            var error = document.getElementById('mai-qr-error');
+            if (json && json.redirect) {
+                if (maiLinkTimer) clearInterval(maiLinkTimer);
+                window.location = json.redirect;
+                return;
+            }
+            if (json && json.qr && image) {
+                image.src = json.qr;
+                image.hidden = false;
+                if (wait) wait.textContent = 'Scan this code with WhatsApp on your phone.';
+            }
+            if (error && json && json.error) {
+                error.hidden = false;
+                error.textContent = json.error;
+            }
+        }
+        function beginMaiLink() {
+            show(8);
+            var fields = phoneFields();
+            var plan = document.getElementById('mai-plan');
+            post('{{ route('whatsapp.mai.begin') }}', {
+                phone: fields.phone,
+                dial: fields.dial,
+                mai_plan: plan ? plan.value : 'trial'
+            }, function (ok, json) {
+                var error = document.getElementById('mai-qr-error');
+                if (!ok) {
+                    if (error) {
+                        error.hidden = false;
+                        error.textContent = json.message || 'The QR code could not be started.';
+                    }
+                    return;
+                }
+                paintMaiQr(json);
+                if (maiLinkTimer) clearInterval(maiLinkTimer);
+                maiLinkTimer = setInterval(function () {
+                    fetch('{{ route('whatsapp.mai.link.status') }}', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function (response) { return response.json(); })
+                        .then(paintMaiQr)
+                        .catch(function () {});
+                }, 2000);
+            });
+        }
         var verifyingCode = false;
         document.getElementById('check-code').onclick = function () {
             if (verifyingCode) return;
@@ -780,6 +858,12 @@
                     button.disabled = false;
                     error.hidden = false;
                     error.textContent = json.message || 'That code does not match.';
+                    return;
+                }
+                if (form.getAttribute('data-mai') === '1') {
+                    verifyingCode = false;
+                    button.disabled = false;
+                    beginMaiLink();
                     return;
                 }
                 post('{{ route('cloud.register.identity') }}', {
