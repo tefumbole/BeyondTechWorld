@@ -33,6 +33,10 @@ class DocumentPayController extends Controller
     public function requestSale(Request $request, $id)
     {
         $this->guard();
+        $ids = $this->requestedSaleIds($request, $id);
+        if (count($ids) > 1) {
+            return $this->requestGroupedSales($request, $ids);
+        }
         $document = Sale::with('customer')->findOrFail($id);
         $due = (float) $document->grand_total - (float) $document->paid_amount;
         $whole = (int) round($due);
@@ -47,6 +51,67 @@ class DocumentPayController extends Controller
         }
 
         return $this->sendRequest('sale', $document, $asked, 'Invoice');
+    }
+
+    protected function requestedSaleIds(Request $request, $id)
+    {
+        $raw = $request->input('sale_ids', $id);
+        if (is_array($raw)) {
+            $parts = $raw;
+        } else {
+            $parts = explode(',', (string) $raw);
+        }
+        $ids = [];
+        foreach ($parts as $part) {
+            $part = (int) $part;
+            if ($part > 0) {
+                $ids[] = $part;
+            }
+        }
+        if (! in_array((int) $id, $ids, true)) {
+            $ids[] = (int) $id;
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    protected function requestGroupedSales(Request $request, array $ids)
+    {
+        $sales = Sale::with('customer')->whereIn('id', $ids)->get();
+        $kept = [];
+        $sum = 0;
+        $anchor = null;
+        foreach ($sales as $sale) {
+            if ((int) $sale->payment_status === 4) {
+                continue;
+            }
+            $due = (float) $sale->grand_total - (float) $sale->paid_amount;
+            $whole = (int) round($due);
+            if ($whole < 1 || abs($due - $whole) > 0.001) {
+                continue;
+            }
+            $sum += $whole;
+            $kept[] = (int) $sale->id;
+            if (! $anchor && $sale->customer && trim((string) $sale->customer->phone_number) !== '') {
+                $anchor = $sale;
+            }
+        }
+        if (! $anchor || $sum < 100) {
+            return back()->with('message', 'There is no whole amount of at least 100 XAF left to request.');
+        }
+        $asked = $request->filled('amount')
+            ? (int) round((float) str_replace([',', ' '], '', (string) $request->input('amount')))
+            : $sum;
+        if ($asked < 100 || $asked > $sum) {
+            return back()->with('not_permitted', 'Enter a whole amount from 100 XAF up to the '.$sum.' XAF still due.');
+        }
+        $anchor->reference_no = count($kept).' invoices';
+        $error = $this->queueRequest('sale', $anchor, $asked, 'Invoice', $kept);
+        if ($error) {
+            return back()->with('not_permitted', $error);
+        }
+
+        return back()->with('message', 'Payment link sent to '.$anchor->customer->name.' for '.number_format($asked, 0, '.', ' ').' XAF.');
     }
 
     public function requestMany(array $ids)
@@ -192,7 +257,7 @@ class DocumentPayController extends Controller
         return back()->with('message', 'Payment link sent to '.$document->customer->name.'. They can open it and pay.');
     }
 
-    protected function queueRequest($kind, $document, $amount, $label)
+    protected function queueRequest($kind, $document, $amount, $label, array $coverIds = [])
     {
         $customer = $document->customer;
         if (! $customer || trim((string) $customer->phone_number) === '') {
@@ -211,6 +276,9 @@ class DocumentPayController extends Controller
         $link->phone = (string) $customer->phone_number;
         $link->requested_by = Auth::user() ? (string) Auth::user()->name : '';
         $link->amount = $amount;
+        if (count($coverIds) > 1 && \Illuminate\Support\Facades\Schema::hasColumn('document_payment_links', 'cover_ids')) {
+            $link->cover_ids = implode(',', $coverIds);
+        }
         $link->status = 'waiting';
         $link->campay_reference = null;
         $link->payment_link = null;
@@ -232,7 +300,11 @@ class DocumentPayController extends Controller
         $amount = number_format((int) $link->amount, 0, '.', ' ');
         $msg = WhatsAppMessage::statusBlock('💳', 'Payment Request');
         $msg .= 'Dear *'.$link->person_name.'*,'."\n\n";
-        $msg .= 'Please pay *'.$amount.'* XAF for '.$label.' '.$link->reference_no.".\n\n";
+        if (trim((string) $link->cover_ids) !== '') {
+            $msg .= 'Please pay *'.$amount.'* XAF for the balance on '.$link->reference_no.".\n\n";
+        } else {
+            $msg .= 'Please pay *'.$amount.'* XAF for '.$label.' '.$link->reference_no.".\n\n";
+        }
         $msg .= "Tap this link to pay:\n".$url."\n";
         if (trim((string) $link->requested_by) !== '') {
             $msg .= "\n".WhatsAppMessage::bullet('Requested by', $link->requested_by);
@@ -436,34 +508,69 @@ class DocumentPayController extends Controller
         $phone = $phone ?: $link->phone;
         $wasVisa = $method === 'visa';
         if ($link->kind === 'sale') {
-            app(CloudTenantContext::class)->withoutIsolation(function () use ($link, $amount, $reference, $wasVisa) {
-                $sale = Sale::find($link->document_id);
-                if (! $sale) {
+            $coverIds = $this->coverSaleIds($link);
+            app(CloudTenantContext::class)->withoutIsolation(function () use ($link, $amount, $reference, $wasVisa, $coverIds) {
+                $sales = Sale::whereIn('id', $coverIds)->orderBy('id')->get();
+                if ($sales->isEmpty()) {
                     return;
                 }
-                if ($reference !== '' && Payment::where('sale_id', $sale->id)->where('payment_note', 'Campay '.$reference)->exists()) {
-                    return;
-                }
-                $sale->paid_amount = (float) $sale->paid_amount + $amount;
-                $balance = (float) $sale->grand_total - (float) $sale->paid_amount;
-                $sale->payment_status = $balance <= 0 ? 4 : ($sale->paid_amount > 0 ? 3 : 2);
-                $sale->save();
+                $left = $amount;
                 $account = Account::where('is_default', true)->first();
-                $payment = new Payment();
-                $payment->sale_id = $sale->id;
-                $payment->user_id = $sale->user_id;
-                if ($account) {
-                    $payment->account_id = $account->id;
+                foreach ($sales as $sale) {
+                    if ($left < 1) {
+                        break;
+                    }
+                    if ($reference !== '' && Payment::where('sale_id', $sale->id)->where('payment_note', 'Campay '.$reference)->exists()) {
+                        continue;
+                    }
+                    $room = (int) round(max(0, (float) $sale->grand_total - (float) $sale->paid_amount));
+                    $slice = count($coverIds) > 1 ? min($left, $room) : $left;
+                    if ($slice < 1) {
+                        continue;
+                    }
+                    $sale->paid_amount = (float) $sale->paid_amount + $slice;
+                    $balance = (float) $sale->grand_total - (float) $sale->paid_amount;
+                    $sale->payment_status = $balance <= 0 ? 4 : ($sale->paid_amount > 0 ? 3 : 2);
+                    $sale->save();
+                    $payment = new Payment();
+                    $payment->sale_id = $sale->id;
+                    $payment->user_id = $sale->user_id;
+                    if ($account) {
+                        $payment->account_id = $account->id;
+                    }
+                    if ($sale->cloud_tenant_id) {
+                        $payment->setAttribute('cloud_tenant_id', $sale->cloud_tenant_id);
+                    }
+                    $payment->amount = $slice;
+                    $payment->change = 0;
+                    $payment->paying_method = $wasVisa ? 'Credit Card' : 'Mobile Money';
+                    $payment->payment_reference = 'spr-'.date('Ymd').'-'.date('His');
+                    $payment->payment_note = $reference !== '' ? 'Campay '.$reference : 'Paid from the payment link';
+                    $payment->save();
+                    $left -= $slice;
                 }
-                if ($sale->cloud_tenant_id) {
-                    $payment->setAttribute('cloud_tenant_id', $sale->cloud_tenant_id);
+                if ($left > 0) {
+                    $sale = $sales->first();
+                    $sale->paid_amount = (float) $sale->paid_amount + $left;
+                    $balance = (float) $sale->grand_total - (float) $sale->paid_amount;
+                    $sale->payment_status = $balance <= 0 ? 4 : 3;
+                    $sale->save();
+                    $payment = new Payment();
+                    $payment->sale_id = $sale->id;
+                    $payment->user_id = $sale->user_id;
+                    if ($account) {
+                        $payment->account_id = $account->id;
+                    }
+                    if ($sale->cloud_tenant_id) {
+                        $payment->setAttribute('cloud_tenant_id', $sale->cloud_tenant_id);
+                    }
+                    $payment->amount = $left;
+                    $payment->change = 0;
+                    $payment->paying_method = $wasVisa ? 'Credit Card' : 'Mobile Money';
+                    $payment->payment_reference = 'spr-'.date('Ymd').'-'.date('His');
+                    $payment->payment_note = $reference !== '' ? 'Campay '.$reference : 'Paid from the payment link';
+                    $payment->save();
                 }
-                $payment->amount = $amount;
-                $payment->change = 0;
-                $payment->paying_method = $wasVisa ? 'Credit Card' : 'Mobile Money';
-                $payment->payment_reference = 'spr-'.date('Ymd').'-'.date('His');
-                $payment->payment_note = $reference !== '' ? 'Campay '.$reference : 'Paid from the payment link';
-                $payment->save();
             });
         }
         $left = (int) $link->amount - $amount;
@@ -531,6 +638,25 @@ class DocumentPayController extends Controller
         }
 
         return $link;
+    }
+
+    protected function coverSaleIds(DocumentPaymentLink $link)
+    {
+        $raw = \Illuminate\Support\Facades\Schema::hasColumn('document_payment_links', 'cover_ids')
+            ? (string) $link->cover_ids
+            : '';
+        $ids = [];
+        foreach (explode(',', $raw) as $part) {
+            $part = (int) $part;
+            if ($part > 0) {
+                $ids[] = $part;
+            }
+        }
+        if (! $ids) {
+            $ids[] = (int) $link->document_id;
+        }
+
+        return array_values(array_unique($ids));
     }
 
     protected function label(DocumentPaymentLink $link)

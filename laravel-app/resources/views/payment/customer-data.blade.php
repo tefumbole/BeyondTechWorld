@@ -36,7 +36,8 @@
             .await-table tbody tr:nth-child(even) td { background: #f3f6fb; }
             .await-table tbody tr.clickable-row { cursor: pointer; }
             .await-table tbody tr.clickable-row:hover td { background: #e8eef8; }
-            .await-pay { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+            .await-pay { display: flex; flex-wrap: nowrap; gap: 6px; justify-content: flex-end; align-items: center; white-space: nowrap; }
+            .await-table td:last-child { white-space: nowrap; width: 1%; }
             .dataTables_scrollBody .await-table thead { visibility: collapse; }
             @media (max-width: 700px) {
                 .pay-app .sale-list { min-width: 760px; }
@@ -90,7 +91,7 @@
                     @endphp
                     <tr class="clickable-row" data-id="{{ $bill['sale_id'] }}" data-sale-ids="{{ implode(',', $bill['sale_ids']) }}" data-href="{{ $href }}">
                         <td>{{$key}}</td>
-                        <td>{{ $bill['name'] }}@if(! $single)<div class="small text-muted">{{ $bill['orders'] }} invoices</div>@endif</td>
+                        <td>{{ $bill['name'] }}@if(! $single) <span class="small text-muted">{{ $bill['orders'] }} invoices</span>@endif</td>
                         <td>{{ $bill['phone'] }}</td>
                         <td>{{ number_format($bill['total'], 0) }}</td>
                         <td>{{ number_format($bill['paid'], 0) }}</td>
@@ -100,11 +101,7 @@
                         <td>
                             <div class="await-pay">
                                 @if($dueNow >= 100)
-                                    @if($single)
-                                        <button type="button" class="request-payment btn btn-sm btn-primary" data-id="{{ $bill['sale_id'] }}" data-due="{{ $dueNow }}" data-name="{{ $bill['name'] }}" data-ref="{{ $refLabel }}"><i class="fa fa-whatsapp"></i> Request payment</button>
-                                    @else
-                                        <button type="button" class="request-group btn btn-sm btn-primary" data-ids="{{ implode(',', $bill['sale_ids']) }}"><i class="fa fa-whatsapp"></i> Request payment</button>
-                                    @endif
+                                    <button type="button" class="request-payment btn btn-sm btn-primary" data-id="{{ $bill['pay_id'] ?: $bill['sale_id'] }}" data-ids="{{ implode(',', $bill['sale_ids']) }}" data-due="{{ $dueNow }}" data-name="{{ $bill['name'] }}" data-ref="{{ $refLabel }}"><i class="fa fa-whatsapp"></i> Request payment</button>
                                 @endif
                                 <button type="button" class="add-payment btn btn-sm btn-success" data-id="{{ $bill['pay_id'] }}" data-due="{{ (int) round($bill['pay_due']) }}" data-name="{{ $bill['name'] }}" data-phone="{{ $bill['phone'] }}" data-ref="{{ $bill['pay_ref'] }}" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i>{{ trans('file.Add Payment') }}</button>
                                 @if(! $single)
@@ -219,14 +216,8 @@
             $('input[name="amount"]').val(balance);
             $('input[name="sale_id"]').val(sale_id);
         });
-        $(document).on('click', '#biller-table tbody .request-payment, #biller-table tbody .request-group', function (event) {
+        $(document).on('click', '#biller-table tbody .request-payment', function (event) {
             event.stopPropagation();
-        });
-        $(document).on('click', '.request-group', function () {
-            var ids = String($(this).attr('data-ids') || '').split(',').filter(function (part) { return $.trim(part) !== ''; });
-            if (!ids.length) return;
-            if (!confirm('Send a payment request for each of these ' + ids.length + ' bills?')) return;
-            postAwaiting('awaiting-request-form', ids);
         });
         $(document).on('click', '#biller-table tbody tr.clickable-row td:not(:first-child):not(:last-child)', function () {
             var href = $(this).closest('tr').data('href');
@@ -439,7 +430,18 @@
             var name = button.getAttribute('data-name') || '';
             var ref = button.getAttribute('data-ref') || '';
             var id = button.getAttribute('data-id');
-            document.getElementById('request-payment-form').action = @json(url('sales')) + '/' + id + '/request-payment';
+            var ids = button.getAttribute('data-ids') || '';
+            var form = document.getElementById('request-payment-form');
+            form.action = @json(url('sales')) + '/' + id + '/request-payment';
+            var cover = document.getElementById('request-payment-covers');
+            if (!cover) {
+                cover = document.createElement('input');
+                cover.type = 'hidden';
+                cover.name = 'sale_ids';
+                cover.id = 'request-payment-covers';
+                form.appendChild(cover);
+            }
+            cover.value = ids.indexOf(',') === -1 ? '' : ids;
             document.getElementById('request-payment-who').textContent = name || 'Client';
             document.getElementById('request-payment-ref').textContent = ref;
             fillRequestPayment(due);
