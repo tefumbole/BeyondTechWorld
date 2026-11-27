@@ -195,20 +195,17 @@ class WhatsAppAssistantController extends Controller
 
     public function enableAi(Request $request, $id)
     {
-        if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.takeover', 'whatsapp.manage'])) {
+        $conversation = WhatsAppConversation::findOrFail($id);
+        if (! $this->ownsPersonalChat($conversation) && ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.takeover', 'whatsapp.manage']))) {
             return $deny;
         }
-        $conversation = WhatsAppConversation::findOrFail($id);
         $note = trim((string) $request->input('handoff_note', ''));
         if ($note !== '') {
             app(WhatsAppConversationService::class)->addNote($conversation, $note, Auth::id());
         }
         app(WhatsAppConversationService::class)->enableAi($conversation, Auth::id());
-        if (strtoupper((string) $conversation->fresh()->mode) !== WhatsAppConversation::MODE_AI) {
-            return back()->with('not_permitted', 'AI is off for every number. Send AI On before handing a chat to AI.');
-        }
 
-        return back()->with('message', 'Handed to AI. It will read this conversation and continue without a new greeting.');
+        return back()->with('message', 'This chat is on AI. Other chats stay as they are.');
     }
 
     public function suggest($id)
@@ -220,6 +217,19 @@ class WhatsAppAssistantController extends Controller
         $draft = app(BeyondAssistantService::class)->suggest($conversation);
 
         return back()->with('suggested_reply', $draft);
+    }
+
+    protected function ownsPersonalChat(WhatsAppConversation $conversation)
+    {
+        $user = Auth::user();
+        if (! $user || ! $conversation->mai_session_id || ! \App\Support\MaiHost::is(request())) {
+            return false;
+        }
+        $session = \App\Mai\MaiSession::where('user_id', $user->id)
+            ->where('id', (int) $conversation->mai_session_id)
+            ->first();
+
+        return (bool) $session;
     }
 
     protected function denyUnless(array $names)

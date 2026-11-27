@@ -2,6 +2,7 @@
     .an-shell { max-width: 1100px; margin: 0 auto; }
 
     /* Colored pill tabs (same pattern as Quotations / Job Board) */
+    body:has(.an-shell) #beyond-module-tabs { display: none !important; }
     .an-nav {
         display: flex;
         flex-wrap: wrap;

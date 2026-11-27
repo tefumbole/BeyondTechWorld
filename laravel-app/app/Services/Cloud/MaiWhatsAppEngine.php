@@ -114,6 +114,59 @@ class MaiWhatsAppEngine
         return $rows;
     }
 
+    public function groups($phone)
+    {
+        $id = $this->id($phone);
+        if ($id === '') {
+            return [];
+        }
+        $payload = $this->request('GET', '/sessions/'.$id.'/groups', null, 20);
+        if (! is_array($payload) || empty($payload['groups']) || ! is_array($payload['groups'])) {
+            return [];
+        }
+        $rows = [];
+        foreach ($payload['groups'] as $row) {
+            if (! is_array($row) || empty($row['jid'])) {
+                continue;
+            }
+            $rows[] = [
+                'jid' => (string) $row['jid'],
+                'name' => isset($row['name']) && $row['name'] !== '' ? (string) $row['name'] : 'WhatsApp group',
+                'members' => isset($row['members']) ? (int) $row['members'] : null,
+            ];
+        }
+
+        return $rows;
+    }
+
+    public function groupPeople($phone, $jid)
+    {
+        $id = $this->id($phone);
+        if ($id === '' || substr((string) $jid, -5) !== '@g.us') {
+            return [];
+        }
+        $payload = $this->request('GET', '/sessions/'.$id.'/group?jid='.rawurlencode($jid), null, 20);
+        if (! is_array($payload) || empty($payload['participants']) || ! is_array($payload['participants'])) {
+            return [];
+        }
+        $rows = [];
+        foreach ($payload['participants'] as $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $digits = preg_replace('/\D/', '', isset($person['phone']) ? (string) $person['phone'] : '');
+            if (strlen($digits) < 8) {
+                continue;
+            }
+            $rows[] = [
+                'phone' => $digits,
+                'name' => isset($person['name']) ? (string) $person['name'] : '',
+            ];
+        }
+
+        return $rows;
+    }
+
     public function markRead($phone, $to)
     {
         $id = $this->id($phone);

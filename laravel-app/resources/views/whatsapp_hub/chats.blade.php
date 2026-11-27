@@ -483,6 +483,7 @@
                         @csrf
                         <button type="submit" class="{{ $open->mode !== 'AI' ? 'is-on' : '' }}">Human</button>
                     </form>
+                    <a class="announce-btn" href="{{ route('announcements.compose') }}">Announcements</a>
                 </div>
             </header>
             @php
@@ -743,6 +744,7 @@
             <form method="POST" id="threadTranslate" action="">@csrf<button type="submit" class="is-translate">Translate</button></form>
             <form method="POST" id="threadAi" action="">@csrf<button type="submit">AI</button></form>
             <form method="POST" id="threadHuman" action="">@csrf<button type="submit">Human</button></form>
+            <a class="announce-btn" href="{{ route('announcements.compose') }}">Announcements</a>
         </div>
     </header>
     <div class="chat-live" id="chatLive">Reconnecting…</div>

@@ -7,18 +7,18 @@
     $defaultHeader = old('header', $clone['header'] ?? '');
 @endphp
 <section class="forms">
-    <div class="container-fluid an-shell">
-        @include('announcement_manager.partials.tabs')
-        <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap" style="gap:12px;">
+    <div class="container-fluid an-shell an-compose">
+        <header class="an-topbar">
             <div>
-                <h1 class="an-title"><i class="fa fa-bullhorn"></i> Compose Announcement</h1>
-                <p class="an-subtitle">Create and send WhatsApp messages to customers and staff. No action required from recipients.</p>
+                <h1>Compose announcement</h1>
+                <p>Send a WhatsApp announcement to customers and staff</p>
             </div>
-            <div class="an-page-card py-2 px-3 mb-0">
-                <small class="text-muted d-block">Selected Recipients</small>
-                <strong id="an-count" style="color:#0b3f90;font-size:1.25rem;">0</strong>
-            </div>
-        </div>
+            <nav>
+                @if(Route::has('setting.createSms'))<a href="{{ route('setting.createSms') }}">Create SMS</a>@endif
+                @if(Route::has('setting.messaging'))<a href="{{ route('setting.messaging') }}">SMS settings</a>@endif
+                <a href="{{ route('announcements.settings') }}">Settings</a>
+            </nav>
+        </header>
 
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
@@ -28,7 +28,12 @@
         @endif
 
 <style>
-    .an-layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+    .an-topbar { display:flex; justify-content:space-between; align-items:center; gap:16px; background:#0b3f90; color:#fff; border-radius:16px; padding:16px 20px; margin:0 0 16px; }
+    .an-topbar h1 { margin:0; font-size:22px; font-weight:800; color:#fff; }
+    .an-topbar p { margin:2px 0 0; color:#d6e2f7; font-size:13px; }
+    .an-topbar nav { display:flex; gap:8px; flex-wrap:wrap; }
+    .an-topbar a { color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:999px; padding:6px 12px; font-size:13px; font-weight:700; text-decoration:none; }
+    .an-layout { display: grid; grid-template-columns: 1.4fr .9fr; gap: 16px; }
     @media (max-width: 992px) { .an-layout { grid-template-columns: 1fr; } }
     .an-label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:6px; }
     .an-field { width:100%; border:1px solid #d7deea; border-radius:8px; padding:9px 12px; font-size:14px; }
@@ -77,7 +82,7 @@
             <div class="an-layout">
                 <div class="an-page-card">
                     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
-                        <h5 class="mb-0" style="color:#0b3f90;font-weight:700;">Message Content</h5>
+                        <h5 class="mb-0" style="color:#0b3f90;font-weight:700;">Message</h5>
                         <div>
                             <label class="an-label mb-0">Template</label>
                             <select class="an-field" id="an-template-pick" style="min-width:180px;">
@@ -106,13 +111,13 @@
                             </select>
                         </div>
                         <div class="col-md-8 form-group">
-                            <label class="an-label">Subject</label>
+                            <label class="an-label">Internal subject</label>
                             <input type="text" name="subject" class="an-field" required placeholder="Internal tracking title" value="{{ old('subject', $clone['subject'] ?? '') }}">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label class="an-label">Header (WhatsApp opening line)</label>
+                        <label class="an-label">WhatsApp header (optional)</label>
                         <input type="text" name="header" class="an-field" value="{{ $defaultHeader }}">
                     </div>
 
@@ -135,12 +140,12 @@
 
                     <div class="form-group mb-0">
                         <div class="d-flex justify-content-between align-items-center flex-wrap mb-2" style="gap:8px;">
-                            <label class="an-label mb-0" style="color:#0b3f90;font-weight:700;font-size:15px;">Send to *</label>
+                            <label class="an-label mb-0" style="color:#0b3f90;font-weight:700;font-size:15px;">Recipients <span id="an-count">0</span> selected</label>
                         </div>
                         <div class="mb-3">
-                            <button type="button" class="an-pill active an-audience" data-audience="people">Selected people</button>
-                            <button type="button" class="an-pill an-audience" data-audience="group">WhatsApp group</button>
-                            <button type="button" class="an-pill an-audience" data-audience="contacts">All WhatsApp contacts</button>
+                            <button type="button" class="an-pill active an-audience" data-audience="people">People</button>
+                            <button type="button" class="an-pill an-audience" data-audience="group">Group members</button>
+                            <button type="button" class="an-pill an-audience" data-audience="contacts">All contacts</button>
                         </div>
                         <div id="an-group-box" class="mb-3" style="display:none;">
                             <label class="an-label">Groups</label>
@@ -156,7 +161,7 @@
                                     <label class="an-user-item an-group-row" data-jid="{{ $group['jid'] }}" data-known="{{ !empty($group['known']) ? '1' : '0' }}" data-sent="{{ (int) ($group['last_sent'] ?? 0) }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                                         <input type="checkbox" name="group_jids[]" value="{{ $group['jid'] }}">
                                         <span>
-                                            <span class="an-group-label">{{ !empty($group['known']) ? $group['name'] : 'Loading name…' }}</span>
+                                            <span class="an-group-label">{{ !empty($group['name']) ? $group['name'] : 'Loading name…' }}</span>
                                             @if($group['members'] !== null)
                                                 <span class="meta an-group-count"> · {{ number_format($group['members']) }} contacts</span>
                                             @else
@@ -260,13 +265,13 @@
 
                     <div class="an-drop">
                         <div class="mb-2">Attachments (max 10MB)</div>
-                        <input type="file" name="attachment" accept=".pdf,image/*" class="an-field">
+                        <input type="file" name="attachment" accept=".pdf,image/*,video/*,audio/*" class="an-field">
                     </div>
                 </div>
 
                 <div>
                     <div class="an-page-card">
-                        <h5 style="color:#0b3f90;font-weight:700;">Sending Options</h5>
+                        <h5 style="color:#0b3f90;font-weight:700;">Delivery</h5>
                         <label class="d-flex align-items-center" style="gap:8px;font-weight:600;">
                             <input type="checkbox" checked disabled> Send via WhatsApp
                         </label>

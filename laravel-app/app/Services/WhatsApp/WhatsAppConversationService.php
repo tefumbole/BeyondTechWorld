@@ -1493,15 +1493,6 @@ class WhatsAppConversationService
 
     public function enableAi(WhatsAppConversation $conversation, $userId = null)
     {
-        if (! app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled()) {
-            if (strtoupper((string) $conversation->mode) === WhatsAppConversation::MODE_AI) {
-                $conversation->mode = WhatsAppConversation::MODE_HUMAN;
-                $conversation->save();
-                $this->event($conversation, WhatsAppConversationEvent::MODE, 'AI is off, so this chat stayed with a person', $userId);
-            }
-
-            return $conversation;
-        }
         $conversation->mode = WhatsAppConversation::MODE_AI;
         $conversation->assigned_user_id = null;
         if ($conversation->status === WhatsAppConversation::STATUS_CLOSED) {
@@ -1580,6 +1571,8 @@ class WhatsAppConversationService
             $message->sent_at = now();
             $message->save();
             $result = ['success' => true, 'msg_id' => $message->provider_message_id, 'channel' => 'website', 'had_service_menu' => $hadServiceMenu];
+        } elseif (app(\App\Services\Mai\MaiProviderRouter::class)->usesMai($conversation)) {
+            $result = app(\App\Services\Mai\MaiOutboundService::class)->deliver($conversation, $body, 'ai-'.$message->id, $message);
         } else {
             $result = $this->deliverText($contact->normalized_phone, $body);
             if (! empty($result['success'])) {
@@ -1942,7 +1935,7 @@ class WhatsAppConversationService
         if (strtoupper((string) $conversation->mode) === WhatsAppConversation::MODE_PAUSED) {
             return false;
         }
-        if ($conversation->isWebsite()) {
+        if ($conversation->isWebsite() || strtoupper((string) $conversation->mode) === WhatsAppConversation::MODE_AI) {
             return true;
         }
         try {

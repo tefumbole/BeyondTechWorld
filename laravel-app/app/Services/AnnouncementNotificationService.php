@@ -15,13 +15,37 @@ class AnnouncementNotificationService extends Controller
 {
     protected $whatsappNames = null;
 
+    protected $sending;
+
     /**
      * @param  array{title?:string,name?:string,message?:string,reference?:string,details?:string}  $statusVars
      */
+    protected function sendOnSession(WaAnnouncement $announcement, $to, $message)
+    {
+        $session = \App\Mai\MaiSession::find((int) $announcement->mai_session_id);
+        $phone = $session ? ($session->phone_number ?: $session->expected_phone) : '';
+        if ($phone === '' || trim((string) $message) === '') {
+            return false;
+        }
+        try {
+            $result = app(\App\Services\Cloud\MaiWhatsAppEngine::class)->send($phone, $to, $message);
+
+            return ! empty($result['success']);
+        } catch (\Exception $e) {
+            Log::warning('Announcement on linked phone failed: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
     protected function sendPhone($phone, $message, array $statusVars = [])
     {
         if (empty(trim((string) $phone))) {
             return false;
+        }
+        $announcement = $this->sending;
+        if ($announcement && ! empty($announcement->mai_session_id)) {
+            return $this->sendOnSession($announcement, $phone, $message);
         }
         try {
             $router = app(NotificationRouter::class);
@@ -193,7 +217,38 @@ class AnnouncementNotificationService extends Controller
         }
         $fileName = $announcement->attachment_name ?: basename($full);
         $caption = $announcement->subject ?: $fileName;
+        if (! empty($announcement->mai_session_id)) {
+            $this->sendSessionFile($announcement, $phone, $full, $fileName, $caption);
+
+            return;
+        }
         $this->sendAttachmentViaWasender($phone, $full, $fileName, $caption);
+    }
+
+    protected function sendSessionFile(WaAnnouncement $announcement, $to, $full, $fileName, $caption)
+    {
+        $session = \App\Mai\MaiSession::find((int) $announcement->mai_session_id);
+        $phone = $session ? ($session->phone_number ?: $session->expected_phone) : '';
+        if ($phone === '' || ! is_file($full)) {
+            return;
+        }
+        $ext = strtolower(pathinfo((string) $full, PATHINFO_EXTENSION));
+        $images = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $videos = ['mp4', 'mov', 'webm', '3gp'];
+        $audio = ['ogg', 'mp3', 'm4a', 'wav'];
+        if (in_array($ext, $images, true)) {
+            $kind = 'image';
+        } elseif (in_array($ext, $videos, true) || in_array($ext, $audio, true)) {
+            $kind = in_array($ext, $audio, true) ? 'audio' : 'document';
+        } else {
+            $kind = 'document';
+        }
+        $mime = function_exists('mime_content_type') ? mime_content_type($full) : 'application/octet-stream';
+        try {
+            app(\App\Services\Cloud\MaiWhatsAppEngine::class)->sendFile($phone, $to, $full, $kind, $mime ?: 'application/octet-stream', $fileName, $caption);
+        } catch (\Exception $e) {
+            Log::warning('Announcement file on linked phone failed: '.$e->getMessage());
+        }
     }
 
     protected function sendAttachmentViaWasender($phone, $full, $fileName, $caption)
@@ -218,6 +273,7 @@ class AnnouncementNotificationService extends Controller
      */
     public function dispatchAnnouncement(WaAnnouncement $announcement)
     {
+        $this->sending = $announcement;
         $recipients = $announcement->recipients();
         $onlyGroups = count($recipients) > 0;
         foreach ($recipients as $person) {
@@ -616,6 +672,7 @@ class AnnouncementNotificationService extends Controller
 
     protected function deliverReminder(WaAnnouncement $announcement)
     {
+        $this->sending = $announcement;
 
         $groups = [];
         $phones = [];

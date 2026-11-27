@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 
 class AnnouncementService
 {
+    protected $sessionId = 0;
     protected $people;
     protected $notify;
 
@@ -176,6 +177,7 @@ class AnnouncementService
 
     public function create(array $data, $adminId = null)
     {
+        $this->sessionId = isset($data['mai_session_id']) ? (int) $data['mai_session_id'] : 0;
         $settings = $this->settings();
         $audience = isset($data['audience']) ? (string) $data['audience'] : 'people';
         $school = SchoolMerge::isSchool(
@@ -255,6 +257,7 @@ class AnnouncementService
             'attachment_name' => $data['attachment_name'] ?? null,
             'created_by' => $adminId,
             'cloned_from_id' => $data['cloned_from_id'] ?? null,
+            'mai_session_id' => $this->sessionId ?: null,
         ]);
 
         foreach (($data['reminders'] ?? []) as $time) {
@@ -324,8 +327,14 @@ class AnnouncementService
             }
         }
         $catalog = [];
-        foreach (app(\App\Services\WhatsApp\GroupContactExportService::class)->announcementGroups() as $group) {
-            $catalog[$group['jid']] = $group;
+        if ($this->sessionId) {
+            foreach ($this->sessionGroups() as $group) {
+                $catalog[$group['jid']] = $group;
+            }
+        } else {
+            foreach (app(\App\Services\WhatsApp\GroupContactExportService::class)->announcementGroups() as $group) {
+                $catalog[$group['jid']] = $group;
+            }
         }
         $out = [];
         foreach (array_keys($wanted) as $jid) {
@@ -379,11 +388,16 @@ class AnnouncementService
             }
         }
         foreach ($this->groupRecipients($jids) as $group) {
-            $fetched = $export->rowsForGroup($group['group_jid']);
+            $fetched = $this->sessionId
+                ? ['rows' => $this->sessionGroupRows($group['group_jid'])]
+                : $export->rowsForGroup($group['group_jid']);
             foreach ((isset($fetched['rows']) ? $fetched['rows'] : []) as $row) {
                 $phone = trim((string) (isset($row['phone']) ? $row['phone'] : ''));
                 $digits = preg_replace('/\D+/', '', $phone);
-                if (strlen($digits) < 8 || isset($byPhone[$digits]) || ! $export->shouldNotify($group['group_jid'], $digits)) {
+                if (strlen($digits) < 8 || isset($byPhone[$digits])) {
+                    continue;
+                }
+                if (! $this->sessionId && ! $export->shouldNotify($group['group_jid'], $digits)) {
                     continue;
                 }
                 $tail = substr($digits, -9);
@@ -541,8 +555,60 @@ class AnnouncementService
         }
     }
 
+    protected function sessionPhone()
+    {
+        $session = \App\Mai\MaiSession::find($this->sessionId);
+        if (! $session) {
+            return '';
+        }
+
+        return (string) ($session->phone_number ?: $session->expected_phone);
+    }
+
+    protected function sessionGroups()
+    {
+        $phone = $this->sessionPhone();
+        if ($phone === '') {
+            return [];
+        }
+
+        return app(\App\Services\Cloud\MaiWhatsAppEngine::class)->groups($phone);
+    }
+
+    protected function sessionGroupRows($jid)
+    {
+        $phone = $this->sessionPhone();
+        if ($phone === '') {
+            return [];
+        }
+
+        return app(\App\Services\Cloud\MaiWhatsAppEngine::class)->groupPeople($phone, $jid);
+    }
+
     protected function whatsappContacts()
     {
+        if ($this->sessionId) {
+            $phone = $this->sessionPhone();
+            $rows = $phone === '' ? [] : app(\App\Services\Cloud\MaiWhatsAppEngine::class)->chats($phone);
+            $contacts = [];
+            foreach ($rows as $row) {
+                if (empty($row['phone'])) {
+                    continue;
+                }
+                $contacts[] = [
+                    'id' => 'wa:'.$row['phone'],
+                    'kind' => 'contact',
+                    'name' => $row['name'] !== '' ? $row['name'] : $row['phone'],
+                    'phone' => $row['phone'],
+                    'email' => '',
+                ];
+            }
+            if (! $contacts) {
+                throw new \InvalidArgumentException('No WhatsApp contacts were returned for this phone.');
+            }
+
+            return $contacts;
+        }
         $listed = app(BeyondWasenderService::class)->listContacts();
         if (empty($listed['success'])) {
             throw new \InvalidArgumentException(isset($listed['error']) ? $listed['error'] : 'Could not load WhatsApp contacts.');

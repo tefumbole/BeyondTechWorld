@@ -25,7 +25,7 @@
                     @endif
                     <div class="card">
                         <div class="card-header d-flex align-items-center">
-                            <h4>@if(!empty($clone)) Clone Letter @else {{trans('file.Add Letter')}} @endif</h4>
+                            <h4>@if(!empty($clone)) Clone letter @else Compose letter @endif</h4>
                         </div>
                         <div class="card-body">
                             @php

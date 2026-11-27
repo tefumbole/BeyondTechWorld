@@ -38,12 +38,25 @@ class AnnouncementManagerController extends Controller
 
     protected function authorizeAnnouncements($permission = 'announcements.view')
     {
+        if (\App\Support\MaiHost::is(request()) && Auth::check()) {
+            return;
+        }
         if (in_array('announcements_module', $this->all_permission, true)
             || in_array($permission, $this->all_permission, true)
             || in_array('announcement_index', $this->all_permission, true)) {
             return;
         }
         abort(403, 'You are not allowed to access Announcements.');
+    }
+
+    protected function personalSessionId()
+    {
+        if (! \App\Support\MaiHost::is(request()) || ! Auth::check()) {
+            return null;
+        }
+        $session = app(\App\Services\Mai\PersonalHub::class)->ensure(Auth::user());
+
+        return $session ? (int) $session->id : null;
     }
 
     protected function usersJson()
@@ -116,8 +129,15 @@ class AnnouncementManagerController extends Controller
         $categories = $this->announcements->categories();
         $templates = $this->announcements->templates();
         $settings = $this->announcements->settings();
-        $waGroups = app(\App\Services\WhatsApp\GroupContactExportService::class)->announcementGroups();
-        app(\App\Services\WhatsApp\GroupContactExportService::class)->scheduleResolve();
+        $sessionId = $this->personalSessionId();
+        if ($sessionId) {
+            $session = \App\Mai\MaiSession::find($sessionId);
+            $phone = $session ? ($session->phone_number ?: $session->expected_phone) : '';
+            $waGroups = $phone !== '' ? app(\App\Services\Cloud\MaiWhatsAppEngine::class)->groups($phone) : [];
+        } else {
+            $waGroups = app(\App\Services\WhatsApp\GroupContactExportService::class)->announcementGroups();
+            app(\App\Services\WhatsApp\GroupContactExportService::class)->scheduleResolve();
+        }
         $clone = null;
         if ($request->filled('clone')) {
             $src = WaAnnouncement::find($request->get('clone'));
@@ -222,6 +242,7 @@ class AnnouncementManagerController extends Controller
             'attachment_path' => $attachmentPath,
             'attachment_name' => $attachmentName,
             'cloned_from_id' => $request->input('cloned_from_id'),
+            'mai_session_id' => $this->personalSessionId(),
         ], Auth::id());
         } catch (\InvalidArgumentException $e) {
             return back()->withInput()->with('not_permitted', $e->getMessage());

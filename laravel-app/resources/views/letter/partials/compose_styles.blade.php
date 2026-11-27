@@ -1,4 +1,17 @@
 <style>
+    .letter-compose .card-header { background:#0b3f90; color:#fff; border-radius:14px 14px 0 0; }
+    .letter-compose .card-header h4 { color:#fff; }
+    .letter-compose .card { border:0; border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(11,63,144,.08); }
+    .letter-compose .card-body form > .row { display:grid; grid-template-columns: 1.35fr .85fr; gap:8px 18px; }
+    .letter-compose .card-body form > .row > [class*="col-"] { max-width:none; width:auto; padding:0; }
+    .letter-compose .card-body form > .row > .col-md-12 { grid-column: 1; }
+    .letter-compose .card-body form > .row > .col-md-3,
+    .letter-compose .card-body form > .row > .col-md-4,
+    .letter-compose .card-body form > .row > .col-md-6 { grid-column: 2; }
+    @media (max-width: 992px) {
+        .letter-compose .card-body form > .row { grid-template-columns: 1fr; }
+        .letter-compose .card-body form > .row > [class*="col-"] { grid-column: 1; }
+    }
     .letter-compose {
         --letter-ink: #1f2a44;
         --letter-blue: #0b3f90;

@@ -22,7 +22,8 @@ class AssistantPolicyService
     {
         $mode = strtoupper((string) $conversation->mode);
         $websiteOn = $conversation->isWebsite() && AssistantRuntimeSettings::websiteAiEnabled();
-        if (! $this->globallyEnabled() && ! $websiteOn) {
+        $thisChat = $mode === WhatsAppConversation::MODE_AI;
+        if (! $this->globallyEnabled() && ! $websiteOn && ! $thisChat) {
             return [false, 'assistant_disabled'];
         }
         if ($mode === WhatsAppConversation::MODE_HUMAN) {

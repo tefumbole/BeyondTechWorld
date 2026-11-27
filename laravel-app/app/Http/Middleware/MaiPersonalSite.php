@@ -39,6 +39,8 @@ class MaiPersonalSite
             'admin/whatsapp/people/*',
             'admin/whatsapp/groups',
             'admin/whatsapp/groups/*',
+            'admin/announcements',
+            'admin/announcements/*',
             'css/*',
             'js/*',
             'branding/*',
@@ -60,6 +62,7 @@ class MaiPersonalSite
             || strpos($name, 'whatsapp.mai') === 0
             || strpos($name, 'whatsapp.people') === 0
             || strpos($name, 'whatsapp.groups') === 0
+            || strpos($name, 'announcements.') === 0
             || strpos($name, 'cloud.register') === 0
             || strpos($name, 'cloud.login') === 0;
     }
