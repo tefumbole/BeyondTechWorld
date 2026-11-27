@@ -310,9 +310,9 @@
             <div class="chat-none" id="chatNone" @if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0) style="display:block" @endif>@if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0)No conversations yet. {{ !empty($personalHub) ? 'Chats from your WhatsApp appear here.' : 'Chats from the Wasender number appear here.' }}@else Nothing in this list.@endif</div>
             @if($pane === 'chats')
             @php
-                $conversations = $conversations->sort(function ($a, $b) {
-                    $aTime = $a->last_activity_at ?: $a->updated_at;
-                    $bTime = $b->last_activity_at ?: $b->updated_at;
+                $conversations = $conversations->sort(function ($a, $b) use ($personalHub) {
+                    $aTime = !empty($personalHub) ? $a->last_activity_at : ($a->last_activity_at ?: $a->updated_at);
+                    $bTime = !empty($personalHub) ? $b->last_activity_at : ($b->last_activity_at ?: $b->updated_at);
                     if ($aTime == $bTime) {
                         return (int) $b->id - (int) $a->id;
                     }
@@ -322,8 +322,10 @@
             @endphp
             @foreach($conversations as $row)
                 @php
-                    $person = optional($row->contact)->displayName() ?: 'WhatsApp';
-                    $when = $row->last_activity_at ?: $row->updated_at;
+                    $person = !empty($personalHub)
+                        ? app(\App\Services\Mai\PersonalHub::class)->label($row->contact)
+                        : (optional($row->contact)->displayName() ?: 'WhatsApp');
+                    $when = !empty($personalHub) ? $row->last_activity_at : ($row->last_activity_at ?: $row->updated_at);
                     $preview = \App\WhatsApp\WhatsAppMessage::listPreview($row->last_message);
                     $rowUnread = (int) $row->id === $openId ? 0 : (int) $row->unread_count;
                     $tone = sprintf('%u', crc32(strtolower($person))) % 8;
@@ -442,14 +444,20 @@
     </aside>
     <section class="chats-thread">
         @if($open)
-            @php $title = optional($open->contact)->displayName() ?: 'WhatsApp'; @endphp
+            @php
+                $title = !empty($personalHub) ? app(\App\Services\Mai\PersonalHub::class)->label($open->contact) : (optional($open->contact)->displayName() ?: 'WhatsApp');
+                $threadPhone = (string) optional($open->contact)->display_phone;
+                if (!empty($personalHub) && strlen(preg_replace('/\D/', '', $threadPhone)) > 13) {
+                    $threadPhone = '';
+                }
+            @endphp
             <header class="chats-head">
                 <div class="chats-head-person">
                     <a class="chat-back" href="{{ route('whatsapp.chats', array_filter(['filter' => $listFilter !== 'all' ? $listFilter : null])) }}" aria-label="Back to chats">‹ Back</a>
                     <span class="chat-avatar" id="threadAvatar" data-tone="{{ sprintf('%u', crc32(strtolower($title))) % 8 }}">{{ mb_strtoupper(mb_substr($title, 0, 1)) }}</span>
                     <div>
                         <h2 id="threadName">{{ $title }}</h2>
-                        <p id="threadPhone">{{ optional($open->contact)->display_phone }} <span class="mode-pill {{ $open->mode === 'AI' ? '' : 'is-human' }}">{{ $open->mode === 'AI' ? 'AI' : 'Human' }}</span></p>
+                        <p id="threadPhone">{{ $threadPhone }} <span class="mode-pill {{ $open->mode === 'AI' ? '' : 'is-human' }}">{{ $open->mode === 'AI' ? 'AI' : 'Human' }}</span></p>
                     </div>
                 </div>
                 <div class="mode-switch">

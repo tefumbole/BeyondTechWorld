@@ -61,13 +61,18 @@ class MaiWhatsAppEngine
             }
             $phoneDigits = isset($row['phone']) ? preg_replace('/\D/', '', (string) $row['phone']) : '';
             $jid = isset($row['jid']) ? (string) $row['jid'] : '';
-            if (! preg_match('/^([1-9][0-9]{6,16}@s\.whatsapp\.net|[0-9]+(-[0-9]+)?@g\.us)$/', $jid)) {
+            if (! preg_match('/^([1-9][0-9]{6,16}@s\.whatsapp\.net|[0-9]+@lid|[0-9]+(-[0-9]+)?@g\.us)$/', $jid)) {
                 continue;
+            }
+            $lid = isset($row['lid']) ? preg_replace('/\D/', '', (string) $row['lid']) : '';
+            if ($lid === '' && substr($jid, -4) === '@lid') {
+                $lid = preg_replace('/\D/', '', strtok($jid, '@'));
             }
             $rows[] = [
                 'jid' => $jid,
                 'name' => isset($row['name']) ? (string) $row['name'] : '',
                 'phone' => $phoneDigits,
+                'lid' => $lid,
                 'preview' => isset($row['preview']) ? (string) $row['preview'] : '',
                 'unread' => isset($row['unread']) ? (int) $row['unread'] : 0,
                 'at' => isset($row['at']) ? (int) $row['at'] : 0,
@@ -102,6 +107,7 @@ class MaiWhatsAppEngine
                 'from_me' => ! empty($row['from_me']),
                 'text' => function_exists('mb_substr') ? mb_substr($text, 0, 1000) : substr($text, 0, 1000),
                 'at' => isset($row['at']) ? (string) $row['at'] : '',
+                'receipt' => isset($row['receipt']) ? (int) $row['receipt'] : 0,
             ];
         }
 

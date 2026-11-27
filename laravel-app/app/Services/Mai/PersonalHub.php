@@ -53,40 +53,50 @@ class PersonalHub
         app(CloudTenantContext::class)->withoutIsolation(function () use ($session, $phone, $engine, $outbound, $lookupNames) {
             $lookups = 0;
             foreach ($engine->chats($phone) as $chat) {
-                if (substr($chat['jid'], -5) === '@g.us' || $chat['phone'] === '' || strlen($chat['phone']) < 8 || strlen($chat['phone']) > 15) {
+                if (substr($chat['jid'], -5) === '@g.us' || (int) $chat['at'] <= 0) {
                     continue;
                 }
-                $conversation = $outbound->conversation($session, $chat['phone']);
+                $store = $chat['phone'] !== '' ? $chat['phone'] : (isset($chat['lid']) ? $chat['lid'] : '');
+                if ($store === '' || strlen($store) < 8 || strlen($store) > 15) {
+                    continue;
+                }
+                $conversation = $outbound->conversation($session, $store);
                 $contact = $conversation->contact;
-                $saved = $this->savedName($chat['name'], $chat['phone']);
+                $saved = $this->savedName($chat['name'], $store);
                 if ($lookupNames && $saved === '' && strpos($chat['phone'], '237') === 0 && strlen($chat['phone']) === 12 && $lookups < 8) {
                     $lookups++;
                     try {
                         $found = app(\App\Services\MobileMoneyHolderService::class)->lookup($chat['phone'], false, true);
                         if (! empty($found['name'])) {
-                            $saved = $this->savedName($found['name'], $chat['phone']);
+                            $saved = $this->savedName($found['name'], $store);
                         }
                     } catch (\Throwable $e) {
                     }
                 }
                 $shared = $contact && WhatsAppConversation::where('contact_id', $contact->id)->whereNull('mai_session_id')->exists();
                 if ($contact && $saved !== '' && ! $shared) {
-                    $current = $this->savedName($contact->wa_name, $chat['phone']);
+                    $current = $this->savedName($contact->wa_name, $store);
                     if ($current === '' || $current !== $saved) {
                         $contact->wa_name = function_exists('mb_substr') ? mb_substr($saved, 0, 191) : substr($saved, 0, 191);
                     }
                 }
                 if ($contact) {
-                    $shown = \App\Support\WhatsAppPhone::display($chat['phone']);
-                    if ($shown !== '' && $contact->display_phone !== $shown) {
+                    $shown = ($chat['phone'] !== '' && strlen($chat['phone']) <= 13)
+                        ? \App\Support\WhatsAppPhone::display($chat['phone'])
+                        : '';
+                    if ((string) $contact->display_phone !== $shown) {
                         $contact->display_phone = $shown;
                     }
-                    $contact->save();
+                    if ($contact->isDirty()) {
+                        $contact->save();
+                    }
                 }
-                if ($chat['preview'] !== '') {
+                if ($chat['preview'] !== '' && (string) $conversation->last_message !== $chat['preview']) {
                     $conversation->last_message = $chat['preview'];
                 }
-                $conversation->unread_count = (int) $chat['unread'];
+                if ((int) $conversation->unread_count !== (int) $chat['unread']) {
+                    $conversation->unread_count = (int) $chat['unread'];
+                }
                 $at = (int) $chat['at'];
                 if ($at > 1000000000000) {
                     $at = (int) floor($at / 1000);
@@ -97,7 +107,9 @@ class PersonalHub
                         $conversation->last_activity_at = $when;
                     }
                 }
-                $conversation->save();
+                if ($conversation->isDirty()) {
+                    $conversation->save();
+                }
             }
             foreach ($engine->messages($phone) as $row) {
                 $from = (string) $row['from'];
@@ -105,24 +117,40 @@ class PersonalHub
                     continue;
                 }
                 $digits = preg_replace('/\D/', '', strtok($from, '@'));
-                if ($digits === '' || strlen($digits) < 8 || strlen($digits) > 15 || substr($from, -4) === '@lid') {
+                if ($digits === '' || strlen($digits) < 8 || strlen($digits) > 15) {
                     continue;
+                }
+                if ($row['at'] === '' || ! is_numeric($row['at'])) {
+                    continue;
+                }
+                $stampValue = (int) $row['at'];
+                if ($stampValue > 1000000000000) {
+                    $stampValue = (int) floor($stampValue / 1000);
+                }
+                $providerId = isset($row['id']) ? substr((string) $row['id'], 0, 128) : '';
+                $status = $this->receiptStatus($row);
+                if ($providerId !== '') {
+                    $existing = WhatsAppMessage::where('provider_message_id', $providerId)->first();
+                    if ($existing) {
+                        $this->raiseStatus($existing, $status);
+                        continue;
+                    }
                 }
                 $conversation = $outbound->conversation($session, $digits);
                 $key = 'mai-live:'.$session->id.':'.substr(sha1($from.'|'.$row['text'].'|'.$row['at']), 0, 40);
                 if (WhatsAppMessage::where('provider_message_id', $key)->exists()) {
                     continue;
                 }
-                $stamp = is_numeric($row['at']) ? Carbon::createFromTimestamp((int) $row['at']) : Carbon::now();
+                $stamp = Carbon::createFromTimestamp($stampValue);
                 $message = new WhatsAppMessage();
                 $message->timestamps = false;
                 $message->conversation_id = $conversation->id;
                 $message->contact_id = $conversation->contact_id;
                 $message->direction = ! empty($row['from_me']) ? WhatsAppMessage::DIR_OUT : WhatsAppMessage::DIR_IN;
                 $message->type = 'TEXT';
-                $message->provider_message_id = $key;
+                $message->provider_message_id = $providerId !== '' ? $providerId : $key;
                 $message->body = $row['text'];
-                $message->status = WhatsAppMessage::STATUS_DELIVERED;
+                $message->status = $status;
                 $message->sender_type = ! empty($row['from_me']) ? 'ECHO' : 'CONTACT';
                 $message->created_at = $stamp;
                 $message->updated_at = $stamp;
@@ -147,6 +175,67 @@ class PersonalHub
         }
 
         return $groups;
+    }
+
+    public function label($contact)
+    {
+        $phone = preg_replace('/\D/', '', (string) optional($contact)->normalized_phone);
+        $name = $this->savedName(optional($contact)->wa_name, $phone);
+        if ($name !== '') {
+            return $name;
+        }
+        $shown = preg_replace('/\D/', '', (string) optional($contact)->display_phone);
+        if ($shown !== '' && strlen($shown) <= 13) {
+            return (string) $contact->display_phone;
+        }
+        if ($phone !== '' && strlen($phone) <= 13) {
+            return '+'.$phone;
+        }
+
+        return 'WhatsApp';
+    }
+
+    protected function receiptStatus(array $row)
+    {
+        if (empty($row['from_me'])) {
+            return WhatsAppMessage::STATUS_DELIVERED;
+        }
+        $receipt = isset($row['receipt']) ? (int) $row['receipt'] : 0;
+        if ($receipt >= 5) {
+            return WhatsAppMessage::STATUS_PLAYED;
+        }
+        if ($receipt >= 4) {
+            return WhatsAppMessage::STATUS_READ;
+        }
+        if ($receipt >= 3) {
+            return WhatsAppMessage::STATUS_DELIVERED;
+        }
+
+        return WhatsAppMessage::STATUS_SENT;
+    }
+
+    protected function raiseStatus(WhatsAppMessage $message, $status)
+    {
+        $rank = [
+            WhatsAppMessage::STATUS_QUEUED => 1,
+            WhatsAppMessage::STATUS_SENT => 2,
+            WhatsAppMessage::STATUS_DELIVERED => 3,
+            WhatsAppMessage::STATUS_READ => 4,
+            WhatsAppMessage::STATUS_PLAYED => 5,
+        ];
+        $current = isset($rank[$message->status]) ? $rank[$message->status] : 0;
+        $next = isset($rank[$status]) ? $rank[$status] : 0;
+        if ($next <= $current) {
+            return;
+        }
+        $message->status = $status;
+        if ($status === WhatsAppMessage::STATUS_DELIVERED && ! $message->delivered_at) {
+            $message->delivered_at = Carbon::now();
+        }
+        if ($status === WhatsAppMessage::STATUS_READ && ! $message->read_at) {
+            $message->read_at = Carbon::now();
+        }
+        $message->save();
     }
 
     protected function savedName($name, $phone)

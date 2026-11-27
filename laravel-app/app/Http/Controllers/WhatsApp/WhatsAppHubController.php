@@ -649,8 +649,10 @@ class WhatsAppHubController extends Controller
         } catch (\Throwable $e) {
         }
         $payload['items'] = $conversations->map(function ($row) {
-            $person = optional($row->contact)->displayName() ?: 'WhatsApp';
-            $when = $row->last_activity_at ?: $row->updated_at;
+            $person = $this->personalHub()
+                ? app(\App\Services\Mai\PersonalHub::class)->label($row->contact)
+                : (optional($row->contact)->displayName() ?: 'WhatsApp');
+            $when = $this->personalHub() ? $row->last_activity_at : ($row->last_activity_at ?: $row->updated_at);
             $preview = trim((string) $row->last_message);
 
             return [
@@ -716,7 +718,7 @@ class WhatsAppHubController extends Controller
                 $rows = $rows->filter(function ($row) {
                     $digits = preg_replace('/\D/', '', (string) optional($row->contact)->normalized_phone);
 
-                    return strlen($digits) >= 8 && strlen($digits) <= 15;
+                    return $row->last_activity_at && strlen($digits) >= 8 && strlen($digits) <= 15;
                 })->values();
             }
             $stamp = (string) WhatsAppConversation::max('updated_at').'|'.(int) WhatsAppConversation::sum('unread_count');
