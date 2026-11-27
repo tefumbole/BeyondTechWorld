@@ -53,7 +53,13 @@
         <form id="awaiting-delete-form" method="POST" action="{{ route('payment.delete_selection') }}" style="display:none">@csrf</form>
 
         <div class="pay-card">
-        <div class="pay-card-head"><h2>Awaiting Payment</h2></div>
+        <div class="pay-card-head">
+            <h2>{{ isset($clientName) && $clientName !== '' ? $clientName : 'Awaiting Payment' }}</h2>
+            <p class="mb-0 text-muted">{{ isset($bills) ? 'One row per client. View opens the bills that make up that balance.' : 'These are the separate bills for this client.' }}</p>
+            @if(isset($clientName))
+                <p class="mb-0"><a href="{{ route('payment.index') }}">Back to clients</a></p>
+            @endif
+        </div>
         <div class="table-responsive">
             <table id="biller-table" class="table sale-list await-table">
                 <thead>
@@ -70,11 +76,47 @@
                 </tr>
                 </thead>
                 <tbody>
+                @if(isset($bills))
+                @foreach($bills as $key=>$bill)
+                    @php
+                        $dueNow = (int) round($bill['due']);
+                        $single = (int) $bill['orders'] === 1;
+                        $href = $single || ! $bill['customer_id']
+                            ? route('sale.invoice', $bill['sale_id'])
+                            : route('customer.awaiting.payments', $bill['customer_id']);
+                        $refLabel = $single
+                            ? ($bill['references'][0] ?? '')
+                            : $bill['orders'].' invoices';
+                    @endphp
+                    <tr class="clickable-row" data-id="{{ $bill['sale_id'] }}" data-sale-ids="{{ implode(',', $bill['sale_ids']) }}" data-href="{{ $href }}">
+                        <td>{{$key}}</td>
+                        <td>{{ $bill['name'] }}@if(! $single)<div class="small text-muted">{{ $bill['orders'] }} invoices</div>@endif</td>
+                        <td>{{ $bill['phone'] }}</td>
+                        <td>{{ number_format($bill['total'], 0) }}</td>
+                        <td>{{ number_format($bill['paid'], 0) }}</td>
+                        <td>{{ number_format($bill['due'], 0) }}</td>
+                        <td><span class="pay-pill {{ $bill['status'] === 'Partial' ? 'pay-pill-wait' : 'pay-pill-no' }}">{{ $bill['status'] }}</span></td>
+                        <td class="await-when" data-order="{{ $bill['latest_at'] ? $bill['latest_at']->timestamp : 0 }}">{{ $bill['latest_at'] ? $bill['latest_at']->format('d M Y H:i') : '' }}</td>
+                        <td>
+                            <div class="await-pay">
+                                @if($single && $dueNow >= 100)
+                                    <button type="button" class="request-payment btn btn-sm btn-primary" data-id="{{ $bill['sale_id'] }}" data-due="{{ $dueNow }}" data-name="{{ $bill['name'] }}" data-ref="{{ $refLabel }}"><i class="fa fa-whatsapp"></i> Request payment</button>
+                                @endif
+                                @if($single)
+                                    <button type="button" class="add-payment btn btn-sm btn-success" data-id="{{ $bill['sale_id'] }}" data-due="{{ $dueNow }}" data-name="{{ $bill['name'] }}" data-phone="{{ $bill['phone'] }}" data-ref="{{ $refLabel }}" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i>{{ trans('file.Add Payment') }}</button>
+                                @else
+                                    <a class="btn btn-sm btn-success" href="{{ $href }}">View</a>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
+                @endforeach
+                @else
                 @foreach($sales as $key=>$sale)
                     @php $dueNow = (int) round(max(0, (float) $sale->grand_total - (float) $sale->paid_amount)); @endphp
-                    <tr class="clickable-row" data-id="{{$sale->id}}" data-href="{{ route('sale.invoice', $sale->id) }}">
+                    <tr class="clickable-row" data-id="{{$sale->id}}" data-sale-ids="{{ $sale->id }}" data-href="{{ route('sale.invoice', $sale->id) }}">
                         <td>{{$key}}</td>
-                        <td>{{ optional($sale->customer)->name }}</td>
+                        <td>{{ optional($sale->customer)->name }}<div class="small text-muted">{{ $sale->reference_no }}</div></td>
                         <td>{{ optional($sale->customer)->phone_number }}</td>
                         <td>{{ number_format($sale->grand_total, 0) }}</td>
                         <td>{{ number_format((float) $sale->paid_amount, 0) }}</td>
@@ -91,6 +133,7 @@
                         </td>
                     </tr>
                 @endforeach
+                @endif
                 </tbody>
             </table>
         </div>
@@ -356,8 +399,12 @@
         function awaitingIds() {
             var ids = [];
             $('#biller-table tbody input.dt-checkboxes:checked').each(function () {
-                var id = $(this).closest('tr').data('id');
-                if (id) ids.push(id);
+                var row = $(this).closest('tr');
+                var raw = String(row.attr('data-sale-ids') || row.data('id') || '');
+                raw.split(',').forEach(function (part) {
+                    part = $.trim(part);
+                    if (part) ids.push(part);
+                });
             });
             return ids;
         }

@@ -188,17 +188,129 @@ class PaymentController extends Controller
     public function index()
     {
         $sales = $this->unpaidSales()->limit(250)->get();
+        $bills = $this->clientBills($sales);
         $lims_account_list = Account::with('departments')->orderByDesc('id')->get();
 
-        return view('payment.customer-data', compact('sales', 'lims_account_list'));
+        return view('payment.customer-data', compact('sales', 'bills', 'lims_account_list'));
+    }
+
+    /**
+     * One row per client, the way a bill is shown: every open invoice for that
+     * client is added together. Walk-in sales stay separate.
+     */
+    protected function clientBills($sales)
+    {
+        $buckets = [];
+        $loose = [];
+        foreach ($sales as $sale) {
+            $customer = $sale->customer;
+            $name = $customer ? trim((string) $customer->name) : '';
+            $shared = $name === '' || strcasecmp($name, 'Walk-in') === 0 || strcasecmp($name, 'WALKIN') === 0;
+            if (! $customer || $shared) {
+                $loose[] = $this->makeClientBill(collect([$sale]));
+                continue;
+            }
+            $buckets[$this->clientKey($customer)][] = $sale;
+        }
+        $bills = $loose;
+        foreach ($buckets as $rows) {
+            $bills[] = $this->makeClientBill(collect($rows));
+        }
+        usort($bills, function ($a, $b) {
+            return strcmp($b['latest'], $a['latest']);
+        });
+
+        return $bills;
+    }
+
+    protected function clientKey($customer)
+    {
+        $phone = preg_replace('/\D/', '', (string) $customer->phone_number);
+        if (strlen($phone) >= 9) {
+            return 'p:'.substr($phone, -9);
+        }
+
+        return 'c:'.(int) $customer->id;
+    }
+
+    protected function makeClientBill($sales)
+    {
+        $sales = $sales->sortByDesc(function ($sale) {
+            return $sale->created_at ? $sale->created_at->format('Y-m-d H:i:s') : '';
+        })->values();
+        $first = $sales->first();
+        $customer = $first ? $first->customer : null;
+        $total = 0;
+        $paid = 0;
+        $due = 0;
+        $ids = [];
+        $refs = [];
+        $pending = true;
+        $latest = null;
+        foreach ($sales as $sale) {
+            $saleDue = max(0, (float) $sale->grand_total - (float) $sale->paid_amount);
+            $total += (float) $sale->grand_total;
+            $paid += (float) $sale->paid_amount;
+            $due += $saleDue;
+            $ids[] = (int) $sale->id;
+            $refs[] = (string) $sale->reference_no;
+            if ((int) $sale->payment_status !== 1 || (float) $sale->paid_amount > 0.009) {
+                $pending = false;
+            }
+            if ($sale->created_at && (! $latest || $sale->created_at->gt($latest))) {
+                $latest = $sale->created_at;
+            }
+        }
+        if ($due <= 0.5) {
+            $status = 'Paid';
+        } elseif ($pending) {
+            $status = 'Pending';
+        } elseif ($paid > 0.5) {
+            $status = 'Partial';
+        } else {
+            $status = 'Due';
+        }
+
+        return [
+            'customer_id' => $customer ? (int) $customer->id : 0,
+            'name' => $customer ? (string) $customer->name : 'Client',
+            'phone' => $customer ? (string) $customer->phone_number : '',
+            'sale_ids' => $ids,
+            'references' => $refs,
+            'orders' => count($ids),
+            'total' => $total,
+            'paid' => $paid,
+            'due' => $due,
+            'status' => $status,
+            'latest' => $latest ? $latest->format('Y-m-d H:i:s') : '',
+            'latest_at' => $latest,
+            'sale_id' => $first ? (int) $first->id : 0,
+        ];
     }
 
     public function AwaitingPayments($id)
     {
-        $sales = $this->unpaidSales()->where('customer_id', $id)->limit(250)->get();
+        $customer = Customer::find($id);
+        $ids = [(int) $id];
+        if ($customer) {
+            $phone = preg_replace('/\D/', '', (string) $customer->phone_number);
+            if (strlen($phone) >= 9) {
+                $tail = substr($phone, -9);
+                $matched = Customer::where('phone_number', 'like', '%'.$tail)->get(['id', 'phone_number']);
+                foreach ($matched as $row) {
+                    $digits = preg_replace('/\D/', '', (string) $row->phone_number);
+                    if (substr($digits, -9) === $tail) {
+                        $ids[] = (int) $row->id;
+                    }
+                }
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        $sales = $this->unpaidSales()->whereIn('customer_id', $ids)->limit(250)->get();
         $lims_account_list = Account::with('departments')->orderByDesc('id')->get();
+        $clientName = $customer ? (string) $customer->name : '';
 
-        return view('payment.customer-data', compact('sales', 'lims_account_list'));
+        return view('payment.customer-data', compact('sales', 'lims_account_list', 'clientName'));
     }
 
     public function deleteSelection(Request $request)
