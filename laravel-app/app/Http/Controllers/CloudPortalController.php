@@ -648,6 +648,11 @@ class CloudPortalController extends Controller
         }
         Auth::login($account);
         $request->session()->regenerate();
+        if (\App\Support\MaiPhone::android($request)) {
+            return view('cloud.portal.mai_install', [
+                'next' => route('whatsapp.mai.home'),
+            ]);
+        }
 
         return $this->maiEntry();
     }

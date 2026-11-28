@@ -213,6 +213,35 @@ class MaiCustomerEntryTest extends TestCase
         $this->assertSame('p237670000505', $session->worker_session_id);
     }
 
+    public function test_an_android_phone_opens_the_sent_link_on_the_download_button_and_links_by_code_only()
+    {
+        $user = $this->person('Faye', '237670000506');
+        $this->script(['status' => 'CONNECTED', 'phone' => '237670000506']);
+        $url = \URL::temporarySignedRoute('whatsapp.mai.enter', now()->addDay(), ['user' => $user->id]);
+        $parts = parse_url($url);
+        $android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+
+        $page = $this->withHeader('User-Agent', $android)->get($parts['path'].'?'.$parts['query']);
+        $page->assertOk();
+        $html = $page->getContent();
+        $download = strpos($html, 'Download for Android');
+        $continue = strpos($html, 'Continue to Whats MAI');
+        $this->assertNotFalse($download);
+        $this->assertNotFalse($continue);
+        $this->assertLessThan($continue, $download);
+
+        $this->script(['status' => 'NOT_CONNECTED']);
+        $this->actingAs($user);
+        $this->withHeader('User-Agent', $android)->get('/whatsapp-mai/link')
+            ->assertOk()
+            ->assertSee('Get the code')
+            ->assertDontSee('Scan QR');
+        $iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+        $this->withHeader('User-Agent', $iphone)->get('/whatsapp-mai/link')
+            ->assertOk()
+            ->assertDontSee('Scan QR');
+    }
+
     public function test_a_signed_out_visitor_is_sent_to_mai_sign_in_once()
     {
         $this->get('/whatsapp-mai/inbox')->assertRedirect('/whatsapp-mai/open');

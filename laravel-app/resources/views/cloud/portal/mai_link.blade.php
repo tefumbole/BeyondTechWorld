@@ -51,14 +51,20 @@
                 <a class="mai-signin" href="{{ route('whatsapp.mai.home') }}">Close</a>
             </div>
             <h1>Link WhatsApp</h1>
-            <p>Link by code is the usual way. Enter this phone’s WhatsApp number and type the code in WhatsApp. Use Scan QR when another screen can scan.</p>
+            @if(!empty($codeOnly))
+                <p>Enter this phone’s WhatsApp number. Type the code in WhatsApp under Linked devices.</p>
+            @else
+                <p>Link by code is the usual way. Enter this phone’s WhatsApp number and type the code in WhatsApp. Use Scan QR when another screen can scan.</p>
+            @endif
             @if(session('message'))<p class="note">{{ session('message') }}</p>@endif
             @if(session('not_permitted'))<p class="bad">{{ session('not_permitted') }}</p>@endif
             <p class="bad is-off" id="link-error">@if(!empty($session['error'])){{ $session['error'] }}@endif</p>
+            @if(empty($codeOnly))
             <div class="link-choices">
                 <button type="button" class="gold" id="choose-code" aria-pressed="true">Link by code</button>
                 <button type="button" class="ghost" id="choose-qr" aria-pressed="false">Scan QR</button>
             </div>
+            @endif
             <div class="pair-form" id="pair-form">
                 <label for="link-dial">Country code</label>
                 <select id="link-dial">
@@ -94,6 +100,7 @@
                 <p id="qr-timer"></p>
                 <button type="button" class="ghost is-off" id="pair-fresh">Create a new code</button>
             </div>
+            @if(empty($codeOnly))
             <div class="qr-card is-off" id="qr-card">
                 <img id="link-qr" alt="WhatsApp QR code" class="is-off">
                 <div id="qr-wait" class="qr-wait">Preparing the QR code</div>
@@ -103,6 +110,7 @@
                 </div>
             </div>
             <button type="button" class="ghost is-off" id="qr-refresh">Refresh QR code</button>
+            @endif
             <p id="link-ready" class="note {{ ($session['status'] ?? '') === 'CONNECTED' ? '' : 'is-off' }}">WhatsApp is linked for this phone.</p>
             <a class="gold" id="open-mai" href="{{ route('whatsapp.mai.home') }}">Open Whats MAI on this computer</a>
         </div>

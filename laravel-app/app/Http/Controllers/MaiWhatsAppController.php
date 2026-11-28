@@ -33,6 +33,7 @@ class MaiWhatsAppController extends Controller
         return view('cloud.portal.mai_link', [
             'phone' => $phone,
             'session' => $session,
+            'codeOnly' => \App\Support\MaiPhone::is(request()),
         ]);
     }
 
