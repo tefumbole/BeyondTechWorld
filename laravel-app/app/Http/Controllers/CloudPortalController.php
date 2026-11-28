@@ -330,6 +330,9 @@ class CloudPortalController extends Controller
         if ($plan === 'trial') {
             $this->grantMaiTrial($user);
         }
+        app(\App\Services\Mai\PersonalHub::class)->ensure($user->fresh() ?: $user);
+        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLinkOnce($phone);
+
         return response()->json([
             'status' => 'CONNECTED',
             'redirect' => route('whatsapp.mai.inbox'),

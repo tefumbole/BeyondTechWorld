@@ -126,7 +126,7 @@ class MaiCustomerEntryTest extends TestCase
         $this->actingAs($user);
 
         $this->get('/whatsapp-mai/open')->assertRedirect('/whatsapp-mai/link');
-        $this->get('/whatsapp-mai/link')->assertOk()->assertSee('Link WhatsApp')->assertSee('Scan QR code')->assertDontSee('link/otp');
+        $this->get('/whatsapp-mai/link')->assertOk()->assertSee('Link by code')->assertSee('Scan QR')->assertDontSee('link/otp');
         $this->post('/whatsapp-mai/link/otp')->assertRedirect('/whatsapp-mai/link');
         $this->post('/whatsapp-mai/link/otp/verify', ['code' => '123456'])->assertRedirect('/whatsapp-mai/link');
         $this->assertNotContains('POST /sessions/p237670000502/pair', $this->posted());
@@ -192,6 +192,25 @@ class MaiCustomerEntryTest extends TestCase
         $page->assertOk()->assertSee('WhatsApp is reconnecting');
         $this->get('/whatsapp-mai/inbox?open=1&chat='.$chat->id)->assertJson(['ok' => false]);
         $this->assertNotContains('POST /sessions', $this->posted());
+    }
+
+    public function test_a_confirmed_link_sends_the_open_link_to_that_phone_and_creates_its_session()
+    {
+        $user = $this->person('Ema', '237670000505');
+        $this->script(['status' => 'CONNECTED', 'phone' => '237670000505']);
+        $this->actingAs($user);
+
+        $this->getJson('/whatsapp-mai/link/status')
+            ->assertOk()
+            ->assertJsonPath('status', 'CONNECTED');
+        $sent = (string) session('mai_phone_link_sent');
+        $this->assertNotSame('', $sent);
+        $this->assertStringContainsString('670000505', $sent);
+        $this->assertStringNotContainsString('675321739', $sent);
+        $session = MaiSession::where('user_id', $user->id)->first();
+        $this->assertNotNull($session);
+        $this->assertSame('237670000505', $session->phone_number);
+        $this->assertSame('p237670000505', $session->worker_session_id);
     }
 
     public function test_a_signed_out_visitor_is_sent_to_mai_sign_in_once()

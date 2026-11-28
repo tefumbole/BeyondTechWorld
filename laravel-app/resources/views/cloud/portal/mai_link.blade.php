@@ -29,6 +29,9 @@
     }
     .ghost { display: block; width: 100%; background: transparent; color: #F5D76E; border: 1px solid rgba(212,175,55,.75); border-radius: 999px; font-weight: 800; padding: 0.75rem 1.2rem; margin-top: 0.7rem; cursor: pointer; text-align: center; }
     .ghost[disabled] { opacity: .45; cursor: default; }
+    .link-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 0.8rem; }
+    .link-choices .gold, .link-choices .ghost { margin-top: 0; }
+    .link-choices .is-idle { background: transparent; color: #F5D76E; border: 1px solid rgba(212,175,55,.75); }
     .note { background: rgba(212,175,55,.16); border-radius: 12px; padding: 0.65rem 0.75rem; }
     .bad { background: #fdecec; color: #7f1d1d; border-radius: 12px; padding: 0.65rem 0.75rem; }
     .is-off { display: none !important; }
@@ -48,10 +51,14 @@
                 <a class="mai-signin" href="{{ route('whatsapp.mai.home') }}">Close</a>
             </div>
             <h1>Link WhatsApp</h1>
-            <p>Use this phone. Enter the WhatsApp number, then type the code in WhatsApp. A second screen can scan a QR code instead.</p>
+            <p>Link by code is the usual way. Enter this phone’s WhatsApp number and type the code in WhatsApp. Use Scan QR when another screen can scan.</p>
             @if(session('message'))<p class="note">{{ session('message') }}</p>@endif
             @if(session('not_permitted'))<p class="bad">{{ session('not_permitted') }}</p>@endif
             <p class="bad is-off" id="link-error">@if(!empty($session['error'])){{ $session['error'] }}@endif</p>
+            <div class="link-choices">
+                <button type="button" class="gold" id="choose-code" aria-pressed="true">Link by code</button>
+                <button type="button" class="ghost" id="choose-qr" aria-pressed="false">Scan QR</button>
+            </div>
             <div class="pair-form" id="pair-form">
                 <label for="link-dial">Country code</label>
                 <select id="link-dial">
@@ -62,7 +69,7 @@
                 </select>
                 <label for="link-phone">WhatsApp number</label>
                 <input id="link-phone" inputmode="tel" autocomplete="tel" value="{{ $phone }}" placeholder="670000000">
-                <button type="button" class="gold" id="pair-go">Link with phone number</button>
+                <button type="button" class="gold" id="pair-go">Get the code</button>
             </div>
             <div class="qr-card is-off" id="pair-card">
                 <div id="pair-code" class="pair-code"></div>
@@ -95,7 +102,6 @@
                     <p>On the other screen, open WhatsApp, then Linked devices, then Link a device, and scan this code.</p>
                 </div>
             </div>
-            <button type="button" class="ghost" id="qr-show">Scan QR code</button>
             <button type="button" class="ghost is-off" id="qr-refresh">Refresh QR code</button>
             <p id="link-ready" class="note {{ ($session['status'] ?? '') === 'CONNECTED' ? '' : 'is-off' }}">WhatsApp is linked for this phone.</p>
             <a class="gold" id="open-mai" href="{{ route('whatsapp.mai.home') }}">Open Whats MAI on this computer</a>
@@ -268,15 +274,42 @@
         }).then(function (response) { return response.json(); });
     }
 
+    function markChoice(which) {
+        var code = document.getElementById('choose-code');
+        var qr = document.getElementById('choose-qr');
+        if (code) {
+            code.classList.toggle('is-idle', which !== 'code');
+            code.setAttribute('aria-pressed', which === 'code' ? 'true' : 'false');
+        }
+        if (qr) {
+            qr.classList.toggle('is-idle', which !== 'qr');
+            qr.setAttribute('aria-pressed', which === 'qr' ? 'true' : 'false');
+        }
+    }
+
+    function showCodeForm() {
+        mode = 'phone';
+        markChoice('code');
+        var form = document.getElementById('pair-form');
+        var card = document.getElementById('qr-card');
+        var refresh = document.getElementById('qr-refresh');
+        if (form) form.classList.remove('is-off');
+        if (card) card.classList.add('is-off');
+        if (refresh) refresh.classList.add('is-off');
+    }
+
     function refreshQr() {
         if (refreshing) return;
         refreshing = true;
         mode = 'qr';
+        markChoice('qr');
         var refresh = document.getElementById('qr-refresh');
         var card = document.getElementById('qr-card');
         var pairCard = document.getElementById('pair-card');
+        var form = document.getElementById('pair-form');
         if (card) card.classList.remove('is-off');
         if (pairCard) pairCard.classList.add('is-off');
+        if (form) form.classList.add('is-off');
         if (refresh) {
             refresh.disabled = true;
             refresh.textContent = 'Refreshing…';
@@ -335,8 +368,11 @@
 
     var refreshBtn = document.getElementById('qr-refresh');
     if (refreshBtn) refreshBtn.onclick = refreshQr;
-    var showQrBtn = document.getElementById('qr-show');
-    if (showQrBtn) showQrBtn.onclick = refreshQr;
+    var chooseQr = document.getElementById('choose-qr');
+    if (chooseQr) chooseQr.onclick = refreshQr;
+    var chooseCode = document.getElementById('choose-code');
+    if (chooseCode) chooseCode.onclick = showCodeForm;
+    markChoice('code');
     var pairBtn = document.getElementById('pair-go');
     if (pairBtn) pairBtn.onclick = function () { requestCode(false); };
     var freshBtn = document.getElementById('pair-fresh');

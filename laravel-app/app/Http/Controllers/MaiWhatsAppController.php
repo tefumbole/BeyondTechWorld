@@ -255,6 +255,7 @@ class MaiWhatsAppController extends Controller
             $user->save();
         }
         app(\App\Services\Mai\PersonalHub::class)->ensure($user->fresh() ?: $user);
+        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLinkOnce($phone);
 
         return true;
     }
