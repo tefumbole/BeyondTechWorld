@@ -534,6 +534,7 @@ Route::post('/whatsapp-mai/plan', 'CloudPortalController@whatsappMaiPlanStore')-
 Route::get('/whatsapp-mai/pay/{payment}', 'CloudPortalController@whatsappMaiPay')->name('whatsapp.mai.pay');
 Route::get('/whatsapp-mai/link', 'MaiWhatsAppController@show')->name('whatsapp.mai.link');
 Route::get('/whatsapp-mai/link/status', 'MaiWhatsAppController@status')->name('whatsapp.mai.link.status');
+Route::post('/whatsapp-mai/link/qr', 'MaiWhatsAppController@refreshQr')->middleware('throttle:12,1')->name('whatsapp.mai.link.qr');
 Route::post('/whatsapp-mai/link/pair', 'MaiWhatsAppController@pair')->middleware('throttle:6,1')->name('whatsapp.mai.link.pair');
 Route::post('/whatsapp-mai/link/otp', 'MaiWhatsAppController@sendLinkOtp')->middleware('throttle:10,10')->name('whatsapp.mai.link.otp');
 Route::post('/whatsapp-mai/link/otp/verify', 'MaiWhatsAppController@verifyLinkOtp')->middleware('throttle:10,10')->name('whatsapp.mai.link.otp.verify');

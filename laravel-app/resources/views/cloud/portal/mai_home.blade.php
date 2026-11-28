@@ -48,7 +48,7 @@
                     @endforelse
                 @endif
             @else
-                <p>This computer is open for {{ $user->phone }}. WhatsApp is not linked yet, so there is nothing to open until the phone approves the QR code or the link code.</p>
+                <p>This computer is open for {{ $user->phone }}. WhatsApp is not linked yet. Scan the QR code on the link page, then open Whats MAI here.</p>
                 @if(!empty($session['error']))<p class="note">{{ $session['error'] }}</p>@endif
                 <p><a href="{{ route('whatsapp.mai.link') }}" style="color:#F5D76E;">Link WhatsApp</a></p>
                 <p><a class="gold" href="{{ route('whatsapp.mai.plan') }}">Choose a longer plan</a></p>

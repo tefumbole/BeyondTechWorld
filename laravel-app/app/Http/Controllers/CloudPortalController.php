@@ -223,15 +223,14 @@ class CloudPortalController extends Controller
                 'redirect' => route('whatsapp.mai.inbox'),
             ]);
         }
-        $wantPair = $request->input('link') === 'code';
-        if ($wantPair && ($state['status'] ?? '') !== 'CONNECTED') {
-            $state = $engine->pair($phone);
+        if (empty($state['qr']) && ($state['status'] ?? '') !== 'CONNECTED') {
+            $state = $engine->refreshQr($phone);
         }
 
         return response()->json([
             'status' => isset($state['status']) ? $state['status'] : 'NOT_CONNECTED',
             'qr' => isset($state['qr']) ? $state['qr'] : null,
-            'pairing_code' => isset($state['pairing_code']) ? $state['pairing_code'] : null,
+            'qr_age_ms' => isset($state['qr_age_ms']) ? (int) $state['qr_age_ms'] : 0,
             'error' => isset($state['error']) ? $state['error'] : null,
         ]);
     }

@@ -80,10 +80,13 @@ function samePhone(expected, reported) {
 }
 
 function publicState(entry, withQr) {
+  const qr = withQr && entry.status !== 'CONNECTED' ? (entry.qr || null) : null
+  const age = qr && entry.qrAt ? Math.max(0, Date.now() - entry.qrAt) : 0
   return {
     status: entry.status,
     phone: entry.phone || null,
-    qr: withQr && entry.status !== 'CONNECTED' ? (entry.qr || null) : null,
+    qr,
+    qr_age_ms: age,
     pairing_code: entry.pairing || null,
     error: entry.error || null,
   }
@@ -848,6 +851,7 @@ async function startSocket(id, expected) {
       const image = await QRCode.toDataURL(update.qr)
       if (!current()) return
       entry.qr = image
+      entry.qrAt = Date.now()
       entry.status = 'AWAITING_QR'
       entry.error = null
     }
@@ -927,6 +931,38 @@ function waitForQr(entry, ms) {
       }
     }, 200)
   })
+}
+
+async function forceQr(id) {
+  const expected = id.indexOf('p') === 0 ? id.slice(1) : ''
+  const existing = sessions.get(id)
+  if (existing && existing.status === 'CONNECTED') {
+    return publicState(existing, true)
+  }
+  if (existing && existing.sock) {
+    existing.generation = (existing.generation || 0) + 1
+    const previous = existing.sock
+    existing.sock = null
+    try { previous.end(undefined) } catch (e) {}
+  }
+  const dir = sessionDir(id)
+  unlinkKeepHistory(dir)
+  if (existing) {
+    existing.qr = null
+    existing.pairing = null
+    existing.registered = false
+    existing.status = 'AWAITING_QR'
+    existing.error = null
+    existing.retries = 0
+    existing.readAsked = false
+    existing.bookAsked = false
+  }
+  const entry = await startSocket(id, expected)
+  if (!entry.qr && entry.status !== 'CONNECTED') {
+    await waitForQr(entry, 12000)
+  }
+  entry.qrAt = entry.qr ? Date.now() : 0
+  return publicState(entry, true)
 }
 
 async function pairingFor(id) {
@@ -1226,6 +1262,14 @@ const server = http.createServer((req, res) => {
       send(res, 422, { error: 'invalid' })
       return
     }
+    if (req.method === 'POST' && parts[2] === 'qr') {
+      forceQr(id).then((payload) => send(res, 200, payload)).catch((error) => {
+        const message = error && error.message ? String(error.message).slice(0, 180) : 'The QR code could not be created.'
+        console.error('qr refresh failed', message)
+        send(res, 200, { status: 'ERROR', phone: null, qr: null, qr_age_ms: 0, pairing_code: null, error: message })
+      })
+      return
+    }
     if (req.method === 'POST' && parts[2] === 'pair') {
       pairingFor(id).then((payload) => send(res, 200, payload)).catch((error) => {
         const message = error && error.message ? String(error.message).slice(0, 180) : 'The link code could not be created.'
@@ -1363,16 +1407,23 @@ const server = http.createServer((req, res) => {
         const state = entry || { status: 'NOT_CONNECTED', phone: null, qr: null, pairing: null, error: null }
         const ready = !wantQr || state.qr || state.status === 'CONNECTED' || state.status === 'ERROR'
           ? Promise.resolve()
-          : waitForQr(state, 6000)
+          : waitForQr(state, 10000)
         ready.then(() => send(res, 200, publicState(state, wantQr)))
       }
       const entry = sessions.get(id)
+      if (wantQr && url.searchParams.get('refresh') === '1') {
+        forceQr(id).then((payload) => send(res, 200, payload)).catch((error) => {
+          const message = error && error.message ? String(error.message).slice(0, 180) : 'The QR code could not be created.'
+          send(res, 200, { status: 'ERROR', phone: null, qr: null, qr_age_ms: 0, pairing_code: null, error: message })
+        })
+        return
+      }
       const stale = !entry || !entry.sock || entry.status === 'ERROR' || entry.status === 'DISCONNECTED' || entry.status === 'UNLINKED' || entry.status === 'NOT_CONNECTED'
       if (wantQr && stale) {
         const expected = id.indexOf('p') === 0 ? id.slice(1) : ''
         startSocket(id, expected).then(finish).catch((error) => {
           const message = error && error.message ? String(error.message).slice(0, 180) : 'The QR code could not be created.'
-          send(res, 200, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: message })
+          send(res, 200, { status: 'ERROR', phone: null, qr: null, qr_age_ms: 0, pairing_code: null, error: message })
         })
         return
       }

@@ -26,11 +26,34 @@ class MaiWhatsAppController extends Controller
             return redirect()->route('whatsapp.mai.inbox');
         }
 
+        if (empty($session['qr'])) {
+            $session = $engine->refreshQr($user->phone);
+        }
+
         return view('cloud.portal.mai_link', [
             'phone' => $user->phone,
             'session' => $session,
-            'linkTab' => session('link_tab') === 'code' ? 'code' : 'qr',
-            'otpSent' => (bool) session('link_otp_sent'),
+        ]);
+    }
+
+    public function refreshQr()
+    {
+        $user = $this->person();
+        if (! $user) {
+            return response()->json(['status' => 'NOT_CONNECTED'], 401);
+        }
+        $state = app(MaiWhatsAppEngine::class)->refreshQr($user->phone);
+        $redirect = null;
+        if (($state['status'] ?? '') === 'CONNECTED' && ! \App\Services\Mai\MaiBusinessLine::is($user->phone)) {
+            $redirect = route('whatsapp.mai.inbox');
+        }
+
+        return response()->json([
+            'status' => $state['status'],
+            'qr' => $state['qr'],
+            'qr_age_ms' => isset($state['qr_age_ms']) ? (int) $state['qr_age_ms'] : 0,
+            'error' => $state['error'],
+            'redirect' => $redirect,
         ]);
     }
 
@@ -105,7 +128,7 @@ class MaiWhatsAppController extends Controller
         return response()->json([
             'status' => $state['status'],
             'qr' => $state['qr'],
-            'pairing_code' => $state['pairing_code'],
+            'qr_age_ms' => isset($state['qr_age_ms']) ? (int) $state['qr_age_ms'] : 0,
             'error' => $state['error'],
             'redirect' => $redirect,
             'messages' => $state['status'] === 'CONNECTED' ? $engine->messages($user->phone) : [],

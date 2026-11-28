@@ -44,6 +44,17 @@ class MaiWhatsAppEngine
         return $this->shape($this->request('POST', '/sessions/'.$id.'/pair', [], 25));
     }
 
+    public function refreshQr($phone)
+    {
+        $id = $this->id($phone);
+        if ($id === '') {
+            return $this->blank('ERROR');
+        }
+        $payload = $this->request('POST', '/sessions/'.$id.'/qr', [], 30);
+
+        return $this->shape($payload);
+    }
+
     public function chats($phone)
     {
         $id = $this->id($phone);
@@ -395,6 +406,7 @@ class MaiWhatsAppEngine
             'status' => $status,
             'phone' => null,
             'qr' => null,
+            'qr_age_ms' => 0,
             'pairing_code' => null,
             'error' => null,
         ];
@@ -414,6 +426,7 @@ class MaiWhatsAppEngine
             'status' => (string) $payload['status'],
             'phone' => isset($payload['phone']) ? (string) $payload['phone'] : null,
             'qr' => $qr !== '' ? $qr : null,
+            'qr_age_ms' => isset($payload['qr_age_ms']) ? (int) $payload['qr_age_ms'] : 0,
             'pairing_code' => isset($payload['pairing_code']) && $payload['pairing_code'] !== '' ? (string) $payload['pairing_code'] : null,
             'error' => isset($payload['error']) && $payload['error'] !== '' ? (string) $payload['error'] : null,
         ];
