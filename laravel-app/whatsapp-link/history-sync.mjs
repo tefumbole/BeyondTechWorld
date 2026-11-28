@@ -2,6 +2,20 @@ export function historyMarkerComplete(contents) {
   return String(contents == null ? '' : contents).trim() === '100'
 }
 
+export function historySyncNote(decision, counts) {
+  const note = {
+    kind: 'history',
+    syncType: decision && decision.syncType != null ? decision.syncType : null,
+    progress: decision && decision.progress != null ? decision.progress : null,
+    ready: !!(decision && decision.complete),
+  }
+  if (note.ready) {
+    note.contacts = counts && counts.contacts != null ? Number(counts.contacts) : 0
+    note.chats = counts && counts.chats != null ? Number(counts.chats) : 0
+  }
+  return note
+}
+
 export function classifyHistory(payload, pendingJid) {
   const messages = payload && Array.isArray(payload.messages) ? payload.messages : []
   const syncType = payload && payload.syncType != null ? Number(payload.syncType) : null

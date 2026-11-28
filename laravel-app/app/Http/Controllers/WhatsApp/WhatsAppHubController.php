@@ -335,9 +335,9 @@ class WhatsAppHubController extends Controller
                 $personal->connected_at = $personal->connected_at ?: \Carbon\Carbon::now();
                 $personal->save();
             }
-            if (! $request->get('poll') && ! \App\Support\MaiPhone::is($request)) {
+            if (! $request->get('poll')) {
                 try {
-                    app(\App\Services\Mai\PersonalHub::class)->sync($personal);
+                    app(\App\Services\Mai\MaiSync::class)->pull($personal->fresh() ?: $personal);
                 } catch (\Throwable $e) {
                 }
             }
@@ -354,8 +354,16 @@ class WhatsAppHubController extends Controller
         if ($request->get('poll')) {
             if ($personal = $this->personalHub()) {
                 try {
-                    app(\App\Services\Mai\PersonalHub::class)->sync($personal, false);
+                    app(\App\Services\Mai\MaiSync::class)->pull($personal->fresh() ?: $personal);
                 } catch (\Throwable $e) {
+                }
+                $gate = 'mai.sync.heavy.'.$personal->id;
+                if (! \Illuminate\Support\Facades\Cache::has($gate)) {
+                    \Illuminate\Support\Facades\Cache::put($gate, 1, now()->addSeconds(12));
+                    try {
+                        app(\App\Services\Mai\PersonalHub::class)->sync($personal->fresh() ?: $personal, false);
+                    } catch (\Throwable $e) {
+                    }
                 }
             }
             if ($request->get('names')) {
@@ -385,16 +393,14 @@ class WhatsAppHubController extends Controller
         $conversations = $this->inboxConversations();
         $personal = $this->personalHub();
         $groups = [];
-        if ($personal && ! \App\Support\MaiPhone::is($request)) {
-            $groups = app(\App\Services\Mai\PersonalHub::class)->groups($personal);
-        } else {
+        if (! $personal) {
             try {
                 $groups = app(\App\Services\WhatsApp\GroupContactExportService::class)->namedGroups();
             } catch (\Throwable $e) {
                 $groups = [];
             }
+            $groups = $this->mergeLiveGroups($groups, $this->liveGroupRows());
         }
-        $groups = $this->mergeLiveGroups($groups, $this->liveGroupRows());
         $open = null;
         $messages = collect();
         $hasEarlier = false;
@@ -519,6 +525,9 @@ class WhatsAppHubController extends Controller
         $hubDashboard = $personalHub ? route('whatsapp.mai.account') : route('whatsapp.index');
         $historyReady = ! $personal || ! Schema::hasColumn('mai_sessions', 'history_ready') || (bool) $personal->history_ready;
         $historyProgress = $personal ? \Illuminate\Support\Facades\Cache::get('mai.sync.'.$personal->id) : null;
+        $syncStatus = ($personal && Schema::hasColumn('mai_sessions', 'history_ready'))
+            ? app(\App\Services\Mai\MaiSync::class)->view($personal->fresh() ?: $personal)
+            : null;
         $announce = ($personal && $pane === 'announcements')
             ? app(\App\Http\Controllers\AnnouncementManagerController::class)->composeState($request)
             : null;
@@ -541,40 +550,13 @@ class WhatsAppHubController extends Controller
             }
         }
 
-        $directory = [];
-        if ($personal && Schema::hasTable('mai_peers')) {
-            $knownPhones = [];
-            foreach ($conversations as $row) {
-                $digits = preg_replace('/\D/', '', (string) optional($row->contact)->normalized_phone);
-                if ($digits !== '') {
-                    $knownPhones[$digits] = true;
-                }
-            }
-            $identity = app(\App\Services\Mai\MaiIdentity::class);
-            foreach (\App\Mai\MaiPeer::where('mai_session_id', $personal->id)->where('remote_jid', 'like', '%@s.whatsapp.net')->orderBy('saved_name')->limit(200)->get() as $peer) {
-                $digits = preg_replace('/\D/', '', (string) $peer->phone_digits);
-                $name = trim((string) $peer->saved_name);
-                if ($name === '' || isset($knownPhones[$digits]) || strlen($digits) < 8 || strlen($digits) > 13) {
-                    continue;
-                }
-                $distinct = $name !== trim((string) $peer->profile_name);
-                if (isset($directory[$digits]) && ! ($distinct && empty($directory[$digits]['distinct']))) {
-                    continue;
-                }
-                $directory[$digits] = [
-                    'name' => $name,
-                    'phone' => $digits,
-                    'aliases' => implode(' ', $identity->searchAliases($digits)),
-                    'distinct' => $distinct,
-                ];
-            }
-        }
+        $directory = $personal ? $this->savedDirectory($personal, $conversations) : [];
 
         return response()
             ->view('whatsapp_hub.chats', compact(
                 'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
                 'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
-                'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady', 'historyProgress',
+                'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady', 'historyProgress', 'syncStatus',
                 'briefs', 'maiAppLink', 'directory', 'hubRoute', 'hubDashboard'
             ))
             ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
@@ -767,13 +749,19 @@ class WhatsAppHubController extends Controller
 
         list($conversations, $stamp) = $this->inboxSnapshot();
         $payload['stamp'] = $stamp;
+        $ownBook = (bool) $this->personalHub();
+        if ($ownBook) {
+            $payload['sync'] = app(\App\Services\Mai\MaiSync::class)->view($this->personalHub()->fresh() ?: $this->personalHub());
+        }
         if ((string) $request->get('stamp') === $stamp) {
             $payload['list'] = false;
 
             return $payload;
         }
         $payload['list'] = true;
-        $ownBook = (bool) $this->personalHub();
+        if ($ownBook) {
+            $payload['directory'] = array_values($this->savedDirectory($this->personalHub(), $conversations));
+        }
         if (! $ownBook) {
             try {
                 $this->conversations->preferPhoneNames($conversations, false);
@@ -950,6 +938,41 @@ class WhatsAppHubController extends Controller
         return $rows;
     }
 
+    protected function savedDirectory($personal, $conversations)
+    {
+        $directory = [];
+        if (! $personal || ! Schema::hasTable('mai_peers')) {
+            return $directory;
+        }
+        $knownPhones = [];
+        foreach ($conversations as $row) {
+            $digits = preg_replace('/\D/', '', (string) optional($row->contact)->normalized_phone);
+            if ($digits !== '') {
+                $knownPhones[$digits] = true;
+            }
+        }
+        $identity = app(\App\Services\Mai\MaiIdentity::class);
+        foreach (\App\Mai\MaiPeer::where('mai_session_id', $personal->id)->where('remote_jid', 'like', '%@s.whatsapp.net')->orderBy('saved_name')->limit(200)->get() as $peer) {
+            $digits = preg_replace('/\D/', '', (string) $peer->phone_digits);
+            $name = trim((string) $peer->saved_name);
+            if ($name === '' || isset($knownPhones[$digits]) || strlen($digits) < 8 || strlen($digits) > 13) {
+                continue;
+            }
+            $distinct = $name !== trim((string) $peer->profile_name);
+            if (isset($directory[$digits]) && ! ($distinct && empty($directory[$digits]['distinct']))) {
+                continue;
+            }
+            $directory[$digits] = [
+                'name' => $name,
+                'phone' => $digits,
+                'aliases' => implode(' ', $identity->searchAliases($digits)),
+                'distinct' => $distinct,
+            ];
+        }
+
+        return $directory;
+    }
+
     protected function inboxSnapshot()
     {
         $load = function () {
@@ -975,6 +998,10 @@ class WhatsAppHubController extends Controller
             $stamp = (string) $rows->max('updated_at').'|'.(int) $rows->sum('unread_count');
             if ($personal && $rows->isNotEmpty()) {
                 $stamp .= '|'.(int) WhatsAppMessage::whereIn('conversation_id', $rows->pluck('id')->all())->max('id');
+            }
+            if ($personal && Schema::hasTable('mai_peers')) {
+                $stamp .= '|'.(string) \App\Mai\MaiPeer::where('mai_session_id', $personal->id)->max('updated_at');
+                $stamp .= '|'.(int) \App\Mai\MaiPeer::where('mai_session_id', $personal->id)->count();
             }
 
             return [$rows, $stamp];

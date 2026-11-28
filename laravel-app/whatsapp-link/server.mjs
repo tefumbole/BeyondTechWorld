@@ -23,7 +23,7 @@ import {
   unlinkKeepHistory,
   unsealCreds,
 } from './session-store.mjs'
-import { classifyHistory, historyMarkerComplete } from './history-sync.mjs'
+import { classifyHistory, historyMarkerComplete, historySyncNote } from './history-sync.mjs'
 import { bundledBaileysVersion, chooseClientVersion, shouldSyncFullHistory } from './client-version.mjs'
 import { findStoredMessage, mediaLimitReason, mediaMaxBytes, mediaTooLarge } from './store-lookup.mjs'
 import { keepSavedName } from './name-rules.mjs'
@@ -796,7 +796,9 @@ async function startSocketNow(id, expected) {
   loadSavedChats(entry)
   entry.generation = (entry.generation || 0) + 1
   const savedChats = Object.keys(entry.chats || {}).length
-  entry.recoverChats = savedChats === 0
+  const registered = !!(state.creds && state.creds.registered)
+  const historyOpen = !historyIsComplete(dir)
+  entry.recoverChats = savedChats === 0 || (registered && historyOpen)
   if (entry.recoverChats && state.creds) {
     if (Array.isArray(state.creds.processedHistoryMessages) && state.creds.processedHistoryMessages.length) {
       state.creds.processedHistoryMessages = []
@@ -813,7 +815,7 @@ async function startSocketNow(id, expected) {
   if (!entry.chats) entry.chats = {}
   if (expected) entry.expected = expected
   let keptQr = entry.qr || null
-  entry.registered = !!(state.creds && state.creds.registered)
+  entry.registered = registered
   entry.status = entry.status === 'CONNECTED' ? 'CONNECTED' : (entry.registered && !keptQr ? 'CONNECTING' : 'AWAITING_QR')
   if (entry.scanned && entry.status !== 'CONNECTED') {
     entry.status = 'CONNECTING'
@@ -900,7 +902,10 @@ async function startSocketNow(id, expected) {
       })
       return
     }
-    note(entry, { kind: 'history', syncType: decision.syncType, progress: decision.progress, ready: decision.complete })
+    note(entry, historySyncNote(decision, {
+      contacts: contactRows(entry).length,
+      chats: chatRows(entry).length,
+    }))
     if (decision.complete) {
       try { fs.writeFileSync(path.join(sessionDir(entry.id), 'history.ready'), '100') } catch (e) {}
     }
@@ -999,6 +1004,10 @@ async function startSocketNow(id, expected) {
       if (alias && alias !== id) {
         sessions.set(alias, entry)
       }
+      if (!historyIsComplete(dir) && !entry.syncNoted) {
+        entry.syncNoted = true
+        note(entry, { kind: 'history', phase: 'started' })
+      }
       pullAddressBook(entry, sock, dir)
       keepAddressBookFresh(entry, sock, dir)
       pullReadState(entry, sock, dir)
@@ -1011,6 +1020,7 @@ async function startSocketNow(id, expected) {
           })
           .catch((error) => {
             const message = error && error.message ? String(error.message) : 'sync failed'
+            note(entry, { kind: 'history', phase: 'failed' })
             console.error('mai chat sync ' + message.slice(0, 140))
           })
       }
@@ -1529,6 +1539,25 @@ const server = http.createServer((req, res) => {
         history_ready: historyIsComplete(sessionDir(id)),
         events: readEvents(entry, after),
       })
+      return
+    }
+    if (req.method === 'POST' && parts[2] === 'sync') {
+      const entry = sessions.get(id)
+      if (!entry || entry.status !== 'CONNECTED' || !entry.sock || isProtectedPhone(entry.phone) || typeof entry.sock.resyncAppState !== 'function') {
+        send(res, 200, { ok: false })
+        return
+      }
+      if (historyIsComplete(sessionDir(id))) {
+        send(res, 200, { ok: false, done: true })
+        return
+      }
+      entry.bookAsked = false
+      entry.historyAsked = false
+      try { fs.unlinkSync(path.join(sessionDir(id), 'address-book.v5')) } catch (e) {}
+      entry.sock.resyncAppState(['critical_block', 'critical_unblock_low', 'regular_high', 'regular_low', 'regular'], true)
+        .then(() => note(entry, { kind: 'history', phase: 'retry' }))
+        .catch(() => note(entry, { kind: 'history', phase: 'failed' }))
+      send(res, 200, { ok: true })
       return
     }
     if (req.method === 'POST' && parts[2] === 'history') {

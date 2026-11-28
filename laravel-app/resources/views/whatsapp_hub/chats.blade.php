@@ -336,6 +336,12 @@
     .group-card { margin: auto; background: #fff; border: 0; border-radius: 20px; padding: 28px 24px; max-width: 460px; text-align: center; color: var(--wa-ink); box-shadow: 0 12px 32px rgba(15,31,61,.1); }
     .group-card h2 { margin: 8px 0; color: var(--wa-ink); }
     .chat-note { background: linear-gradient(90deg, #fff4d6, #ffe7b3); color: #7a5b10; padding: 9px 16px; font-size: 13px; font-weight: 600; }
+    .sync-status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 16px; font-size: 13px; font-weight: 700; }
+    .sync-status.is-syncing { background: #fff4d6; color: #7a5b10; }
+    .sync-status.is-complete { background: #e5f6ea; color: #0d6b32; }
+    .sync-status.is-incomplete, .sync-status.is-failed { background: #fff1f0; color: #8a2b2b; }
+    .sync-status form { margin: 0; }
+    .sync-status button { min-height: 32px; border: 0; border-radius: 999px; padding: 0 12px; background: #0b3f90; color: #fff; font-weight: 800; cursor: pointer; }
     @media (max-width: 800px) {
         .chats-app { width: 100%; max-width: 100%; height: 100dvh; min-height: 0; margin: 0; border-radius: 0; box-shadow: none; overflow: hidden; }
         .chats-side, .chats-thread { width: 100%; max-width: 100%; flex: 1 1 auto; }
@@ -469,6 +475,19 @@ try {
         @elseif(!empty($phoneLink['disconnected']))
             <div class="chat-note">WhatsApp on the phone is not linked{{ !empty($phoneLink['at']) ? ' since '.$phoneLink['at'] : '' }}. Reconnect that number in Wasender. New chats will then stay up to date here.</div>
         @endif
+        @if(!empty($syncStatus['text']))
+            <div class="sync-status is-{{ $syncStatus['state'] }}" id="maiSync" role="status">
+                <span>{{ $syncStatus['text'] }}</span>
+                @if(!empty($syncStatus['detail']))<span>{{ $syncStatus['detail'] }}</span>@endif
+                @if(isset($syncStatus['percent']) && $syncStatus['percent'] !== null)<span>{{ (int) $syncStatus['percent'] }}% received.</span>@endif
+                @if(!empty($syncStatus['retry']))
+                    <form method="POST" action="{{ route('whatsapp.mai.sync') }}">
+                        @csrf
+                        <button type="submit">Retry</button>
+                    </form>
+                @endif
+            </div>
+        @endif
         @php
             $openId = $open ? (int) $open->id : 0;
         @endphp
@@ -579,9 +598,6 @@ try {
                 </a>
                 @endif
             @endforeach
-            @if(!empty($personalHub) && empty($historyReady))
-                <div class="chat-note">Your chats are still syncing.@if($historyProgress !== null) {{ (int) $historyProgress }}% received.@endif</div>
-            @endif
             @elseif($pane === 'calls' && !empty($personalHub))
                 <div class="chats-empty"><strong>Calls are not available</strong>Whats MAI does not place calls. Status, Communities, and Channels are not in this app.</div>
             @elseif($pane === 'calls')
@@ -2373,6 +2389,63 @@ window.addEventListener('pageshow', function (event) {
             notifyTyping('composing');
         });
     }
+    function paintSync(sync) {
+        var node = document.getElementById('maiSync');
+        if (!sync || !sync.text) {
+            if (node) node.remove();
+            return;
+        }
+        if (!node) {
+            node = document.createElement('div');
+            node.id = 'maiSync';
+            node.setAttribute('role', 'status');
+            var head = document.querySelector('.chats-side .inbox-bar');
+            if (head) head.insertAdjacentElement('afterend', node);
+        }
+        node.className = 'sync-status is-' + (sync.state || 'syncing');
+        node.textContent = '';
+        var label = document.createElement('span');
+        label.textContent = sync.text;
+        node.appendChild(label);
+        if (sync.detail) {
+            var detail = document.createElement('span');
+            detail.textContent = sync.detail;
+            node.appendChild(detail);
+        }
+        if (sync.percent !== null && sync.percent !== undefined && sync.percent !== '') {
+            var percent = document.createElement('span');
+            percent.textContent = sync.percent + '% received.';
+            node.appendChild(percent);
+        }
+        if (sync.retry) {
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = sync.retry === true ? @json(route('whatsapp.mai.sync')) : sync.retry;
+            var token = document.createElement('input');
+            token.type = 'hidden';
+            token.name = '_token';
+            token.value = csrfToken();
+            var button = document.createElement('button');
+            button.type = 'submit';
+            button.textContent = 'Retry';
+            form.appendChild(token);
+            form.appendChild(button);
+            node.appendChild(form);
+        }
+    }
+    function paintDirectory(people) {
+        var box = document.getElementById('newChatList');
+        if (!box || !people) return;
+        box.textContent = '';
+        people.forEach(function (person) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.setAttribute('data-phone', person.phone || '');
+            button.setAttribute('data-name', String(person.name || '').toLowerCase() + ' ' + (person.phone || '') + ' ' + (person.aliases || ''));
+            button.textContent = person.name || person.phone || '';
+            box.appendChild(button);
+        });
+    }
     function poll(extra) {
         if (polling || document.hidden) return;
         polling = true;
@@ -2437,6 +2510,8 @@ window.addEventListener('pageshow', function (event) {
                     paintTicks(data.ticks || []);
                     if (data.list !== false) paintList(data.items || []);
                     if (data.stamp) listStamp = data.stamp;
+                    if (data && Object.prototype.hasOwnProperty.call(data, 'sync')) paintSync(data.sync);
+                    if (data && data.directory) paintDirectory(data.directory);
                     paintTyping(data.typing || '');
                 }
             })

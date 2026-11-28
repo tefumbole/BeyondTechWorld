@@ -99,6 +99,29 @@ class MaiWhatsAppController extends Controller
         return response()->json($this->linkJson($user, $phone, $state));
     }
 
+    public function retrySync(Request $request)
+    {
+        $user = $this->person();
+        if (! $user) {
+            return redirect()->route('whatsapp.mai.open');
+        }
+        if (\App\Services\Mai\MaiBusinessLine::is($user->phone)) {
+            return redirect()->route('whatsapp.chats');
+        }
+        $session = app(\App\Services\Mai\PersonalHub::class)->ensure($user);
+        if (! $session) {
+            return redirect()->route('whatsapp.mai.link');
+        }
+        app(\App\Services\Cloud\MaiWhatsAppEngine::class)->retrySync($session->phone_number ?: $session->expected_phone);
+        \Illuminate\Support\Facades\Cache::put('mai.sync.touch.'.$session->id, time(), now()->addMinutes(10));
+        \Illuminate\Support\Facades\Cache::forget('mai.sync.fail.'.$session->id);
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true])->header('Cache-Control', 'no-store');
+        }
+
+        return redirect()->route('whatsapp.mai.inbox');
+    }
+
     public function inbox(Request $request)
     {
         $user = $this->person();
@@ -264,7 +287,14 @@ class MaiWhatsAppController extends Controller
             $user->save();
         }
         $account = $user->fresh() ?: $user;
-        app(\App\Services\Mai\PersonalHub::class)->ensure($account);
+        $session = app(\App\Services\Mai\PersonalHub::class)->ensure($account);
+        if ($session && $session->status !== 'CONNECTED') {
+            $session->status = 'CONNECTED';
+            if (! $session->connected_at) {
+                $session->connected_at = \Carbon\Carbon::now();
+            }
+            $session->save();
+        }
         $linkedPhone = $phone;
         app()->terminating(function () use ($account, $linkedPhone) {
             app(\App\Services\Cloud\CloudSignupOtp::class)->sendLoginLink($account, $linkedPhone);

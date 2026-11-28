@@ -383,6 +383,37 @@ class MaiCustomerEntryTest extends TestCase
         $this->assertSame($posts, $this->posted());
     }
 
+    public function test_a_new_inbox_starts_sync_without_downloading_the_chat_list()
+    {
+        $this->artisan('migrate', ['--path' => 'database/migrations/2026_11_27_160000_create_mai_peers.php', '--force' => true]);
+        $user = $this->person('Ina', '237670000511');
+        $this->script(['status' => 'CONNECTED', 'phone' => '237670000511']);
+        $this->actingAs($user);
+        $android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+
+        $page = $this->withHeader('User-Agent', $android)->get('/whatsapp-mai/inbox');
+        $page->assertOk();
+        $page->assertSee('Connected · Syncing contacts and chats');
+        $page->assertDontSee('Initial sync complete');
+        $this->assertNotContains('GET /sessions/p237670000511/chats', $this->calls);
+        $this->assertContains('GET /sessions/p237670000511/events?after=0', $this->calls);
+
+        $session = MaiSession::where('user_id', $user->id)->first();
+        $this->assertNotNull($session);
+        $this->assertSame(0, (int) $session->history_ready);
+        $peer = new \App\Mai\MaiPeer();
+        $peer->mai_session_id = $session->id;
+        $peer->remote_jid = '237611000222@s.whatsapp.net';
+        $peer->phone_digits = '237611000222';
+        $peer->saved_name = 'Ada Only';
+        $peer->save();
+        $this->get('/whatsapp-mai/inbox')->assertSee('Ada Only');
+
+        $this->post('/whatsapp-mai/sync')->assertRedirect('/whatsapp-mai/inbox');
+        $this->assertContains('POST /sessions/p237670000511/sync', $this->posted());
+        $this->assertSame(0, (int) $session->fresh()->history_ready);
+    }
+
     protected function person($name, $phone)
     {
         $user = new \App\User();

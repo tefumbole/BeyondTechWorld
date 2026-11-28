@@ -286,15 +286,26 @@ class MaiWhatsAppEngine
         return $rows;
     }
 
-    public function events($phone, $after = 0)
+    public function events($phone, $after = 0, $timeout = 8)
     {
         $id = $this->id($phone);
         if ($id === '') {
             return [];
         }
-        $payload = $this->request('GET', '/sessions/'.$id.'/events?after='.(int) $after, null, 8);
+        $payload = $this->request('GET', '/sessions/'.$id.'/events?after='.(int) $after, null, (int) $timeout);
 
         return is_array($payload) ? $payload : [];
+    }
+
+    public function retrySync($phone)
+    {
+        $id = $this->id($phone);
+        if ($id === '' || \App\Services\Mai\MaiBusinessLine::is($phone)) {
+            return ['ok' => false];
+        }
+        $payload = $this->request('POST', '/sessions/'.$id.'/sync', [], 3);
+
+        return is_array($payload) ? $payload : ['ok' => false];
     }
 
     public function olderHistory($phone, $jid, array $oldest)

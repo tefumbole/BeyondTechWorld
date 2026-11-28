@@ -1015,6 +1015,113 @@ class MaiContactIsolationTest extends TestCase
         $this->assertContains('POST /sessions/p237670000888/edit', $seen);
     }
 
+    public function test_initial_sync_keeps_each_address_book_until_the_adapter_finishes()
+    {
+        $ada = $this->linked(21, 'p237670000221');
+        $bola = $this->linked(22, 'p237670000222');
+        $ada->sync_generation = 1;
+        $ada->history_ready = 0;
+        $ada->save();
+        $bola->sync_generation = 1;
+        $bola->history_ready = 0;
+        $bola->save();
+        $calls = 0;
+        config(['cloud.mai_customer.ai_reply' => function () use (&$calls) {
+            $calls++;
+
+            return 'auto';
+        }]);
+        $sync = app(\App\Services\Mai\MaiSync::class);
+        $sync->ingest($ada, [[
+            'generation' => 1,
+            'seq' => 1,
+            'kind' => 'history',
+            'phase' => 'started',
+        ]], 1);
+        $this->assertSame(0, (int) $ada->fresh()->history_ready);
+        $this->assertSame('syncing', $sync->view($ada->fresh())['state']);
+        $this->assertSame('Connected · Syncing contacts and chats', $sync->view($ada->fresh())['text']);
+        $this->assertNull($sync->view($ada->fresh())['percent']);
+
+        $sync->ingest($ada, [[
+            'generation' => 1,
+            'seq' => 2,
+            'kind' => 'contact',
+            'jid' => '237611000222@s.whatsapp.net',
+            'phone' => '237611000222',
+            'saved_name' => 'Ada Friend',
+        ], [
+            'generation' => 1,
+            'seq' => 3,
+            'kind' => 'contact',
+            'jid' => '237611000222@s.whatsapp.net',
+            'phone' => '237611000222',
+            'saved_name' => 'Ada Friend',
+        ], $this->historyMessage(4, 'old-1', 'Before pairing', time() - 86400)], 1);
+        $sync->ingest($bola, [[
+            'generation' => 1,
+            'seq' => 1,
+            'kind' => 'contact',
+            'jid' => '237611000222@s.whatsapp.net',
+            'phone' => '237611000222',
+            'saved_name' => 'Bola Friend',
+        ]], 1);
+
+        $this->assertSame(1, MaiPeer::where('mai_session_id', $ada->id)->where('phone_digits', '237611000222')->count());
+        $this->assertSame('Ada Friend', MaiPeer::where('mai_session_id', $ada->id)->where('phone_digits', '237611000222')->value('saved_name'));
+        $this->assertNull(WhatsAppContact::where('normalized_phone', '237611000222')->first());
+        $this->assertSame('Bola Friend', MaiPeer::where('mai_session_id', $bola->id)->value('saved_name'));
+        $this->assertSame(0, $calls);
+        $this->assertSame(1, WhatsAppMessage::count());
+        $this->assertSame(0, (int) $ada->fresh()->history_ready);
+        $sync->ingest($ada->fresh(), [[
+            'generation' => 1,
+            'seq' => 5,
+            'kind' => 'message',
+            'id' => 'old-1',
+            'live' => false,
+            'remote' => '237699000333',
+            'jid' => '237699000333@s.whatsapp.net',
+            'text' => 'Before pairing',
+            'at' => time() - 86400,
+        ]], 1);
+        $this->assertSame(1, WhatsAppMessage::count());
+
+        $quiet = $ada->fresh();
+        Cache::put('mai.sync.touch.'.$quiet->id, time() - 120, now()->addDay());
+        $stalled = $sync->view($quiet);
+        $this->assertSame('incomplete', $stalled['state']);
+        $this->assertSame('Sync incomplete', $stalled['text']);
+        $this->assertTrue($stalled['retry']);
+
+        $sync->ingest($ada->fresh(), [[
+            'generation' => 1,
+            'seq' => 6,
+            'kind' => 'history',
+            'phase' => 'failed',
+        ]], 1);
+        $failed = $sync->view($ada->fresh());
+        $this->assertSame('failed', $failed['state']);
+        $this->assertSame('Could not finish syncing', $failed['text']);
+        $this->assertSame(0, (int) $ada->fresh()->history_ready);
+
+        $sync->ingest($ada->fresh(), [[
+            'generation' => 1,
+            'seq' => 7,
+            'kind' => 'history',
+            'progress' => 100,
+            'ready' => true,
+            'contacts' => 2,
+            'chats' => 1,
+        ]], 1);
+        $done = $sync->view($ada->fresh());
+        $this->assertSame(1, (int) $ada->fresh()->history_ready);
+        $this->assertSame('complete', $done['state']);
+        $this->assertSame('Initial sync complete', $done['text']);
+        $this->assertSame('2 contacts and 1 chat received.', $done['detail']);
+        $this->assertSame(0, $calls);
+    }
+
     protected function historyMessage($seq, $id, $text, $at)
     {
         return [

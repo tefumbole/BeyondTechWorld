@@ -536,6 +536,7 @@ Route::get('/whatsapp-mai/link', 'MaiWhatsAppController@show')->name('whatsapp.m
 Route::get('/whatsapp-mai/link/status', 'MaiWhatsAppController@status')->name('whatsapp.mai.link.status');
 Route::post('/whatsapp-mai/link/qr', 'MaiWhatsAppController@refreshQr')->middleware('throttle:12,1')->name('whatsapp.mai.link.qr');
 Route::post('/whatsapp-mai/link/pair', 'MaiWhatsAppController@pair')->middleware('throttle:6,1')->name('whatsapp.mai.link.pair');
+Route::post('/whatsapp-mai/sync', 'MaiWhatsAppController@retrySync')->middleware('throttle:6,1')->name('whatsapp.mai.sync');
 Route::post('/whatsapp-mai/link/otp', 'MaiWhatsAppController@sendLinkOtp')->middleware('throttle:10,10')->name('whatsapp.mai.link.otp');
 Route::post('/whatsapp-mai/link/otp/verify', 'MaiWhatsAppController@verifyLinkOtp')->middleware('throttle:10,10')->name('whatsapp.mai.link.otp.verify');
 Route::post('/whatsapp-mai/link/send', 'MaiWhatsAppController@send')->middleware('throttle:10,1')->name('whatsapp.mai.link.send');
