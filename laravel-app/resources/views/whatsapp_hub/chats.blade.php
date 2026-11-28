@@ -2497,7 +2497,15 @@ window.addEventListener('pageshow', function (event) {
             if (!existing) fillTranscribe('Could not hear that voice note.', '');
         });
     }
-    function openAsk(bubble) {
+    function composerDraft(button) {
+        var form = button && button.closest ? button.closest('form') : document.getElementById('chatCompose');
+        var field = form ? (form.querySelector('textarea[name="body"]') || form.querySelector('textarea')) : null;
+        if (!field) field = document.querySelector('.chats-thread textarea[name="body"]');
+        var picker = form ? form.querySelector('input[type="file"]') : null;
+        var file = form && form.hubFile ? form.hubFile : (picker && picker.files && picker.files[0] ? picker.files[0] : null);
+        return { form: form, field: field, text: field ? field.value.trim() : '', file: file };
+    }
+    function openAsk(bubble, source) {
         if (bubble) {
             openTranscribe(bubble);
             return;
@@ -2518,26 +2526,34 @@ window.addEventListener('pageshow', function (event) {
         if (scope) scope.textContent = personName ? ('Chat with ' + personName) : 'This chat';
         if (result) { result.hidden = true; result.textContent = ''; }
         if (use) use.hidden = true;
-        var draft = document.getElementById('chatBody');
-        var typed = draft ? draft.value.trim() : '';
+        var draft = source || composerDraft(null);
+        var typed = draft.text || '';
         if (prompt) prompt.value = typed;
         if (ask) { ask.disabled = false; ask.textContent = 'MAI'; }
         clearAskFile();
+        if (draft.file) showAskFile(draft.file);
         var statusNode = document.getElementById('transcribeStatus');
         if (statusNode) statusNode.textContent = personName ? ('Ask about the chat with ' + personName + ', or ask anything else.') : 'Ask about this chat, or ask anything else.';
         paintRecentChat();
         openSheet('transcribeSheet');
-        if (typed) {
-            runAsk(typed);
+        if (typed || draft.file) {
+            if (draft.field) draft.field.value = '';
+            if (draft.form) {
+                var picker = draft.form.querySelector('input[type="file"]');
+                if (picker) picker.value = '';
+                draft.form.hubFile = null;
+                showPicked(null);
+            }
+            runAsk(typed, draft.file);
             return;
         }
         if (prompt) setTimeout(function () { prompt.focus(); }, 40);
     }
-    function runAsk(instruction) {
+    function runAsk(instruction, carriedFile) {
         var ask = document.getElementById('transcribeAsk');
         if (!openChat || (ask && ask.disabled)) return;
         var prompt = document.getElementById('transcribePrompt');
-        var file = askAttachment();
+        var file = carriedFile || askAttachment();
         instruction = (instruction || (prompt ? prompt.value : '')).trim();
         if (!instruction && !file) { window.alert('Write what you want to ask MAI.'); return; }
         if (!instruction) instruction = 'Read the attached file and explain it.';
@@ -2668,8 +2684,12 @@ window.addEventListener('pageshow', function (event) {
     }
     document.addEventListener('click', function (event) {
         if (event.target && event.target.id === 'askFileClear') { clearAskFile(); return; }
-        var askOpen = event.target.closest && event.target.closest('#openAsk');
-        if (askOpen) { openAsk(null); return; }
+        var askOpen = event.target.closest && event.target.closest('#openAsk, .mai-open');
+        if (askOpen) {
+            event.preventDefault();
+            openAsk(null, composerDraft(askOpen));
+            return;
+        }
         var unmask = event.target.closest && event.target.closest('#threadUnmask');
         if (unmask) {
             var chatId = unmask.getAttribute('data-chat');
