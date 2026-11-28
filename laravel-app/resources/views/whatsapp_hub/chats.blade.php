@@ -192,10 +192,29 @@
     .quote-bar[hidden] { display: none !important; }
     .quote-bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .quote-bar button { border: 0; background: transparent; color: #6b7a99; font-size: 20px; cursor: pointer; }
-    .msg-actions { display: flex; flex-direction: column; gap: 8px; }
-    .msg-edit[hidden], .msg-actions[hidden], .msg-actions button[hidden] { display: none !important; }
-    .msg-actions button, .msg-edit button { min-height: 44px; border: 0; border-radius: 14px; background: #f3f6fb; color: #0b3f90; font-weight: 800; cursor: pointer; }
-    .msg-actions button.danger { background: #fde8e8; color: #9b1c1c; }
+    .msg-menu { position: fixed; z-index: 90; display: none; width: 220px; padding: 6px 0; background: #202c33; color: #e9edef; border-radius: 14px; box-shadow: 0 12px 32px rgba(0, 0, 0, .38); }
+    .msg-menu.is-on { display: block; }
+    .msg-menu .msg-actions { display: flex; flex-direction: column; gap: 0; }
+    .msg-menu .msg-actions[hidden], .msg-menu .msg-edit[hidden], .msg-menu .msg-react[hidden], .msg-menu #msgDelete[hidden], .msg-menu #msgInfo[hidden], .msg-menu button[hidden] { display: none !important; }
+    .msg-menu button { display: block; width: 100%; min-height: 40px; border: 0; background: transparent; color: #e9edef; text-align: left; padding: 8px 16px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .msg-menu button:hover { background: rgba(255, 255, 255, .06); }
+    .msg-menu button.danger { color: #ff8a8a; }
+    .msg-menu hr { width: 100%; border: 0; border-top: 1px solid rgba(255, 255, 255, .12); margin: 4px 0; }
+    .msg-menu .msg-react { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px 8px; }
+    .msg-menu .msg-react button { width: auto; min-height: 36px; padding: 4px 6px; font-size: 22px; }
+    .msg-menu .msg-edit, .msg-menu #msgInfo { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 12px; }
+    .msg-menu textarea { width: 100%; min-height: 72px; border: 0; border-radius: 10px; padding: 8px; background: #111b21; color: #e9edef; }
+    .msg-menu #msgInfoText { margin: 0; font-size: 13px; line-height: 1.4; }
+    .bubble.is-picked { outline: 2px solid #25d366; }
+    .bubble .react { margin-right: 4px; }
+    #pinnedBar { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px 0; }
+    #pinnedBar[hidden] { display: none !important; }
+    #pinnedBar button { text-align: left; border: 0; border-radius: 10px; background: #fff8e6; color: #072f6b; font-weight: 700; padding: 8px 10px; cursor: pointer; }
+    #selectBar { position: fixed; z-index: 70; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 8px; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: #111b21; color: #fff; }
+    #selectBar[hidden] { display: none !important; }
+    #selectBar button { border: 0; border-radius: 999px; min-height: 38px; padding: 0 14px; font-weight: 800; cursor: pointer; }
+    #selectDelete { background: #fde8e8; color: #9b1c1c; }
+    #selectCancel { background: #2a3942; color: #fff; }
     .msg-edit textarea, #transcribePrompt { width: 100%; min-height: 90px; border: 1px solid #d5deee; border-radius: 14px; padding: 10px; font: inherit; }
     #transcribeResult { white-space: pre-wrap; margin-top: 12px; padding: 12px 14px; border-radius: 16px; border: 1px solid #ead89a; border-left: 4px solid #c6ab47; background: #fffdf6; color: #16315c; }
     #transcribeResult[hidden], #transcribeUse[hidden] { display: none !important; }
@@ -1148,33 +1167,49 @@ try {
 </div>
 @endif
 @include('whatsapp_hub.partials.local_time')
-<div class="lang-sheet" id="msgSheet">
-    <div class="lang-card">
-        <header>
-            <h3 id="msgSheetText">Message</h3>
-            <button type="button" class="lang-close" data-close="msgSheet" aria-label="Close">×</button>
-        </header>
-        <div class="msg-actions" id="msgActions">
-            <button type="button" data-act="transcribe">Transcribe</button>
-            <button type="button" data-act="reply">Reply</button>
-            <button type="button" data-act="copy">Copy</button>
-            <button type="button" data-act="forward">Forward</button>
-            <button type="button" data-act="star">Star</button>
-            <button type="button" data-act="edit">Edit</button>
-            <button type="button" data-act="delete-me" class="danger">Delete for me</button>
-            <button type="button" data-act="delete-all" class="danger">Delete for everyone</button>
-        </div>
-        <form class="msg-edit" id="msgEdit" hidden>
-            <textarea id="msgEditBody" maxlength="4000"></textarea>
-            <button type="submit">Save</button>
-            <button type="button" data-act="cancel-edit">Cancel</button>
-        </form>
-        <div class="msg-actions" id="msgDelete" hidden>
-            <button type="button" data-act="delete-me" class="danger">Delete for me</button>
-            <button type="button" data-act="delete-all" class="danger">Delete for everyone</button>
-            <button type="button" data-act="cancel-delete">Cancel</button>
-        </div>
+<div class="msg-menu" id="msgMenu" hidden>
+    <div class="msg-react" id="msgReact" hidden>
+        <button type="button" data-react="👍" aria-label="Thumbs up">👍</button>
+        <button type="button" data-react="❤️" aria-label="Heart">❤️</button>
+        <button type="button" data-react="😂" aria-label="Laugh">😂</button>
+        <button type="button" data-react="😮" aria-label="Surprised">😮</button>
+        <button type="button" data-react="😢" aria-label="Sad">😢</button>
+        <button type="button" data-react="🙏" aria-label="Thanks">🙏</button>
+        <button type="button" data-act="cancel-react">Back</button>
     </div>
+    <div class="msg-actions" id="msgActions">
+        <button type="button" data-act="reply">Reply</button>
+        <button type="button" data-act="react">React</button>
+        <button type="button" data-act="keep">Keep</button>
+        <button type="button" data-act="pin">Pin</button>
+        <button type="button" data-act="forward">Forward</button>
+        <button type="button" data-act="copy">Copy</button>
+        <button type="button" data-act="edit">Edit</button>
+        <button type="button" data-act="info">Info</button>
+        <hr>
+        <button type="button" data-act="delete" class="danger">Delete</button>
+        <hr>
+        <button type="button" data-act="select">Select messages</button>
+    </div>
+    <form class="msg-edit" id="msgEdit" hidden>
+        <textarea id="msgEditBody" maxlength="4000"></textarea>
+        <button type="submit">Save</button>
+        <button type="button" data-act="cancel-edit">Cancel</button>
+    </form>
+    <div class="msg-actions" id="msgDelete" hidden>
+        <button type="button" data-act="delete-me" class="danger">Delete for me</button>
+        <button type="button" data-act="delete-all" class="danger">Delete for everyone</button>
+        <button type="button" data-act="cancel-delete">Cancel</button>
+    </div>
+    <div id="msgInfo" hidden>
+        <p id="msgInfoText"></p>
+        <button type="button" data-act="cancel-info">Back</button>
+    </div>
+</div>
+<div id="selectBar" hidden>
+    <span id="selectCount">0 selected</span>
+    <button type="button" id="selectDelete">Delete for me</button>
+    <button type="button" id="selectCancel">Cancel</button>
 </div>
 <div class="lang-sheet" id="transcribeSheet">
     <div class="lang-card ask-card">
@@ -1521,7 +1556,7 @@ window.addEventListener('pageshow', function (event) {
             messagePost(activeMessage.getAttribute('data-id'), 'edit', { text: box ? box.value : '' }).then(function (payload) {
                 if (!payload || !payload._ok) { window.alert((payload && payload.error) || 'Edit failed.'); return; }
                 if (payload.message) replaceBubble(payload.message);
-                closeSheet('msgSheet');
+                closeMessageMenu();
             });
             return;
         }
@@ -1610,6 +1645,8 @@ window.addEventListener('pageshow', function (event) {
     var openChat = {{ $open ? (int) $open->id : 0 }};
     var quoteId = 0;
     var activeMessage = null;
+    var selecting = false;
+    var selectedIds = {};
     var openGroup = @json($group ? $group['jid'] : '');
     var listStamp = '';
     var seen = {{ ($open && $messages->last()) ? (int) $messages->last()->id : 0 }};
@@ -1731,6 +1768,7 @@ window.addEventListener('pageshow', function (event) {
             stream.insertAdjacentHTML('beforeend', html);
             if (stick) stream.scrollTop = stream.scrollHeight;
         }
+        applyLocalMarks();
         drainVoice();
     }
     function drainVoice() {
@@ -2337,38 +2375,185 @@ window.addEventListener('pageshow', function (event) {
         var html = bubbleHtml(message);
         if (node) node.outerHTML = html;
         else placeMessages([message], false);
+        applyLocalMarks();
     }
     function resetMessageSheet() {
         var actions = document.getElementById('msgActions');
         var edit = document.getElementById('msgEdit');
         var drop = document.getElementById('msgDelete');
+        var react = document.getElementById('msgReact');
+        var info = document.getElementById('msgInfo');
         if (actions) actions.hidden = false;
         if (edit) edit.hidden = true;
         if (drop) drop.hidden = true;
+        if (react) react.hidden = true;
+        if (info) info.hidden = true;
     }
-    function openMessageMenu(bubble) {
+    function closeMessageMenu() {
+        var menu = document.getElementById('msgMenu');
+        if (!menu) return;
+        menu.classList.remove('is-on');
+        menu.hidden = true;
+        resetMessageSheet();
+    }
+    function positionMessageMenu(anchor) {
+        var menu = document.getElementById('msgMenu');
+        if (!menu || !anchor) return;
+        var rect = anchor.getBoundingClientRect();
+        var width = menu.offsetWidth || 220;
+        var height = menu.offsetHeight || 420;
+        var left = rect.right - width;
+        if (left < 8) left = Math.min(rect.left, window.innerWidth - width - 8);
+        if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+        var top = rect.bottom + 4;
+        if (top + height > window.innerHeight - 8) top = Math.max(8, rect.top - height - 4);
+        menu.style.left = left + 'px';
+        menu.style.top = top + 'px';
+    }
+    function showMenuPane(id) {
+        document.getElementById('msgActions').hidden = true;
+        document.getElementById(id).hidden = false;
+        var menu = document.getElementById('msgMenu');
+        if (menu) positionMessageMenu(menu._anchor || activeMessage);
+    }
+    function openMessageMenu(bubble, anchor) {
         if (!bubble || openGroup || !openChat) return;
         activeMessage = bubble;
         resetMessageSheet();
         var deleted = bubble.getAttribute('data-deleted') === '1';
         var text = messageBody(bubble);
-        var isAudio = bubble.getAttribute('data-audio') === '1' || !!bubble.querySelector('audio');
-        var title = document.getElementById('msgSheetText');
-        if (title) title.textContent = text ? text.slice(0, 80) : (isAudio ? 'Voice message' : 'Message');
         document.querySelectorAll('#msgActions button').forEach(function (button) {
             var act = button.getAttribute('data-act');
             var show = true;
-            if (deleted && act !== 'delete-me') show = false;
-            if (act === 'transcribe') show = !deleted;
-            if (act === 'delete-all' && bubble.getAttribute('data-drop') !== '1') show = false;
+            if (deleted && act !== 'delete' && act !== 'info') show = false;
             if (act === 'edit' && bubble.getAttribute('data-edit') !== '1') show = false;
             if (act === 'copy' && !text) show = false;
-            if (act === 'star') button.textContent = bubble.getAttribute('data-star') === '1' ? 'Unstar' : 'Star';
+            if (act === 'keep') button.textContent = bubble.getAttribute('data-star') === '1' ? 'Undo keep' : 'Keep';
+            if (act === 'pin') button.textContent = bubble.getAttribute('data-pin') === '1' ? 'Unpin' : 'Pin';
             button.hidden = !show;
         });
-        var everyone = document.querySelector('[data-act="delete-all"]');
+        var everyone = document.querySelector('#msgDelete [data-act="delete-all"]');
         if (everyone) everyone.hidden = bubble.getAttribute('data-drop') !== '1';
-        openSheet('msgSheet');
+        var menu = document.getElementById('msgMenu');
+        if (!menu) return;
+        menu._anchor = anchor || bubble;
+        menu.hidden = false;
+        menu.classList.add('is-on');
+        positionMessageMenu(menu._anchor);
+    }
+    function localStore(key) {
+        try { return JSON.parse(sessionStorage.getItem(key) || '{}'); } catch (e) { return {}; }
+    }
+    function localSave(key, value) {
+        try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+    }
+    function paintReaction(bubble, emoji) {
+        if (!bubble) return;
+        var mark = bubble.querySelector('.react');
+        if (!emoji) { if (mark) mark.remove(); return; }
+        if (!mark) {
+            mark = document.createElement('span');
+            mark.className = 'react';
+            var time = bubble.querySelector('time');
+            if (time) time.insertBefore(mark, time.firstChild);
+            else bubble.appendChild(mark);
+        }
+        mark.textContent = emoji;
+    }
+    function rememberReaction(bubble, emoji) {
+        var id = bubble.getAttribute('data-id');
+        var all = localStore('mai-reacts-' + openChat);
+        if (all[id] === emoji) delete all[id];
+        else all[id] = emoji;
+        localSave('mai-reacts-' + openChat, all);
+        paintReaction(bubble, all[id] || '');
+    }
+    function pinnedBar() {
+        var bar = document.getElementById('pinnedBar');
+        var stream = document.getElementById('chatStream');
+        if (!bar && stream && stream.parentNode) {
+            bar = document.createElement('div');
+            bar.id = 'pinnedBar';
+            bar.hidden = true;
+            stream.parentNode.insertBefore(bar, stream);
+        }
+        return bar;
+    }
+    function renderPins() {
+        var bar = pinnedBar();
+        if (!bar) return;
+        var pins = localStore('mai-pins-' + openChat);
+        document.querySelectorAll('#chatStream .bubble').forEach(function (bubble) {
+            if (pins[bubble.getAttribute('data-id')]) bubble.setAttribute('data-pin', '1');
+            else bubble.removeAttribute('data-pin');
+        });
+        var ids = Object.keys(pins);
+        if (!ids.length) { bar.hidden = true; bar.innerHTML = ''; return; }
+        bar.hidden = false;
+        bar.innerHTML = ids.map(function (id) {
+            return '<button type="button" data-pin-jump="' + esc(id) + '">Pinned · ' + esc(pins[id]) + '</button>';
+        }).join('');
+    }
+    function togglePin(bubble) {
+        var id = bubble.getAttribute('data-id');
+        var pins = localStore('mai-pins-' + openChat);
+        if (pins[id]) delete pins[id];
+        else pins[id] = (messageBody(bubble) || 'Message').slice(0, 80);
+        localSave('mai-pins-' + openChat, pins);
+        renderPins();
+    }
+    function paintSelect() {
+        var count = 0;
+        document.querySelectorAll('#chatStream .bubble').forEach(function (bubble) {
+            var on = !!selectedIds[bubble.getAttribute('data-id')];
+            bubble.classList.toggle('is-picked', on);
+            if (on) count += 1;
+        });
+        var bar = document.getElementById('selectBar');
+        var label = document.getElementById('selectCount');
+        if (label) label.textContent = count + ' selected';
+        if (bar) bar.hidden = !selecting;
+    }
+    function startSelect(id) {
+        selecting = true;
+        selectedIds = {};
+        if (id) selectedIds[id] = true;
+        closeMessageMenu();
+        paintSelect();
+    }
+    function stopSelect() {
+        selecting = false;
+        selectedIds = {};
+        paintSelect();
+    }
+    function toggleSelected(id) {
+        if (!id) return;
+        if (selectedIds[id]) delete selectedIds[id];
+        else selectedIds[id] = true;
+        paintSelect();
+    }
+    function deleteSelected() {
+        var ids = Object.keys(selectedIds);
+        var next = function () {
+            var id = ids.shift();
+            if (!id) { stopSelect(); return; }
+            messagePost(id, 'delete', { everyone: '0' }).then(function (payload) {
+                if (payload && payload._ok && payload.removed) {
+                    var node = document.querySelector('#chatStream .bubble[data-id="' + id + '"]');
+                    if (node) node.remove();
+                } else if (payload && payload._ok && payload.message) replaceBubble(payload.message);
+                next();
+            }).catch(function () { next(); });
+        };
+        next();
+    }
+    function applyLocalMarks() {
+        var reacts = localStore('mai-reacts-' + openChat);
+        document.querySelectorAll('#chatStream .bubble').forEach(function (bubble) {
+            paintReaction(bubble, reacts[bubble.getAttribute('data-id')] || '');
+        });
+        renderPins();
+        if (selecting) paintSelect();
     }
     function askLine(mine, text) {
         var row = document.createElement('div');
@@ -2463,7 +2648,7 @@ window.addEventListener('pageshow', function (event) {
         if (prompt) prompt.value = '';
         clearAskFile();
         if (ask) { ask.disabled = isAudio && !existing; ask.textContent = 'MAI'; }
-        closeSheet('msgSheet');
+        closeMessageMenu();
         openSheet('transcribeSheet');
         if (prompt) setTimeout(function () { prompt.focus(); }, 40);
         if (!isAudio) {
@@ -2670,7 +2855,7 @@ window.addEventListener('pageshow', function (event) {
         if (!list.children.length) {
             list.innerHTML = '<p>No other chat to forward to.</p>';
         }
-        closeSheet('msgSheet');
+        closeMessageMenu();
         openSheet('forwardSheet');
     }
     var forwardSearch = document.getElementById('forwardSearch');
@@ -2723,46 +2908,77 @@ window.addEventListener('pageshow', function (event) {
         if (chip) { runAsk(chip.getAttribute('data-prompt') || ''); return; }
         var quoteClear = event.target.closest && event.target.closest('#quoteClear');
         if (quoteClear) { clearQuote(); return; }
-        var act = event.target.closest && event.target.closest('[data-act]');
+        var pinJump = event.target.closest && event.target.closest('[data-pin-jump]');
+        if (pinJump) {
+            var pinned = document.querySelector('#chatStream .bubble[data-id="' + pinJump.getAttribute('data-pin-jump') + '"]');
+            if (pinned && pinned.scrollIntoView) pinned.scrollIntoView({ block: 'center' });
+            return;
+        }
+        if (event.target && event.target.id === 'selectCancel') { stopSelect(); return; }
+        if (event.target && event.target.id === 'selectDelete') { deleteSelected(); return; }
+        var pickedBubble = selecting && event.target.closest && event.target.closest('#chatStream .bubble');
+        if (pickedBubble && !(event.target.closest && event.target.closest('a, audio, video'))) {
+            toggleSelected(pickedBubble.getAttribute('data-id'));
+            return;
+        }
+        var reaction = event.target.closest && event.target.closest('[data-react]');
+        if (reaction && activeMessage) {
+            rememberReaction(activeMessage, reaction.getAttribute('data-react'));
+            closeMessageMenu();
+            return;
+        }
+        var act = event.target.closest && event.target.closest('#msgMenu [data-act]');
         if (act && activeMessage) {
             var id = activeMessage.getAttribute('data-id');
             var action = act.getAttribute('data-act');
-            if (action === 'transcribe') {
-                openTranscribe(activeMessage);
-                return;
-            }
             if (action === 'reply') {
                 setQuote(id, messageBody(activeMessage));
-                closeSheet('msgSheet');
+                closeMessageMenu();
+                return;
+            }
+            if (action === 'react') { showMenuPane('msgReact'); return; }
+            if (action === 'keep') {
+                messagePost(id, 'star').then(function (payload) {
+                    if (payload && payload._ok && payload.message) replaceBubble(payload.message);
+                    closeMessageMenu();
+                });
+                return;
+            }
+            if (action === 'pin') {
+                togglePin(activeMessage);
+                closeMessageMenu();
                 return;
             }
             if (action === 'copy') {
                 var copied = messageBody(activeMessage);
                 if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(copied);
-                closeSheet('msgSheet');
+                closeMessageMenu();
                 return;
             }
             if (action === 'forward') { openForwardList(); return; }
-            if (action === 'star') {
-                messagePost(id, 'star').then(function (payload) {
-                    if (payload && payload._ok && payload.message) replaceBubble(payload.message);
-                    closeSheet('msgSheet');
-                });
-                return;
-            }
             if (action === 'edit') {
                 var box = document.getElementById('msgEditBody');
                 if (box) box.value = messageBody(activeMessage);
-                document.getElementById('msgActions').hidden = true;
-                document.getElementById('msgEdit').hidden = false;
+                showMenuPane('msgEdit');
                 return;
             }
-            if (action === 'delete') {
-                document.getElementById('msgActions').hidden = true;
-                document.getElementById('msgDelete').hidden = false;
+            if (action === 'info') {
+                var time = activeMessage.querySelector('time');
+                var info = document.getElementById('msgInfoText');
+                if (info) info.textContent = time ? time.textContent.trim() : 'No time on this message';
+                showMenuPane('msgInfo');
                 return;
             }
-            if (action === 'cancel-edit' || action === 'cancel-delete') { resetMessageSheet(); return; }
+            if (action === 'select') {
+                startSelect(id);
+                return;
+            }
+            if (action === 'delete') { showMenuPane('msgDelete'); return; }
+            if (action === 'cancel-edit' || action === 'cancel-delete' || action === 'cancel-react' || action === 'cancel-info') {
+                resetMessageSheet();
+                positionMessageMenu(document.getElementById('msgMenu')._anchor || activeMessage);
+                return;
+            }
             if (action === 'delete-me' || action === 'delete-all') {
                 if (action === 'delete-all' && !window.confirm('Delete this message for everyone?')) return;
                 messagePost(id, 'delete', { everyone: action === 'delete-all' ? '1' : '0' }).then(function (payload) {
@@ -2771,7 +2987,7 @@ window.addEventListener('pageshow', function (event) {
                         var node = document.querySelector('#chatStream .bubble[data-id="' + id + '"]');
                         if (node) node.remove();
                     } else if (payload.message) replaceBubble(payload.message);
-                    closeSheet('msgSheet');
+                    closeMessageMenu();
                 });
                 return;
             }
@@ -2787,14 +3003,14 @@ window.addEventListener('pageshow', function (event) {
         }
         var more = event.target.closest && event.target.closest('.bubble-more');
         if (more) {
+            event.preventDefault();
             var moreBubble = more.closest('.bubble');
-            if (moreBubble) openMessageMenu(moreBubble);
+            if (moreBubble) openMessageMenu(moreBubble, more);
             return;
         }
+        if (!(event.target.closest && event.target.closest('#msgMenu'))) closeMessageMenu();
         var bubble = event.target.closest && event.target.closest('#chatStream .bubble');
         if (bubble && !(event.target.closest && event.target.closest('a, audio, video, button'))) {
-            var selected = window.getSelection ? String(window.getSelection()) : '';
-            if (!selected) openMessageMenu(bubble);
             return;
         }
         var back = event.target.closest && event.target.closest('a.chat-back');
@@ -2949,6 +3165,7 @@ window.addEventListener('pageshow', function (event) {
         else showChatList(true);
     });
     if (window.applyLocalHubTimes) window.applyLocalHubTimes();
+    applyLocalMarks();
     drainVoice();
     poll();
     setTimeout(function () {
