@@ -229,6 +229,17 @@ class MaiCustomerEntryTest extends TestCase
         $this->assertNotFalse($download);
         $this->assertNotFalse($continue);
         $this->assertLessThan($continue, $download);
+        $this->assertStringContainsString('data-mai-install', $html);
+        $this->assertStringContainsString('/whatsapp-mai/manifest.webmanifest', $html);
+
+        $manifest = $this->get('/whatsapp-mai/manifest.webmanifest');
+        $manifest->assertOk();
+        $this->assertStringContainsString('application/manifest+json', (string) $manifest->headers->get('content-type'));
+        $manifest->assertSee('mai-icon-192.png');
+        $manifest->assertSee('mai-icon-512.png');
+        $worker = $this->get('/whatsapp-mai/sw.js');
+        $worker->assertOk();
+        $this->assertStringNotContainsString('respondWith', $worker->getContent());
 
         $this->script(['status' => 'NOT_CONNECTED']);
         $this->actingAs($user);
@@ -240,6 +251,16 @@ class MaiCustomerEntryTest extends TestCase
         $this->withHeader('User-Agent', $iphone)->get('/whatsapp-mai/link')
             ->assertOk()
             ->assertDontSee('Scan QR');
+    }
+
+    public function test_an_android_inbox_opens_without_waiting_for_a_full_sync()
+    {
+        $user = $this->person('Gia', '237670000507');
+        $this->script(['status' => 'CONNECTED', 'phone' => '237670000507']);
+        $this->actingAs($user);
+        $android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+        $this->withHeader('User-Agent', $android)->get('/whatsapp-mai/inbox')->assertOk();
+        $this->assertNotContains('GET /sessions/p237670000507/chats', $this->calls);
     }
 
     public function test_a_signed_out_visitor_is_sent_to_mai_sign_in_once()

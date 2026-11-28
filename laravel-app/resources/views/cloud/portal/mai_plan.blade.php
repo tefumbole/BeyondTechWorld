@@ -75,7 +75,7 @@
                 <button type="submit" name="start_mode" value="pay" id="pay-now" class="gold">Continue</button>
             </form>
             <p style="margin-top:0.8rem;"><a href="{{ route('whatsapp.mai.open') }}" style="color:#F5D76E;">Open the phone link</a></p>
-            <button type="button" id="install-android" class="gold">Install on Android</button>
+            <button type="button" id="install-android" class="gold" data-mai-install data-note="install-note">Install on Android</button>
             <p id="install-note" hidden>On Android, open this page in Chrome, tap the menu, then Install app or Add to Home screen.</p>
         </div>
     </div>
@@ -103,25 +103,8 @@
     }
     document.addEventListener('change', paintPlan);
     paintPlan();
-    var promptEvent = null;
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('{{ url('/whatsapp-mai/sw.js') }}', { scope: '/whatsapp-mai/' }).catch(function () {});
-    }
-    window.addEventListener('beforeinstallprompt', function (event) {
-        event.preventDefault();
-        promptEvent = event;
-    });
-    var button = document.getElementById('install-android');
-    if (!button) return;
-    button.onclick = function () {
-        if (promptEvent) {
-            promptEvent.prompt();
-            return;
-        }
-        var note = document.getElementById('install-note');
-        if (note) note.hidden = false;
-    };
 })();
 </script>
+<script src="/public/js/mai-install.js?v={{ \App\Support\AppVersion::erp() }}" defer></script>
 @endpush
 

@@ -398,7 +398,7 @@
                     <button type="button" id="pick-company" class="subscribe-choice bg-white/15 hover:bg-white/25 border border-brand-gold text-brand-gold px-7">{{ ($selected ?? '') === 'MESSAGING' ? 'Paid account' : 'Company' }}</button>
                 </div>
                 @if(($selected ?? '') === 'MESSAGING')
-                    <button type="button" id="install-app" class="install-android">Install on Android</button>
+                    <button type="button" id="install-app" class="install-android" data-mai-install data-note="install-note">Install on Android</button>
                     <p class="hint" id="install-note" hidden></p>
                 @endif
             </section>
@@ -1380,29 +1380,10 @@
                 });
             }
         }
-        if (form && form.getAttribute('data-mai') === '1') {
-            var installPrompt = null;
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('{{ url('/whatsapp-mai/sw.js') }}', { scope: '/whatsapp-mai/' }).catch(function () {});
-            }
-            window.addEventListener('beforeinstallprompt', function (event) {
-                event.preventDefault();
-                installPrompt = event;
-            });
-            var installButton = document.getElementById('install-app');
-            if (installButton) {
-                installButton.onclick = function () {
-                    var note = document.getElementById('install-note');
-                    if (installPrompt) {
-                        installPrompt.prompt();
-                        return;
-                    }
-                    if (note) {
-                        note.hidden = false;
-                        note.textContent = 'On Android, open this page in Chrome, tap the menu, then Install app or Add to Home screen.';
-                    }
-                };
-            }
+        if (form && form.getAttribute('data-mai') === '1' && !document.querySelector('script[src*="mai-install.js"]')) {
+            var installScript = document.createElement('script');
+            installScript.src = '/public/js/mai-install.js?v={{ \App\Support\AppVersion::erp() }}';
+            document.body.appendChild(installScript);
         }
     })();
 </script>

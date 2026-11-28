@@ -52,7 +52,7 @@
                 @if(!empty($session['error']))<p class="note">{{ $session['error'] }}</p>@endif
                 <p><a href="{{ route('whatsapp.mai.link') }}" style="color:#F5D76E;">Link WhatsApp</a></p>
                 <p><a class="gold" href="{{ route('whatsapp.mai.plan') }}">Choose a longer plan</a></p>
-                <button type="button" id="install-android" class="gold">Install on Android</button>
+                <button type="button" id="install-android" class="gold" data-mai-install data-note="install-note">Install on Android</button>
                 <p id="install-note" hidden>On Android, open this page in Chrome, tap the menu, then Install app or Add to Home screen.</p>
             @endif
         </div>
@@ -63,27 +63,10 @@
 @push('scripts')
 <script>
 (function () {
-    var promptEvent = null;
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('{{ url('/whatsapp-mai/sw.js') }}', { scope: '/whatsapp-mai/' }).catch(function () {});
-    }
-    window.addEventListener('beforeinstallprompt', function (event) {
-        event.preventDefault();
-        promptEvent = event;
-    });
     @if(($session['status'] ?? '') === 'CONNECTED' && empty($chats) && empty($openChat))
-    setTimeout(function () { window.location.reload(); }, 5000);
+    setTimeout(function () { window.location.reload(); }, 8000);
     @endif
-    var button = document.getElementById('install-android');
-    if (!button) return;
-    button.onclick = function () {
-        if (promptEvent) {
-            promptEvent.prompt();
-            return;
-        }
-        var note = document.getElementById('install-note');
-        if (note) note.hidden = false;
-    };
 })();
 </script>
+<script src="/public/js/mai-install.js?v={{ \App\Support\AppVersion::erp() }}" defer></script>
 @endpush

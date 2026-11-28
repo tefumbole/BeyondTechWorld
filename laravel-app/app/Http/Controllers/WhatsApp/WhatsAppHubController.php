@@ -335,7 +335,7 @@ class WhatsAppHubController extends Controller
                 $personal->connected_at = $personal->connected_at ?: \Carbon\Carbon::now();
                 $personal->save();
             }
-            if (! $request->get('poll')) {
+            if (! $request->get('poll') && ! \App\Support\MaiPhone::is($request)) {
                 try {
                     app(\App\Services\Mai\PersonalHub::class)->sync($personal);
                 } catch (\Throwable $e) {
@@ -385,7 +385,7 @@ class WhatsAppHubController extends Controller
         $conversations = $this->inboxConversations();
         $personal = $this->personalHub();
         $groups = [];
-        if ($personal) {
+        if ($personal && ! \App\Support\MaiPhone::is($request)) {
             $groups = app(\App\Services\Mai\PersonalHub::class)->groups($personal);
         } else {
             try {
@@ -833,6 +833,9 @@ class WhatsAppHubController extends Controller
     protected function liveGroupRows()
     {
         $personal = $this->personalHub();
+        if ($personal && \App\Support\MaiPhone::is(request())) {
+            return [];
+        }
         if ($personal) {
             $rows = [];
             $phone = $personal->phone_number ?: $personal->expected_phone;

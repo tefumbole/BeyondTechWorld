@@ -28,7 +28,8 @@
             <h1>Whats MAI</h1>
             <p>Add this page to your phone home screen. Then sign in with your number and name. The code only signs you in. It does not link WhatsApp.</p>
             <p>On iPhone, tap Share, then Add to Home Screen.</p>
-            <button type="button" id="install-app" class="gold" hidden>Add Whats MAI to this phone</button>
+            <button type="button" id="install-app" class="gold" data-mai-install data-note="install-note">Download for Android</button>
+            <p id="install-note" hidden>Open this page in Chrome, tap the menu, then Install app. On iPhone, tap Share, then Add to Home Screen.</p>
             @if(session('message'))<p class="ok">{{ session('message') }}</p>@endif
             @if(session('not_permitted'))<p class="bad">{{ session('not_permitted') }}</p>@endif
             @if($signedIn)
@@ -66,16 +67,11 @@
 @push('scripts')
 <script>
 (function () {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('{{ url('/whatsapp-mai/sw.js') }}', { scope: '/whatsapp-mai/' }).catch(function () {});
+    if (!document.querySelector('script[src*="mai-install.js"]')) {
+        var installScript = document.createElement('script');
+        installScript.src = '/public/js/mai-install.js?v={{ \App\Support\AppVersion::erp() }}';
+        document.body.appendChild(installScript);
     }
-    window.addEventListener('beforeinstallprompt', function (event) {
-        event.preventDefault();
-        var button = document.getElementById('install-app');
-        if (!button) return;
-        button.hidden = false;
-        button.onclick = function () { event.prompt(); };
-    });
     var form = document.getElementById('mai-join');
     if (!form) return;
     var token = document.querySelector('meta[name="csrf-token"]');

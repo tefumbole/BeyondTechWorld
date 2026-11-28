@@ -2431,7 +2431,7 @@ window.addEventListener('pageshow', function (event) {
             if (before) poll('&before=' + before);
         });
     }
-    if (liveReady()) setInterval(poll, 2000);
+    if (liveReady()) setInterval(poll, /android|iphone|ipad|mobile/i.test(navigator.userAgent || '') ? 5000 : 2000);
     var installBtn = document.getElementById('hubInstall');
     var deferredInstall = null;
     if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches && installBtn) installBtn.hidden = true;
