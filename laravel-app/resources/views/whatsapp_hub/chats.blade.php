@@ -1284,6 +1284,7 @@ try {
         <button type="button" data-act="pin">Pin</button>
         <button type="button" data-act="forward">Forward</button>
         <button type="button" data-act="copy">Copy</button>
+        <button type="button" data-act="transcribe" hidden>Transcribe</button>
         <button type="button" data-act="translate">Translate</button>
         <button type="button" data-act="edit">Edit</button>
         <button type="button" data-act="info">Info</button>
@@ -2551,6 +2552,7 @@ window.addEventListener('pageshow', function (event) {
             if (deleted && act !== 'delete' && act !== 'info') show = false;
             if (act === 'edit' && bubble.getAttribute('data-edit') !== '1') show = false;
             if (act === 'copy' && !text) show = false;
+            if (act === 'transcribe') show = bubble.getAttribute('data-audio') === '1' || !!bubble.querySelector('audio');
             if (act === 'keep') button.textContent = bubble.getAttribute('data-star') === '1' ? 'Undo keep' : 'Keep';
             if (act === 'pin') button.textContent = bubble.getAttribute('data-pin') === '1' ? 'Unpin' : 'Pin';
             button.hidden = !show;
@@ -3070,6 +3072,11 @@ window.addEventListener('pageshow', function (event) {
             if (action === 'pin') {
                 togglePin(activeMessage);
                 closeMessageMenu();
+                return;
+            }
+            if (action === 'transcribe') {
+                closeMessageMenu();
+                openTranscribe(activeMessage);
                 return;
             }
             if (action === 'translate') {

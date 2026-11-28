@@ -1440,7 +1440,7 @@ class WhatsAppHubController extends Controller
             return response()->json(['ok' => false, 'error' => 'That message is not a voice note.'], 422);
         }
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
-        $message = $translator->hearVoiceNote($message);
+        $message = $translator->clarifyVoice($message);
         if ($translator->voiceTranscript($message) === '') {
             return response()->json(['ok' => false, 'error' => 'Could not hear that voice note.'], 422);
         }

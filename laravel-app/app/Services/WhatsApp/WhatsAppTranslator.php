@@ -567,6 +567,10 @@ class WhatsAppTranslator
         if ($text === '' || $this->isVoicePlaceholder($text)) {
             return $message;
         }
+        $heard = $this->toStaffText($text);
+        if ($heard && trim((string) $heard['english']) !== '') {
+            $text = trim((string) $heard['english']);
+        }
         $message->body = $text;
         $media = $message->media();
         $translation = isset($media['translation']) && is_array($media['translation']) ? $media['translation'] : [];
@@ -576,6 +580,50 @@ class WhatsAppTranslator
         $message->media_json = json_encode($media);
         $message->save();
         $this->syncPreview($message, $text);
+
+        return $message->fresh() ?: $message;
+    }
+
+    /**
+     * Hear a voice note and store a clear version of what was meant.
+     */
+    public function clarifyVoice(WhatsAppMessage $message)
+    {
+        if (strtoupper((string) $message->type) !== 'AUDIO') {
+            return $message;
+        }
+        $raw = trim((string) $message->body);
+        if ($this->isVoicePlaceholder($raw)) {
+            $raw = trim(app(WhatsAppVoiceTranscriber::class)->transcribe($message));
+        }
+        if ($raw === '' || $this->isVoicePlaceholder($raw)) {
+            return $message;
+        }
+        $heard = $this->toStaffText($raw);
+        $clear = $heard && trim((string) $heard['english']) !== '' ? trim((string) $heard['english']) : '';
+        if ($clear === '') {
+            return $message;
+        }
+        if ($message->direction === WhatsAppMessage::DIR_IN) {
+            $this->mergeTranslation($message, [
+                'english' => $clear,
+                'language' => $heard['language'],
+                'language_name' => $heard['language_name'],
+                'style' => 'basic',
+                'verified' => true,
+                'voice' => true,
+            ]);
+        } else {
+            $message->body = $clear;
+            $media = $message->media();
+            $translation = isset($media['translation']) && is_array($media['translation']) ? $media['translation'] : [];
+            $translation['staff'] = $clear;
+            $translation['voice'] = true;
+            $media['translation'] = $translation;
+            $message->media_json = json_encode($media);
+            $message->save();
+        }
+        $this->syncPreview($message, $clear);
 
         return $message->fresh() ?: $message;
     }
@@ -603,7 +651,7 @@ class WhatsAppTranslator
         }
         $staff = $this->staffLanguage();
         $parsed = $this->ask(
-            'Translate this WhatsApp voice note into clear, simple '.$staff['name'].'. Be straight to the point and meaningful. Fix obvious typing or speech errors so it makes sense, without changing the meaning. Keep the tone. Do not add facts. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the source language","is_english":true,"english":"the clear '.$staff['name'].'"}. If it is already clear '.$staff['name'].', set is_english true and return a cleaned copy. Keep names, phone numbers, amounts, and dates unchanged.',
+            'Rewrite this voice-note transcript as clear '.$staff['name'].'. Do not copy the speech word for word. Drop fillers, repeats, and false starts, and write complete sentences that say what the person meant. Keep the same facts, names, phone numbers, amounts, and dates. Do not add anything they did not say. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the source language","is_english":true,"english":"the clear '.$staff['name'].'"}.',
             $text
         );
         if (! $parsed || ! isset($parsed['english'])) {
@@ -619,7 +667,7 @@ class WhatsAppTranslator
         $already = ! empty($parsed['is_english']) || $code === $staffCode || $code === 'en';
 
         return [
-            'english' => $already && ($code === $staffCode || $code === 'en' || ! empty($parsed['is_english'])) ? $text : $english,
+            'english' => $english,
             'language' => $already ? $staffCode : ($code !== '' ? $code : 'und'),
             'language_name' => $already ? $staff['name'] : ($name !== '' ? $name : 'original'),
         ];
