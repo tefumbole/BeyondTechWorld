@@ -545,6 +545,7 @@ Route::get('/whatsapp-mai/begin/status', 'CloudPortalController@whatsappMaiBegin
 Route::post('/whatsapp-mai/begin/qr', 'CloudPortalController@whatsappMaiBeginQr')->middleware('throttle:12,1')->name('whatsapp.mai.begin.qr');
 Route::post('/whatsapp-mai/begin/pair', 'CloudPortalController@whatsappMaiBeginPair')->middleware('throttle:6,1')->name('whatsapp.mai.begin.pair');
 Route::get('/whatsapp-mai/inbox', 'MaiWhatsAppController@inbox')->name('whatsapp.mai.inbox');
+Route::get('/whatsapp-mai/dashboard', 'MaiWhatsAppController@account')->name('whatsapp.mai.account');
 Route::get('/whatsapp-mai/sw.js', 'CloudPortalController@whatsappMaiWorker')->name('whatsapp.mai.worker');
 Route::post('/whatsapp-mai/join', 'CloudPortalController@whatsappMaiJoin')->middleware('throttle:10,10')->name('whatsapp.mai.join');
 Route::post('/cloud/register/identity', 'CloudSubscribeController@identity')->middleware('throttle:10,10')->name('cloud.register.identity');

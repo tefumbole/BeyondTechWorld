@@ -19,6 +19,10 @@ class EnsureInternCompliance
             return $next($request);
         }
 
+        if (\App\Support\MaiHost::is($request) && $request->is('admin/whatsapp/chats', 'admin/whatsapp/chats/*', 'whatsapp-mai', 'whatsapp-mai/*')) {
+            return $next($request);
+        }
+
         if ($this->isExemptPath($request) || $this->isInternDashboardPath($request)) {
             return $next($request);
         }

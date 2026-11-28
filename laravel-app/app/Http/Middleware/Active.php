@@ -16,6 +16,10 @@ class Active
      */
     public function handle($request, Closure $next)
     {
+        if (Auth::check() && \App\Support\MaiHost::is($request) && $request->is('admin/whatsapp/chats', 'admin/whatsapp/chats/*', 'whatsapp-mai', 'whatsapp-mai/*')) {
+            return $next($request);
+        }
+
         if(Auth::check() && Auth::user()->isActive()){
             if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'must_set_password')
                 && Auth::user()->must_set_password

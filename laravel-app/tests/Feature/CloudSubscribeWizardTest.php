@@ -322,9 +322,13 @@ class CloudSubscribeWizardTest extends TestCase
             ->assertSee('QR code')
             ->assertDontSee('Link code')
             ->assertSee('250794006160');
-        $this->assertSame('POST', $seen[0][0]);
-        $this->assertSame('/sessions', $seen[0][1]);
-        $this->assertSame('250794006160', $seen[0][2]['phone']);
+        $this->assertSame('GET', $seen[0][0]);
+        $this->assertSame('/sessions/p250794006160', $seen[0][1]);
+        $methods = [];
+        foreach ($seen as $row) {
+            $methods[] = $row[0].' '.$row[1];
+        }
+        $this->assertNotContains('POST /sessions', $methods);
         $this->post('/whatsapp-mai/link/send', [
             'to' => '237670000000',
             'text' => 'Hello',
@@ -333,7 +337,6 @@ class CloudSubscribeWizardTest extends TestCase
         foreach ($seen as $row) {
             $paths[] = $row[1];
         }
-        $this->assertContains('/sessions', $paths);
         $this->assertNotContains('/sessions/p250794006160/send', $paths);
     }
 
@@ -368,10 +371,7 @@ class CloudSubscribeWizardTest extends TestCase
             'updated_at' => now(),
         ]);
         $this->actingAs($user)->get('/whatsapp-mai')
-            ->assertOk()
-            ->assertSee('Whats MAI')
-            ->assertSee('Start free trial')
-            ->assertDontSee('Admin setup required');
+            ->assertRedirect('/whatsapp-mai/link');
     }
 
     public function test_a_three_day_trial_is_free_and_the_phone_link_opens_whats_mai()
@@ -433,11 +433,7 @@ class CloudSubscribeWizardTest extends TestCase
         $this->get('/whatsapp-mai/enter/'.$user->id)->assertRedirect('/whatsapp-mai');
         $url = \URL::temporarySignedRoute('whatsapp.mai.enter', now()->addDay(), ['user' => $user->id]);
         $parts = parse_url($url);
-        $this->get($parts['path'].'?'.$parts['query'])->assertRedirect('/whatsapp-mai/inbox');
-        $this->get('/whatsapp-mai/home')
-            ->assertOk()
-            ->assertSee('Whats MAI')
-            ->assertSee('Amina Ndi')
-            ->assertDontSee('Enter your phone number');
+        $this->get($parts['path'].'?'.$parts['query'])->assertRedirect('/whatsapp-mai/link');
+        $this->get('/whatsapp-mai/home')->assertRedirect('/whatsapp-mai/link');
     }
 }

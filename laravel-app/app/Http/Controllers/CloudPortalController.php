@@ -112,6 +112,9 @@ class CloudPortalController extends Controller
         if (\App\Support\MaiHost::isMainSite($request)) {
             return redirect()->away(\App\Support\MaiHost::url('/'));
         }
+        if (Auth::check()) {
+            return $this->maiEntry();
+        }
         $request->merge(['service' => 'MESSAGING']);
 
         return $this->showRegister();
@@ -120,7 +123,7 @@ class CloudPortalController extends Controller
     public function whatsappMaiOpen()
     {
         if (Auth::check()) {
-            return redirect()->route('whatsapp.mai.home');
+            return $this->maiEntry();
         }
         if (! session('cloud_onboard_token')) {
             session(['cloud_onboard_token' => Str::random(40)]);
@@ -176,7 +179,7 @@ class CloudPortalController extends Controller
         try {
             $phone = app(\App\Services\Cloud\CloudSignupOtp::class)->verify($phone, $request->input('code'));
         } catch (\Exception $e) {
-            return redirect()->to(url('/login?mai=1'))->with('not_permitted', $e->getMessage())->withInput();
+            return redirect()->route('whatsapp.mai.open')->with('not_permitted', $e->getMessage())->withInput();
         }
         $user = app(CloudOnboardingService::class)->ensurePerson($phone, $request->input('full_name'));
         Auth::login($user);
@@ -184,16 +187,8 @@ class CloudPortalController extends Controller
         if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
             return redirect()->route('whatsapp.mai')->with('not_permitted', 'Use your personal WhatsApp number.');
         }
-        $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
-        $engine->open($phone);
-        $state = $engine->status($phone, true);
-        if (($state['status'] ?? '') === 'CONNECTED') {
-            app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLinkOnce($phone);
 
-            return redirect()->route('whatsapp.mai.inbox');
-        }
-
-        return redirect()->route('whatsapp.mai.link');
+        return $this->maiEntry();
     }
 
     public function whatsappMaiBegin(Request $request)
@@ -324,7 +319,6 @@ class CloudPortalController extends Controller
                 'error' => 'This WhatsApp is a different number.',
             ]);
         }
-        $sendLink = Cache::add('mai-guest-claim:'.$phone, 1, now()->addMinutes(10));
         $plan = session('mai_plan') === 'paid' ? 'paid' : 'trial';
         $user = app(CloudOnboardingService::class)->ensurePerson($phone);
         Auth::login($user);
@@ -336,10 +330,6 @@ class CloudPortalController extends Controller
         if ($plan === 'trial') {
             $this->grantMaiTrial($user);
         }
-        if ($sendLink) {
-            app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($user->phone ?: $phone);
-        }
-
         return response()->json([
             'status' => 'CONNECTED',
             'redirect' => route('whatsapp.mai.inbox'),
@@ -655,46 +645,33 @@ class CloudPortalController extends Controller
         }
         Auth::login($account);
         $request->session()->regenerate();
-        $this->openMaiWhatsApp($account->phone);
 
-        return redirect()->route('whatsapp.mai.inbox');
+        return $this->maiEntry();
     }
 
     public function whatsappMaiHome()
     {
         if (! Auth::check()) {
-            return redirect()->route('whatsapp.mai');
+            return redirect()->route('whatsapp.mai.open');
         }
-        $user = Auth::user();
-        $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
-        $engine->open($user->phone);
 
-        $state = $engine->status($user->phone, true);
-        if (($state['status'] ?? '') === 'CONNECTED' && ! \App\Services\Mai\MaiBusinessLine::is($user->phone)) {
-            app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLinkOnce($user->phone);
+        return $this->maiEntry();
+    }
 
+    protected function maiEntry()
+    {
+        $kind = app(\App\Services\Mai\MaiEntry::class)->kind(Auth::user());
+        if ($kind === 'staff') {
+            return redirect()->route('whatsapp.chats');
+        }
+        if ($kind === 'inbox' || $kind === 'reconnect') {
             return redirect()->route('whatsapp.mai.inbox');
         }
-        $linked = ($state['status'] ?? '') === 'CONNECTED';
-        $open = preg_replace('/\D/', '', (string) request('chat'));
-        $messages = [];
-        if ($linked && $open !== '') {
-            foreach ($engine->messages($user->phone) as $row) {
-                $from = preg_replace('/\D/', '', (string) ($row['from'] ?? ''));
-                if ($from !== '' && substr($from, -strlen($open)) === $open) {
-                    $messages[] = $row;
-                }
-            }
+        if ($kind === 'signin') {
+            return redirect()->route('whatsapp.mai.open');
         }
 
-        return view('cloud.portal.mai_home', [
-            'user' => $user,
-            'session' => $state,
-            'linkedPhone' => ! empty($state['phone']) ? $state['phone'] : $user->phone,
-            'chats' => $linked ? $engine->chats($user->phone) : [],
-            'openChat' => $open,
-            'messages' => $messages,
-        ]);
+        return redirect()->route('whatsapp.mai.link');
     }
 
     protected function beginFreeMai(Request $request)

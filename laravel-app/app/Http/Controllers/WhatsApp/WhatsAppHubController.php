@@ -310,27 +310,36 @@ class WhatsAppHubController extends Controller
 
     public function chats(Request $request)
     {
-        if (\App\Support\MaiHost::is($request)) {
+        $onCustomerInbox = (string) optional($request->route())->getName() === 'whatsapp.mai.inbox';
+        if (\App\Support\MaiHost::is($request) || $onCustomerInbox) {
             if (! Auth::check()) {
-                return redirect()->to(url('/login?mai=1'));
+                return redirect()->route('whatsapp.mai.open');
             }
             $personal = $this->personalHub();
             if (! $personal) {
                 return redirect()->route('whatsapp.mai')->with('not_permitted', 'Use your personal WhatsApp number.');
             }
-            $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
-            $linked = $engine->status($personal->phone_number, false);
-            if (($linked['status'] ?? '') !== 'CONNECTED') {
+            $kind = app(\App\Services\Mai\MaiEntry::class)->kind(Auth::user());
+            if ($kind === 'link' || $kind === 'signin') {
+                if ($request->get('open') || $request->get('poll')) {
+                    return response()->json(['ok' => false], 409)->header('Cache-Control', 'no-store');
+                }
+
                 return redirect()->route('whatsapp.mai.link');
             }
-            if ($personal->status !== 'CONNECTED') {
+            if ($kind === 'reconnect') {
+                $request->attributes->set('mai_reconnecting', true);
+            }
+            if ($kind === 'inbox' && $personal->status !== 'CONNECTED') {
                 $personal->status = 'CONNECTED';
                 $personal->connected_at = $personal->connected_at ?: \Carbon\Carbon::now();
                 $personal->save();
             }
-            try {
-                app(\App\Services\Mai\PersonalHub::class)->sync($personal);
-            } catch (\Throwable $e) {
+            if (! $request->get('poll')) {
+                try {
+                    app(\App\Services\Mai\PersonalHub::class)->sync($personal);
+                } catch (\Throwable $e) {
+                }
             }
         }
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
@@ -343,7 +352,7 @@ class WhatsAppHubController extends Controller
             return response()->json($this->chatThread((int) $request->get('chat')))->header('Cache-Control', 'no-store');
         }
         if ($request->get('poll')) {
-            if (\App\Support\MaiHost::is($request) && ($personal = $this->personalHub())) {
+            if ($personal = $this->personalHub()) {
                 try {
                     app(\App\Services\Mai\PersonalHub::class)->sync($personal, false);
                 } catch (\Throwable $e) {
@@ -473,7 +482,9 @@ class WhatsAppHubController extends Controller
             }
         }
 
-        $phoneLink = $this->phoneLinkState();
+        $phoneLink = $personal
+            ? ['disconnected' => false, 'status' => 'connected', 'at' => null]
+            : $this->phoneLinkState();
         $listFilter = (string) $request->get('filter', $group ? 'groups' : 'all');
         if (! in_array($listFilter, ['all', 'unread', 'read', 'groups'], true)) {
             $listFilter = 'all';
@@ -489,7 +500,9 @@ class WhatsAppHubController extends Controller
         $sessionPhone = '';
         if ($personal) {
             $sessionPhone = '+'.preg_replace('/\D/', '', (string) $personal->phone_number);
-            $phoneLink = ['disconnected' => false, 'status' => 'connected', 'at' => null];
+            $phoneLink = $request->attributes->get('mai_reconnecting')
+                ? ['disconnected' => false, 'reconnecting' => true, 'status' => 'reconnecting', 'at' => null]
+                : ['disconnected' => false, 'status' => 'connected', 'at' => null];
         } else {
             try {
                 $sessionPhone = app(\App\Services\BeyondWasenderService::class)->sessionPhone();
@@ -502,6 +515,8 @@ class WhatsAppHubController extends Controller
         }
 
         $personalHub = (bool) $personal;
+        $hubRoute = $personalHub ? 'whatsapp.mai.inbox' : 'whatsapp.chats';
+        $hubDashboard = $personalHub ? route('whatsapp.mai.account') : route('whatsapp.index');
         $historyReady = ! $personal || ! Schema::hasColumn('mai_sessions', 'history_ready') || (bool) $personal->history_ready;
         $historyProgress = $personal ? \Illuminate\Support\Facades\Cache::get('mai.sync.'.$personal->id) : null;
         $announce = ($personal && $pane === 'announcements')
@@ -560,7 +575,7 @@ class WhatsAppHubController extends Controller
                 'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
                 'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
                 'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady', 'historyProgress',
-                'briefs', 'maiAppLink', 'directory'
+                'briefs', 'maiAppLink', 'directory', 'hubRoute', 'hubDashboard'
             ))
             ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
     }
@@ -3626,7 +3641,9 @@ class WhatsAppHubController extends Controller
             return $this->personalHubSession ?: null;
         }
         $this->personalHubSession = false;
-        if (! \App\Support\MaiHost::is(request())) {
+        $route = (string) optional(request()->route())->getName();
+        $customerInbox = $route === 'whatsapp.mai.inbox';
+        if (! \App\Support\MaiHost::is(request()) && ! $customerInbox) {
             return null;
         }
         $user = Auth::user();

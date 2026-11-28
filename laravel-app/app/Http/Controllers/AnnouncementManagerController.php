@@ -36,9 +36,19 @@ class AnnouncementManagerController extends Controller
         });
     }
 
+    protected function customerInbox()
+    {
+        if (! Auth::check() || \App\Services\Mai\MaiBusinessLine::is(Auth::user()->phone)) {
+            return false;
+        }
+        $route = (string) optional(request()->route())->getName();
+
+        return \App\Support\MaiHost::is(request()) || $route === 'whatsapp.mai.inbox';
+    }
+
     protected function authorizeAnnouncements($permission = 'announcements.view')
     {
-        if (\App\Support\MaiHost::is(request()) && Auth::check()) {
+        if ($this->customerInbox()) {
             return;
         }
         if (in_array('announcements_module', $this->all_permission, true)
@@ -51,7 +61,7 @@ class AnnouncementManagerController extends Controller
 
     protected function personalSessionId()
     {
-        if (! \App\Support\MaiHost::is(request()) || ! Auth::check()) {
+        if (! $this->customerInbox()) {
             return null;
         }
         $session = app(\App\Services\Mai\PersonalHub::class)->ensure(Auth::user());
@@ -86,7 +96,7 @@ class AnnouncementManagerController extends Controller
 
     protected function phonePeople($search)
     {
-        if (! \App\Support\MaiHost::is(request()) || ! Auth::check()) {
+        if (! $this->customerInbox()) {
             return null;
         }
         $session = app(\App\Services\Mai\PersonalHub::class)->ensure(Auth::user());
@@ -190,10 +200,10 @@ class AnnouncementManagerController extends Controller
         $this->authorizeAnnouncements('announcements.create');
         @set_time_limit(90);
         $users = $this->usersJson();
-        $categories = $this->announcements->categories();
-        $settings = $this->announcements->settings();
         $sessionId = $this->personalSessionId();
         $clientBook = (bool) $sessionId;
+        $categories = $clientBook ? collect() : $this->announcements->categories();
+        $settings = $clientBook ? (object) [] : $this->announcements->settings();
         $templates = $clientBook ? collect() : $this->announcements->templates();
         if ($sessionId) {
             $session = \App\Mai\MaiSession::find($sessionId);
@@ -209,7 +219,7 @@ class AnnouncementManagerController extends Controller
                 $clone = $this->announcements->cloneAnnouncement($src);
             }
         }
-        if ($request->filled('template')) {
+        if (! $clientBook && $request->filled('template')) {
             $tpl = $this->announcements->templates()->firstWhere('id', (int) $request->get('template'));
             if ($tpl) {
                 $clone = array_merge($clone ?: [], [

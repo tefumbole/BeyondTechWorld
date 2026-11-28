@@ -1,4 +1,4 @@
-@extends('layout.main')
+@extends(!empty($personalHub) ? 'whatsapp_hub.customer_shell' : 'layout.main')
 
 @section('content')
 <style>
@@ -433,10 +433,10 @@ try {
                 </button>
             </div>
             <div class="more-menu" id="moreMenu" hidden>
-                <a href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.index') }}">Announcements</a>
-                <a href="{{ route('whatsapp.index') }}">Dashboard</a>
-                <a href="{{ route('whatsapp.chats', ['pane' => 'speech']) }}">Translation</a>
-                <a href="{{ route('whatsapp.chats', ['pane' => 'briefing']) }}">AI Brief</a>
+                <a href="{{ route($hubRoute, ['pane' => 'announcements']) }}">Announcements</a>
+                <a href="{{ $hubDashboard }}">Dashboard</a>
+                <a href="{{ route($hubRoute, ['pane' => 'speech']) }}">Translation</a>
+                <a href="{{ route($hubRoute, ['pane' => 'briefing']) }}">AI Brief</a>
                 <button type="button" class="js-hub-settings">Settings</button>
                 <form method="POST" action="{{ url('/logout') }}">
                     @csrf
@@ -458,7 +458,9 @@ try {
         @if(session('not_permitted') && ! $open)
             <div class="chat-note">{{ session('not_permitted') }}</div>
         @endif
-        @if(!empty($phoneLink['disconnected']))
+        @if(!empty($phoneLink['reconnecting']))
+            <div class="chat-note">WhatsApp is reconnecting. This inbox stays available.</div>
+        @elseif(!empty($phoneLink['disconnected']))
             <div class="chat-note">WhatsApp on the phone is not linked{{ !empty($phoneLink['at']) ? ' since '.$phoneLink['at'] : '' }}. Reconnect that number in Wasender. New chats will then stay up to date here.</div>
         @endif
         @php
@@ -1038,22 +1040,22 @@ try {
         @elseif($pane === 'announcements' && !empty($personalHub) && !empty($announce))
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats') }}" aria-label="Back to chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
+                    <a class="chat-back" href="{{ route($hubRoute) }}" aria-label="Back to chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
                     <div>
                         <h2>Announcements</h2>
                         <p>Write a message, choose people or a group, then send</p>
                     </div>
                 </div>
                 <div class="mode-switch" style="position:relative;">
-                    <a class="call-btn" href="{{ route('whatsapp.chats') }}">Back to chat</a>
+                    <a class="call-btn" href="{{ route($hubRoute) }}">Back to chat</a>
                     <button type="button" class="inbox-icon" id="announceMore" aria-label="More" aria-expanded="false">
                         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18" cy="12" r="1.7"/></svg>
                     </button>
                     <div class="more-menu" id="announceMoreMenu" hidden>
-                        <a href="{{ route('whatsapp.chats', ['pane' => 'announcements']) }}">Announcements</a>
-                        <a href="{{ route('whatsapp.index') }}">Dashboard</a>
-                        <a href="{{ route('whatsapp.chats', ['pane' => 'speech']) }}">Translation</a>
-                        <a href="{{ route('whatsapp.chats', ['pane' => 'briefing']) }}">AI Brief</a>
+                        <a href="{{ route($hubRoute, ['pane' => 'announcements']) }}">Announcements</a>
+                        <a href="{{ $hubDashboard }}">Dashboard</a>
+                        <a href="{{ route($hubRoute, ['pane' => 'speech']) }}">Translation</a>
+                        <a href="{{ route($hubRoute, ['pane' => 'briefing']) }}">AI Brief</a>
                         <button type="button" class="js-hub-settings">Settings</button>
                         <form method="POST" action="{{ url('/logout') }}">
                             @csrf

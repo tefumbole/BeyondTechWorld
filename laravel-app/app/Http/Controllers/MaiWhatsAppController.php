@@ -15,16 +15,19 @@ class MaiWhatsAppController extends Controller
     {
         $user = $this->person();
         if (! $user) {
-            return redirect()->to(url('/login?mai=1'));
+            return redirect()->route('whatsapp.mai.open');
         }
         $phone = $this->accountPhone($user);
         $session = ['status' => 'NOT_CONNECTED', 'qr' => null, 'pairing_code' => null, 'error' => null];
+        $kind = app(\App\Services\Mai\MaiEntry::class)->kind($user);
+        if ($kind === 'inbox' || $kind === 'reconnect') {
+            return redirect()->route('whatsapp.mai.inbox');
+        }
+        if ($kind === 'staff') {
+            return redirect()->route('whatsapp.chats');
+        }
         if ($phone !== '') {
-            $engine = app(MaiWhatsAppEngine::class);
-            $session = $engine->status($phone, false);
-            if ($this->linked($user, $phone, $session)) {
-                return redirect()->route('whatsapp.mai.inbox');
-            }
+            $session = app(MaiWhatsAppEngine::class)->status($phone, false);
         }
 
         return view('cloud.portal.mai_link', [
@@ -64,31 +67,19 @@ class MaiWhatsAppController extends Controller
     {
         $user = $this->person();
         if (! $user) {
-            return redirect()->to(url('/login?mai=1'));
+            return redirect()->route('whatsapp.mai.open');
         }
+
         return redirect()->route('whatsapp.mai.link');
     }
 
     public function verifyLinkOtp(Request $request)
     {
-        $user = $this->person();
-        if (! $user) {
-            return redirect()->to(url('/login?mai=1'));
+        if (! $this->person()) {
+            return redirect()->route('whatsapp.mai.open');
         }
-        try {
-            app(\App\Services\Cloud\CloudSignupOtp::class)->verify($user->phone, $request->input('code'));
-        } catch (\Exception $e) {
-            return redirect()->route('whatsapp.mai.link')
-                ->with('not_permitted', $e->getMessage())
-                ->with('link_tab', 'code')
-                ->with('link_otp_sent', 1);
-        }
-        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($user->phone);
-        $computer = $user
-            ? \URL::temporarySignedRoute('whatsapp.mai.enter', now()->addDays(14), ['user' => $user->id])
-            : route('whatsapp.mai.home');
 
-        return redirect()->route('whatsapp.mai.home')->with('message', 'Whats MAI is open for this phone. Open it on this computer too: '.$computer);
+        return redirect()->route('whatsapp.mai.link');
     }
 
     public function status(Request $request)
@@ -109,7 +100,41 @@ class MaiWhatsAppController extends Controller
 
     public function inbox(Request $request)
     {
-        return redirect()->route('whatsapp.chats');
+        $user = $this->person();
+        if (! $user) {
+            return redirect()->route('whatsapp.mai.open');
+        }
+        $kind = app(\App\Services\Mai\MaiEntry::class)->kind($user);
+        if ($kind === 'staff') {
+            return redirect()->route('whatsapp.chats');
+        }
+        if ($kind === 'link' || $kind === 'signin') {
+            return redirect()->route('whatsapp.mai.link');
+        }
+        if ($kind === 'reconnect') {
+            $request->attributes->set('mai_reconnecting', true);
+        }
+
+        return app(\App\Http\Controllers\WhatsApp\WhatsAppHubController::class)->chats($request);
+    }
+
+    public function account()
+    {
+        $user = $this->person();
+        if (! $user) {
+            return redirect()->route('whatsapp.mai.open');
+        }
+        if (\App\Services\Mai\MaiBusinessLine::is($user->phone)) {
+            return redirect()->route('whatsapp.index');
+        }
+        $phone = app(\App\Services\Mai\MaiEntry::class)->phone($user);
+        $state = $phone !== '' ? app(MaiWhatsAppEngine::class)->status($phone, false) : ['status' => 'NOT_CONNECTED'];
+
+        return view('whatsapp_hub.customer_dashboard', [
+            'user' => $user,
+            'phone' => $phone,
+            'status' => isset($state['status']) ? (string) $state['status'] : 'NOT_CONNECTED',
+        ]);
     }
 
     public function pair(Request $request)
@@ -146,7 +171,7 @@ class MaiWhatsAppController extends Controller
     {
         $user = $this->person();
         if (! $user) {
-            return redirect()->to(url('/login?mai=1'));
+            return redirect()->route('whatsapp.mai.open');
         }
         $engine = app(MaiWhatsAppEngine::class);
         $state = $engine->status($user->phone, false);
@@ -230,7 +255,6 @@ class MaiWhatsAppController extends Controller
             $user->save();
         }
         app(\App\Services\Mai\PersonalHub::class)->ensure($user->fresh() ?: $user);
-        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLinkOnce($phone);
 
         return true;
     }
