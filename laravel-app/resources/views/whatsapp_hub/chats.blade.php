@@ -478,20 +478,21 @@
         background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
         background-size: 24px 24px;
     }
-    .chats-app.is-web .bubble { max-width: min(520px, 78%); padding: 6px 8px 4px 9px; border-radius: 8px; box-shadow: 0 1px 0.5px rgba(11, 20, 26, .13); }
+    .chats-app.is-web .bubble { width: fit-content; max-width: min(480px, 78%); padding: 4px 26px 3px 8px; border-radius: 8px; line-height: 1.22; text-align: left; box-shadow: 0 1px 0.5px rgba(11, 20, 26, .13); }
+    .chats-app.is-web .bubble .body { display: inline; white-space: pre-wrap; }
     .chats-app.is-web .bubble.in { background: #202c33; color: #e9edef; border-top-left-radius: 0; }
-    .chats-app.is-web .bubble.out { background: #00a884; color: #fff; border-top-right-radius: 0; }
+    .chats-app.is-web .bubble.out { background: #005c4b; color: #e9edef; border-top-right-radius: 0; }
     .chats-app.is-web .bubble.in::after,
     .chats-app.is-web .bubble.out::after { content: ""; position: absolute; top: 0; width: 8px; height: 13px; }
     .chats-app.is-web .bubble.in::after { left: -8px; background: #202c33; clip-path: polygon(100% 0, 0 0, 100% 100%); }
-    .chats-app.is-web .bubble.out::after { right: -8px; background: #00a884; clip-path: polygon(0 0, 100% 0, 0 100%); }
+    .chats-app.is-web .bubble.out::after { right: -8px; background: #005c4b; clip-path: polygon(0 0, 100% 0, 0 100%); }
     .chats-app.is-web .bubble .who { color: #7ee0c2; }
     .chats-app.is-web .bubble-more { background: rgba(11, 20, 26, .45); color: #e9edef; box-shadow: none; }
     .chats-app.is-web .day-chip { background: #182229; color: #8696a0; box-shadow: none; }
     .chats-app.is-web .bubble time,
-    .chats-app.is-web .bubble.out time,
+    .chats-app.is-web .bubble.out time { float: none; display: inline; margin: 0 0 0 6px; vertical-align: baseline; color: rgba(233, 237, 239, .72); }
     .chats-app.is-web .bubble .aside,
-    .chats-app.is-web .bubble.out .aside { color: rgba(255, 255, 255, .72); }
+    .chats-app.is-web .bubble.out .aside { display: block; margin-top: 2px; line-height: 1.25; color: rgba(233, 237, 239, .72); }
     .chats-app.is-web .bubble .tick.sent,
     .chats-app.is-web .bubble .tick.delivered,
     .chats-app.is-web .bubble .tick.queued { color: rgba(233, 237, 239, .7); }
@@ -1933,6 +1934,9 @@ window.addEventListener('pageshow', function (event) {
             return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
         });
     }
+    function tightText(value) {
+        return String(value || '').replace(/[ \t]+\n/g, '\n').replace(/\n{2,}/g, '\n').trim();
+    }
     function linkify(value) {
         var text = esc(value);
         return text.replace(/(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi, function (raw) {
@@ -1994,8 +1998,8 @@ window.addEventListener('pageshow', function (event) {
             + (message.forwarded ? '<span class="forwarded">Forwarded</span>' : '')
             + (message.quote ? '<span class="quote">' + linkify(message.quote) + '</span>' : '')
             + media
-            + (message.text ? '<span class="body">' + linkify(message.text) + '</span>' : '')
-            + (message.aside ? '<span class="aside">' + linkify(message.aside) + '</span>' : '')
+            + (message.text ? '<span class="body">' + linkify(tightText(message.text)) + '</span>' : '')
+            + (message.aside ? '<span class="aside">' + linkify(tightText(message.aside)) + '</span>' : '')
             + '<time' + (at ? ' data-at="' + esc(at) + '"' : '') + '><span class="clock">' + esc(clock) + '</span>'
             + (message.edited ? '<span class="edited">Edited</span>' : '')
             + (message.starred ? '<span class="star">★</span>' : '')
@@ -2662,7 +2666,7 @@ window.addEventListener('pageshow', function (event) {
                             var time = bubble.querySelector('time');
                             bubble.insertBefore(body, time || null);
                         }
-                        body.innerHTML = linkify(message.text);
+                        body.innerHTML = linkify(tightText(message.text));
                         var aside = bubble.querySelector('.aside');
                         if (message.aside) {
                             if (!aside) {
@@ -2670,7 +2674,7 @@ window.addEventListener('pageshow', function (event) {
                                 aside.className = 'aside';
                                 body.insertAdjacentElement('afterend', aside);
                             }
-                            aside.innerHTML = linkify(message.aside);
+                            aside.innerHTML = linkify(tightText(message.aside));
                         }
                     });
                     paintTicks(data.ticks || []);

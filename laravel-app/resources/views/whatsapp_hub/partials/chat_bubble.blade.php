@@ -2,6 +2,9 @@
     $text = trim((string) ($text ?? ''));
     $text = preg_replace("/[ \t]+\n/", "\n", $text);
     $text = preg_replace("/\n{2,}/", "\n", $text);
+    $aside = trim((string) ($aside ?? ''));
+    $aside = preg_replace("/[ \t]+\n/", "\n", $aside);
+    $aside = preg_replace("/\n{2,}/", "\n", $aside);
     $type = strtoupper((string) ($type ?? 'TEXT'));
     $mediaUrl = (string) ($mediaUrl ?? '');
     $mediaName = (string) ($mediaName ?? '');
