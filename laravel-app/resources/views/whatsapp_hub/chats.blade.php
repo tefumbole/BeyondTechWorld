@@ -330,6 +330,23 @@
     .letter-card .send-letter { margin-top: 14px; min-height: 46px; border: 0; border-radius: 999px; background: #c6ab47; color: #072f6b; font-weight: 800; padding: 0 18px; cursor: pointer; }
     .send-lang { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 18px 0; background: rgba(255,255,255,.94); color: #3b4a68; font-size: 13px; font-weight: 700; }
     .send-lang select { border: 1px solid #d5deee; border-radius: 999px; min-height: 34px; padding: 0 12px; background: #fff; color: #1d2a44; font-weight: 700; }
+    .chats-app.is-updates:not(.has-update) .chats-side { flex: 1 1 auto; width: auto; max-width: none; border-right: 0; }
+    .chats-app.is-updates:not(.has-update) .chats-thread { display: none; }
+    .chats-app.is-updates:not(.has-update) .sync-status,
+    .chats-app.is-updates:not(.has-update) .chats-search,
+    .chats-app.is-updates:not(.has-update) .chats-list { max-width: 760px; width: 100%; margin-left: auto; margin-right: auto; }
+    .chats-app.is-updates:not(.has-update) .sync-status { border-radius: 12px; }
+    .chats-app.is-updates.has-update .chats-side { flex: 0 0 380px; width: 380px; max-width: 36vw; }
+    .chats-app.is-updates.has-update .chats-thread { display: flex; background: #f4f7fb; }
+    .update-row { align-items: flex-start; margin: 0 0 10px; padding: 14px 16px; border: 1px solid #e6ebf5; border-radius: 16px; background: #fff; }
+    .update-row .chat-top { align-items: flex-start; }
+    .update-row .chat-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
+    .update-row .chat-preview { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }
+    .update-row .chat-time { margin-top: 2px; }
+    .update-letter { margin: 28px auto; width: min(720px, calc(100% - 48px)); background: #fff; border-radius: 20px; padding: 28px 32px 36px; box-shadow: 0 10px 30px rgba(15, 31, 61, .08); }
+    .update-letter h2 { margin: 0; color: #111b21; font-size: 28px; line-height: 1.25; font-weight: 800; }
+    .update-letter .update-when { display: block; margin-top: 8px; color: #667781; font-size: 13px; font-weight: 700; }
+    .update-letter .update-body { margin: 22px 0 0; color: #1f2a44; font-size: 16px; line-height: 1.6; white-space: pre-wrap; }
     .chats-empty { margin: auto; text-align: center; color: var(--wa-muted); max-width: 440px; padding: 28px; }
     .chats-empty strong { display: block; color: var(--wa-ink); font-size: 26px; font-weight: 800; margin-bottom: 8px; }
     .chats-thread > .chats-empty::before { content: ""; display: block; width: 96px; height: 96px; margin: 0 auto 18px; border-radius: 28px; background: var(--wa-grad) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 11.5a8.4 8.4 0 0 1-12.3 7.5L3 21l2-5.5A8.5 8.5 0 1 1 21 11.5z'/%3E%3C/svg%3E") no-repeat center; box-shadow: 0 16px 36px rgba(21, 101, 192, .3); transform: rotate(-6deg); }
@@ -377,6 +394,11 @@
         .beyond-module-tabs-nav { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 8px; }
         .beyond-module-tab { padding: 8px 12px; font-size: 12px; }
         .chat-row { padding: 12px; }
+        .chats-app.is-updates.has-update .chats-side { display: none; }
+        .chats-app.is-updates.has-update .chats-thread { display: flex; }
+        .chats-app.is-updates .chats-list, .chats-app.is-updates .chats-search { max-width: none; }
+        .update-letter { width: calc(100% - 20px); margin: 12px auto; padding: 18px 16px 24px; }
+        .update-letter h2 { font-size: 22px; }
         .hub-screens { padding-top: 8px; }
         .chats-app.is-announce { height: 100dvh; min-height: 0; overflow: hidden; }
         .chats-app.is-announce .chats-thread { overflow: auto; -webkit-overflow-scrolling: touch; }
@@ -409,7 +431,7 @@
 @php
     $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
-<div class="chats-app {{ ($open || $group || !empty($openUpdate) || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech', 'updates'], true)) ? 'has-open' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}" id="chatsApp">
+<div class="chats-app {{ ($open || $group || !empty($openUpdate) || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech'], true)) ? 'has-open' : '' }} {{ $pane === 'updates' ? 'is-updates' : '' }} {{ !empty($openUpdate) ? 'has-update' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}" id="chatsApp">
 <script>
 try {
     var savedTheme = localStorage.getItem('mai-theme');
@@ -437,13 +459,15 @@ try {
         @endphp
         <header class="inbox-bar">
             <div class="inbox-brand">
-                <h1>Whats MAI</h1>
+                <h1>{{ $pane === 'updates' ? 'Updates' : 'Whats MAI' }}</h1>
                 <p class="inbox-status {{ $statusOn ? 'is-on' : 'is-off' }}"><i></i> {{ $statusOn ? 'Connected' : 'Not linked' }} · {{ $statusPhone }}</p>
             </div>
             <div class="inbox-tools">
+                @if($pane !== 'updates')
                 <button type="button" class="inbox-icon" id="newChatOpen" aria-label="New chat">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z"/></svg>
                 </button>
+                @endif
                 <button type="button" class="inbox-icon" id="moreOpen" aria-label="More" aria-expanded="false" aria-controls="moreMenu">
                     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18" cy="12" r="1.7"/></svg>
                 </button>
@@ -505,7 +529,7 @@ try {
             $openId = $open ? (int) $open->id : 0;
         @endphp
         <div class="chats-search">
-            <input type="search" id="chatSearch" placeholder="{{ $pane === 'chats' ? 'Search chats' : 'Search this list' }}" autocomplete="off">
+            <input type="search" id="chatSearch" placeholder="{{ $pane === 'updates' ? 'Search updates' : ($pane === 'chats' ? 'Search chats' : 'Search this list') }}" autocomplete="off">
         </div>
         @if($pane === 'chats')
         <div class="chat-filters" id="chatFilters">
@@ -639,14 +663,14 @@ try {
                 <div class="hub-label">Updates</div>
                 @forelse($updates as $update)
                     @php $when = $update->created_at; $title = $update->subject ?: 'Announcement'; @endphp
-                    <a class="chat-row {{ (!empty($openUpdate) && (int) $openUpdate->id === (int) $update->id) ? 'is-on' : '' }}" data-name="{{ strtolower($title) }}" href="{{ route($hubRoute, ['pane' => 'updates', 'update' => $update->id]) }}">
+                    <a class="chat-row update-row {{ (!empty($openUpdate) && (int) $openUpdate->id === (int) $update->id) ? 'is-on' : '' }}" data-name="{{ strtolower($title.' '.strip_tags((string) $update->body)) }}" href="{{ route($hubRoute, ['pane' => 'updates', 'update' => $update->id]) }}">
                         <span class="chat-avatar"><i class="fa fa-bell"></i></span>
                         <span class="chat-main">
                             <span class="chat-top">
                                 <span class="chat-name">{{ $title }}</span>
-                                <span class="chat-time" @if($when) data-at="{{ $when->toIso8601String() }}" @endif>{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
+                                <span class="chat-time" @if($when) data-at="{{ $when->toIso8601String() }}" @endif>{{ $when ? $when->format('M j, Y') : '' }}</span>
                             </span>
-                            <span class="chat-bottom"><span class="chat-preview">{{ \Illuminate\Support\Str::limit(trim(strip_tags((string) $update->body)), 80) }}</span></span>
+                            <span class="chat-bottom"><span class="chat-preview">{{ \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/', ' ', strip_tags((string) $update->body))), 140) }}</span></span>
                         </span>
                     </a>
                 @empty
@@ -1085,15 +1109,17 @@ try {
                 <div class="chats-head-person">
                     <a class="chat-back" href="{{ route($hubRoute, ['pane' => 'updates']) }}" aria-label="Back to updates"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
                     <div>
-                        <h2>{{ $openUpdate->subject ?: 'Update' }}</h2>
-                        <p>{{ $openUpdate->created_at ? $openUpdate->created_at->format('M j, H:i') : 'Update' }}</p>
+                        <h2>Updates</h2>
+                        <p>Back to the list</p>
                     </div>
                 </div>
             </header>
             <div class="chats-stream">
-                <div class="letter-card">
-                    <p>{!! nl2br(e(trim(strip_tags((string) $openUpdate->body)))) !!}</p>
-                </div>
+                <article class="update-letter">
+                    <h2>{{ $openUpdate->subject ?: 'Update' }}</h2>
+                    <span class="update-when">{{ $openUpdate->created_at ? $openUpdate->created_at->format('M j, Y \\a\\t H:i') : '' }}</span>
+                    <p class="update-body">{!! nl2br(e(trim(strip_tags((string) $openUpdate->body)))) !!}</p>
+                </article>
             </div>
         @elseif($pane === 'announcements' && !empty($personalHub) && !empty($announce))
             <header class="chats-head">
