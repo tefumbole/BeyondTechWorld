@@ -90,10 +90,14 @@ class CloudSignupIdentityTest extends TestCase
 
     public function test_site_content_lists_the_whatsapp_hub_menu()
     {
-        $items = SiteMenu::whatsappItems();
-        $this->assertSame('WhatsApp Hub', SiteMenu::sideItems()['whatsapp']);
-        $this->assertArrayHasKey('brief', $items);
-        $this->assertArrayHasKey('people', $items);
-        $this->assertArrayHasKey('conversations', $items);
+        $hub = SiteMenu::whatsappItems();
+        $items = SiteMenu::sideItems();
+        $this->assertSame('WhatsApp Hub', $items['whatsapp']);
+        $this->assertSame('Dashboard', $items['whatsapp-dashboard']);
+        $keys = array_keys($items);
+        $this->assertLessThan(array_search('whatsapp', $keys, true), array_search('whatsapp-dashboard', $keys, true));
+        $this->assertArrayHasKey('brief', $hub);
+        $this->assertArrayHasKey('people', $hub);
+        $this->assertArrayHasKey('conversations', $hub);
     }
 }

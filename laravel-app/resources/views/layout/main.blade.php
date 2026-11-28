@@ -1059,7 +1059,9 @@
                             <li id="mai-voice-menu" data-nav-key="mai"><a href="{{ route('mai.voice') }}"><i class="fa fa-phone"></i><span>MAI Voice</span></a></li>
                         @endif
                         @if($whatsapp_module_active)
-                            <li data-nav-key="whatsapp"><a href="#whatsapp-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-whatsapp"></i><span>WhatsApp Hub</span></a>
+                            <li id="whatsapp-dashboard-menu" data-nav-key="whatsapp-dashboard"><a href="{{ route('whatsapp.index') }}"><i class="dripicons-meter"></i><span>Dashboard</span></a></li>
+                            <li class="has-product-nav" data-nav-key="whatsapp"><a href="{{ route('whatsapp.chats') }}" data-nav-key="whatsapp"> <i class="fa fa-whatsapp"></i><span>WhatsApp Hub</span></a>
+                                <a href="#whatsapp-module" class="product-submenu-toggle" data-toggle="collapse" aria-expanded="false" aria-label="Open WhatsApp menu"><i class="dripicons-chevron-down"></i></a>
                                 <ul id="whatsapp-module" class="collapse list-unstyled ">
                                     <li id="whatsapp-settings-menu"><a href="{{ route('whatsapp.settings') }}">Settings</a></li>
                                     <li id="whatsapp-twilio-log-menu"><a href="{{ route('whatsapp.twilio_log') }}">Twilio log</a></li>
@@ -2991,11 +2993,11 @@
                   }
               }
 
-              $('#side-main-menu > li > a[data-toggle="collapse"]').each(function () {
+              $('#side-main-menu > li > a[data-toggle="collapse"]').not('.product-submenu-toggle').each(function () {
                   $(this).removeAttr('data-toggle').removeAttr('aria-expanded');
               });
 
-              $('#side-main-menu > li > a[href^="#"]').on('click', function (e) {
+              $('#side-main-menu > li > a[href^="#"]').not('.product-submenu-toggle').on('click', function (e) {
                   e.preventDefault();
                   var target = $(this).attr('href');
                   var $firstLink = $(target).find('> li > a[href]').filter(function () {
@@ -3113,6 +3115,13 @@
                           best = this;
                       }
                   });
+                  if (!best) {
+                      $('#side-main-menu > li > a[href]').each(function () {
+                          var href = $(this).attr('href') || '';
+                          if (href.charAt(0) === '#') return;
+                          if (pathOf(href) === path) best = this;
+                      });
+                  }
                   if (best) {
                       markCurrent(best);
                   }

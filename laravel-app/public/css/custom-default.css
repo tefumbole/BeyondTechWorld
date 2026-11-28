@@ -612,7 +612,8 @@ section {
     position: relative;
 }
 
-.side-navbar li.has-product-nav > a[data-nav-key="product"] {
+.side-navbar li.has-product-nav > a[data-nav-key="product"],
+.side-navbar li.has-product-nav > a[data-nav-key="whatsapp"] {
     padding-right: 34px;
 }
 

@@ -56,6 +56,7 @@ class SiteMenu
             'contracts'    => 'Contracts',
             'permissions'  => 'Permissions',
             'announcements'=> 'Announcements',
+            'whatsapp-dashboard' => 'Dashboard',
             'whatsapp'     => 'WhatsApp Hub',
             'courses'      => 'Courses',
             'timesheets'   => 'TimeSheets (Employee)',
@@ -127,6 +128,9 @@ class SiteMenu
         }
         if (! is_array($saved) || ! in_array('antivirus', $saved, true)) {
             $ordered = self::moveAfter($ordered, 'antivirus', 'reviews');
+        }
+        if (! is_array($saved) || ! in_array('whatsapp-dashboard', $saved, true)) {
+            $ordered = self::moveBefore($ordered, 'whatsapp-dashboard', 'whatsapp');
         }
 
         return $ordered;
