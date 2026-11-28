@@ -573,6 +573,37 @@ class MaiContactIsolationTest extends TestCase
             'text' => 'After takeover',
         ]);
         $this->assertSame(2, $calls);
+
+        $other = $this->linked(6, 'p237670000556');
+        $otherContact = new WhatsAppContact();
+        $otherContact->normalized_phone = '237688000111';
+        $otherContact->display_phone = '+237688000111';
+        $otherContact->save();
+        $otherChat = $this->chat($otherContact, $other, '');
+        $this->assertSame('HUMAN', strtoupper((string) $otherChat->mode));
+        app(MaiInboxStore::class)->accept([
+            'session_id' => $other->worker_session_id,
+            'event_id' => 'other-human',
+            'live' => true,
+            'remote' => '237688000111',
+            'jid' => '237688000111@s.whatsapp.net',
+            'text' => 'Leave this chat with a person',
+        ]);
+        $this->assertSame(2, $calls);
+        $this->assertSame('HUMAN', strtoupper((string) $chat->fresh()->mode));
+        $otherChat->mode = 'AI';
+        $otherChat->save();
+        app(MaiInboxStore::class)->accept([
+            'session_id' => $other->worker_session_id,
+            'event_id' => 'other-ai',
+            'live' => true,
+            'remote' => '237688000111',
+            'jid' => '237688000111@s.whatsapp.net',
+            'text' => 'Answer only this chat',
+        ]);
+        $this->assertSame(3, $calls);
+        $this->assertSame('HUMAN', strtoupper((string) $chat->fresh()->mode));
+        $this->assertSame('AI', strtoupper((string) $otherChat->fresh()->mode));
     }
 
     public function test_history_stays_incomplete_until_the_batch_is_stored()

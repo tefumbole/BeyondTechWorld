@@ -139,6 +139,8 @@
     var pollTimer = null;
     var tickTimer = null;
     var refreshing = false;
+    var statusBusy = false;
+    var statusAgain = false;
     var csrf = @json(csrf_token());
     var pairUrl = @json(route('whatsapp.mai.link.pair'));
     var statusUrl = @json(route('whatsapp.mai.link.status'));
@@ -262,6 +264,7 @@
         }
         if (data && data.redirect) {
             try { sessionStorage.removeItem('mai-link-attempt'); } catch (e) {}
+            if (pollTimer) clearInterval(pollTimer);
             window.location = data.redirect;
             return true;
         }
@@ -410,8 +413,10 @@
     }
 
     function tickStatus() {
+        if (statusBusy) { statusAgain = true; return; }
+        statusBusy = true;
         var url = statusUrl + (mode === 'qr' ? '?qr=1' : '');
-        fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+        fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin', cache: 'no-store' })
             .then(function (response) {
                 return response.json().then(function (data) {
                     data = data || {};
@@ -425,7 +430,11 @@
                     refreshQr();
                 }
             })
-            .catch(function () {});
+            .catch(function () {})
+            .then(function () {
+                statusBusy = false;
+                if (statusAgain) { statusAgain = false; tickStatus(); }
+            });
     }
 
     var refreshBtn = document.getElementById('qr-refresh');

@@ -614,10 +614,10 @@ class WhatsAppConversationService
             ];
         }
         $command = app(OwnerCommandService::class)->commandToken($body);
-        if ($command === 'AI OFF' || $command === 'AI ON') {
+        if (! $conversation->mai_session_id && ($command === 'AI OFF' || $command === 'AI ON')) {
             return $this->switchModeFromReply($conversation, $command === 'AI ON', $userId);
         }
-        if (AssistantRuntimeSettings::manualReplyTakesOver() && $conversation->mode === WhatsAppConversation::MODE_AI) {
+        if (! $conversation->mai_session_id && AssistantRuntimeSettings::manualReplyTakesOver() && $conversation->mode === WhatsAppConversation::MODE_AI) {
             $conversation->mode = WhatsAppConversation::MODE_HUMAN;
             if ($userId) {
                 $conversation->assigned_user_id = $userId;
@@ -980,7 +980,7 @@ class WhatsAppConversationService
         if (! is_file($localPath)) {
             return ['success' => false, 'error' => 'The voice note was empty.'];
         }
-        if (AssistantRuntimeSettings::manualReplyTakesOver() && $conversation->mode === WhatsAppConversation::MODE_AI) {
+        if (! $conversation->mai_session_id && AssistantRuntimeSettings::manualReplyTakesOver() && $conversation->mode === WhatsAppConversation::MODE_AI) {
             $conversation->mode = WhatsAppConversation::MODE_HUMAN;
             if ($userId) {
                 $conversation->assigned_user_id = $userId;
@@ -1183,7 +1183,7 @@ class WhatsAppConversationService
         if (! is_file($localPath)) {
             return ['success' => false, 'error' => 'Choose a photo or file to send.'];
         }
-        if (AssistantRuntimeSettings::manualReplyTakesOver() && $conversation->mode === WhatsAppConversation::MODE_AI) {
+        if (! $conversation->mai_session_id && AssistantRuntimeSettings::manualReplyTakesOver() && $conversation->mode === WhatsAppConversation::MODE_AI) {
             $conversation->mode = WhatsAppConversation::MODE_HUMAN;
             if ($userId) {
                 $conversation->assigned_user_id = $userId;
@@ -1586,8 +1586,10 @@ class WhatsAppConversationService
         }
         $conversation->save();
         $this->event($conversation, WhatsAppConversationEvent::MODE, 'AI enabled', $userId);
-        app(WhatsAppTranslator::class)->setChat($conversation->id, true);
-        $this->resumeLatestCustomerMessage($conversation);
+        if (! $conversation->mai_session_id) {
+            app(WhatsAppTranslator::class)->setChat($conversation->id, true);
+            $this->resumeLatestCustomerMessage($conversation);
+        }
 
         return $conversation;
     }

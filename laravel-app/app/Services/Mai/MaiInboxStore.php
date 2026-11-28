@@ -367,6 +367,21 @@ class MaiInboxStore
         if (! $this->stillAi($conversation, $session) || trim((string) $text) === '') {
             return;
         }
+        try {
+            $translated = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->forClient($conversation, $text);
+        } catch (\Throwable $e) {
+            $translated = null;
+        }
+        if (is_array($translated) && ! empty($translated['failed'])) {
+            return;
+        }
+        if (is_array($translated) && ! empty($translated['text'])) {
+            $text = $translated['text'];
+        }
+        $conversation = $conversation->fresh();
+        if (! $this->stillAi($conversation, $session)) {
+            return;
+        }
         app(MaiOutboundService::class)->deliver($conversation, $text, 'ai-'.$message->id, null);
     }
 

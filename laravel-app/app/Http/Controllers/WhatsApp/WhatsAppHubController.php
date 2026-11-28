@@ -3214,10 +3214,11 @@ class WhatsAppHubController extends Controller
 
     public function takeover($id)
     {
-        if ($deny = $this->denyUnless(['whatsapp.takeover', 'whatsapp.manage'])) {
+        $conversation = WhatsAppConversation::findOrFail($id);
+        if (! $this->ownsMaiChat($conversation) && ($deny = $this->denyUnless(['whatsapp.takeover', 'whatsapp.manage']))) {
             return $deny;
         }
-        $this->conversations->takeover(WhatsAppConversation::findOrFail($id), Auth::id());
+        $this->conversations->takeover($conversation, Auth::id());
 
         return back()->with('message', 'You took this conversation. AI will stay quiet here until you hand it back.');
     }
@@ -3637,6 +3638,21 @@ class WhatsAppHubController extends Controller
     }
 
     protected $personalHubSession;
+
+    protected function ownsMaiChat(WhatsAppConversation $conversation)
+    {
+        $user = Auth::user();
+        if (! $user || ! $conversation->mai_session_id || \App\Services\Mai\MaiBusinessLine::is($user->phone)) {
+            return false;
+        }
+        if (! \App\Support\MaiHost::is(request()) && (string) optional(request()->route())->getName() !== 'whatsapp.mai.inbox') {
+            return false;
+        }
+
+        return (bool) \App\Mai\MaiSession::where('user_id', $user->id)
+            ->where('id', (int) $conversation->mai_session_id)
+            ->first();
+    }
 
     protected function personalHub()
     {

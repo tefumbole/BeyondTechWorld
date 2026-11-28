@@ -107,6 +107,17 @@ class MaiCustomerEntryTest extends TestCase
         $inbox->assertSee('Settings');
         $inbox->assertSee('Sign out');
         $inbox->assertSee('data-mai-install');
+        $inbox->assertSee('compose-line');
+        $inbox->assertSee('compose-tools');
+        $html = $inbox->getContent();
+        $line = strpos($html, 'compose-line');
+        $tools = strpos($html, 'compose-tools');
+        $body = strpos($html, 'id="chatBody"');
+        $file = strpos($html, 'id="chatFile"');
+        $this->assertNotFalse($line);
+        $this->assertNotFalse($tools);
+        $this->assertLessThan($tools, $line);
+        $this->assertLessThan($file, $body);
         $inbox->assertSee('/whatsapp-mai/dashboard');
         $inbox->assertSee('/whatsapp-mai/inbox?pane=speech');
         $inbox->assertSee('/whatsapp-mai/inbox?pane=briefing');

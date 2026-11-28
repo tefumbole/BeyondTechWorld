@@ -302,8 +302,11 @@
     .file-clear { width: 22px; height: 22px; border: 0; border-radius: 50%; background: #9b1c1c; color: #fff; font-size: 14px; font-weight: 800; line-height: 1; cursor: pointer; flex: none; }
     .bubble { position: relative; }
     .bubble-more { position: absolute; top: 4px; right: 4px; z-index: 2; width: 26px; height: 26px; border: 0; border-radius: 8px; background: rgba(255,255,255,.9); color: #16315c; font-size: 18px; font-weight: 900; line-height: 1; cursor: pointer; box-shadow: 0 1px 3px rgba(15,31,61,.15); }
-    .chats-compose { display: flex; align-items: flex-end; flex-wrap: nowrap; gap: 8px; width: 100%; max-width: 100%; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); position: relative; }
-    .chats-compose textarea { flex: 1 1 auto; min-width: 0; order: 0; border: 1px solid transparent; border-radius: 18px; background: #f1f4fa; color: var(--wa-ink); min-height: 44px; max-height: 120px; padding: 12px 14px; resize: none; font-size: 16px; line-height: 1.4; transition: border-color .18s, box-shadow .18s, background-color .18s; }
+    .chats-compose { display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 100%; max-width: 100%; box-sizing: border-box; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); position: relative; }
+    .compose-line { display: flex; align-items: flex-end; gap: 8px; width: 100%; min-width: 0; }
+    .compose-tools { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; overflow-x: auto; }
+    .compose-tools .reply-bar { margin: 0; padding: 0; background: transparent; }
+    .chats-compose textarea { flex: 1 1 auto; width: 100%; min-width: 0; box-sizing: border-box; order: 0; border: 1px solid transparent; border-radius: 18px; background: #f1f4fa; color: var(--wa-ink); min-height: 92px; max-height: 168px; padding: 12px 14px; resize: none; font-size: 16px; line-height: 1.4; overflow-y: auto; transition: border-color .18s, box-shadow .18s, background-color .18s; }
     .chats-compose textarea:focus { outline: none; background: #fff; border-color: #9cc2ff; box-shadow: 0 0 0 4px rgba(21, 101, 192, .12); }
     .chats-compose button[type="submit"] { border: 0; border-radius: 50%; width: 46px; height: 46px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; flex: none; box-shadow: 0 6px 16px rgba(18, 140, 126, .35); transition: transform .15s, box-shadow .15s; }
     .chats-compose button[type="submit"]:hover { transform: scale(1.06); box-shadow: 0 8px 20px rgba(18, 140, 126, .45); }
@@ -342,8 +345,8 @@
         .chat-back { display: inline-flex; }
         .chats-stream { padding: 8px 12px 12px; }
         .bubble { max-width: 90%; }
-        .chats-compose { flex-wrap: nowrap; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
-        .chats-compose textarea { flex: 1 1 auto; min-width: 0; min-height: 44px; max-height: 96px; }
+        .chats-compose { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+        .chats-compose textarea { min-width: 0; min-height: 92px; max-height: 168px; }
         .chats-head { padding: 8px 10px; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; }
         .chats-head-person { width: 100%; flex: none; }
         .chats-head-person h2, .chats-head-person p { white-space: normal; }
@@ -811,13 +814,6 @@ try {
                     }
                     $writeName = !empty($staffLanguage['name']) ? $staffLanguage['name'] : 'English';
                 @endphp
-                <div class="reply-bar">
-                    <button type="button" class="reply-pick" id="openReplyLang">
-                        <span>Reply in</span>
-                        <strong id="threadReplyName">{{ $replyName }}</strong>
-                        @if($replyHint !== '')<em>{{ $replyHint }}</em>@endif
-                    </button>
-                </div>
                 <div class="quote-bar" id="quoteBar" hidden><span id="quoteText"></span><button type="button" id="quoteClear" aria-label="Cancel reply">×</button></div>
                 <form id="replyLangForm" method="POST" action="{{ route('whatsapp.chats.language', $open->id) }}" hidden>
                     @csrf
@@ -825,17 +821,28 @@ try {
                 </form>
                 <form class="chats-compose" id="chatCompose" method="POST" action="{{ route('whatsapp.chats.reply', $open->id) }}" enctype="multipart/form-data">
                     @csrf
-                    <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
-                    <span class="picked" id="chatPicked" hidden>
-                        <img class="paste-preview" id="chatPaste" alt="" hidden>
-                        <span class="file-name" id="chatFileName"></span>
-                        <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
-                    </span>
-                    <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
-                    <textarea name="body" id="chatBody" rows="4" autocomplete="off" aria-label="Message" placeholder=""></textarea>
-                    <button type="button" id="openAsk" class="mai-open" aria-label="MAI, Mbole AI" title="MAI"><i></i>MAI</button>
-                    <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
-                    <button type="submit" aria-label="Send">➤</button>
+                    <div class="compose-line">
+                        <textarea name="body" id="chatBody" rows="3" autocomplete="off" aria-label="Message" placeholder=""></textarea>
+                        <button type="button" id="openAsk" class="mai-open" aria-label="MAI, Mbole AI" title="MAI"><i></i>MAI</button>
+                        <button type="submit" aria-label="Send">➤</button>
+                    </div>
+                    <div class="compose-tools">
+                        <div class="reply-bar">
+                            <button type="button" class="reply-pick" id="openReplyLang">
+                                <span>Reply in</span>
+                                <strong id="threadReplyName">{{ $replyName }}</strong>
+                                @if($replyHint !== '')<em>{{ $replyHint }}</em>@endif
+                            </button>
+                        </div>
+                        <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
+                        <span class="picked" id="chatPicked" hidden>
+                            <img class="paste-preview" id="chatPaste" alt="" hidden>
+                            <span class="file-name" id="chatFileName"></span>
+                            <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
+                        </span>
+                        <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
+                        <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+                    </div>
                 </form>
             @endif
         @elseif($group)
@@ -901,16 +908,20 @@ try {
                 <form class="chats-compose" id="chatCompose" method="POST" action="{{ route('whatsapp.chats.group') }}" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="jid" value="{{ $group['jid'] }}">
-                    <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
-                    <span class="picked" id="chatPicked" hidden>
-                        <img class="paste-preview" id="chatPaste" alt="" hidden>
-                        <span class="file-name" id="chatFileName"></span>
-                        <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
-                    </span>
-                    <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
-                    <textarea name="body" id="chatBody" rows="4" autocomplete="off" aria-label="Message" placeholder=""></textarea>
-                    <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
-                    <button type="submit" aria-label="Send">➤</button>
+                    <div class="compose-line">
+                        <textarea name="body" id="chatBody" rows="3" autocomplete="off" aria-label="Message" placeholder=""></textarea>
+                        <button type="submit" aria-label="Send">➤</button>
+                    </div>
+                    <div class="compose-tools">
+                        <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
+                        <span class="picked" id="chatPicked" hidden>
+                            <img class="paste-preview" id="chatPaste" alt="" hidden>
+                            <span class="file-name" id="chatFileName"></span>
+                            <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
+                        </span>
+                        <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
+                        <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+                    </div>
                 </form>
             @endif
         @elseif($pane === 'briefing')
@@ -1153,22 +1164,26 @@ try {
     <div class="chat-live" id="chatLive">Could not refresh. <button type="button" id="chatRetry">Retry</button></div>
     <div class="chats-stream" id="chatStream"></div>
     @if($canReply)
-    <div class="reply-bar"><button type="button" class="reply-pick" id="openReplyLang"><span>Reply in</span><strong id="threadReplyName">Off</strong></button></div>
     <div class="quote-bar" id="quoteBar" hidden><span id="quoteText"></span><button type="button" id="quoteClear" aria-label="Cancel reply">×</button></div>
     <form id="replyLangForm" method="POST" action="" hidden>@csrf<input type="hidden" name="language" id="replyLangValue" value="off"></form>
     <form class="chats-compose" id="chatCompose" method="POST" action="" enctype="multipart/form-data">
         @csrf
-        <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
-        <span class="picked" id="chatPicked" hidden>
-            <img class="paste-preview" id="chatPaste" alt="" hidden>
-            <span class="file-name" id="chatFileName"></span>
-            <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
-        </span>
-        <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
-        <textarea name="body" id="chatBody" rows="4" autocomplete="off" aria-label="Message" placeholder=""></textarea>
-        <button type="button" id="openAsk" class="mai-open" aria-label="MAI, Mbole AI" title="MAI"><i></i>MAI</button>
-        <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
-        <button type="submit" aria-label="Send">➤</button>
+        <div class="compose-line">
+            <textarea name="body" id="chatBody" rows="3" autocomplete="off" aria-label="Message" placeholder=""></textarea>
+            <button type="button" id="openAsk" class="mai-open" aria-label="MAI, Mbole AI" title="MAI"><i></i>MAI</button>
+            <button type="submit" aria-label="Send">➤</button>
+        </div>
+        <div class="compose-tools">
+            <div class="reply-bar"><button type="button" class="reply-pick" id="openReplyLang"><span>Reply in</span><strong id="threadReplyName">Off</strong></button></div>
+            <label class="clip" title="Photo, file, or paste an image">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
+            <span class="picked" id="chatPicked" hidden>
+                <img class="paste-preview" id="chatPaste" alt="" hidden>
+                <span class="file-name" id="chatFileName"></span>
+                <button type="button" class="file-clear" aria-label="Remove attachment">×</button>
+            </span>
+            <button type="button" class="tool js-emoji" aria-label="Emoji">☺</button>
+            <button type="button" class="tool js-mic" aria-label="Record a voice note"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+        </div>
     </form>
     @endif
 </template>
@@ -2296,9 +2311,10 @@ window.addEventListener('pageshow', function (event) {
                         var tick = node.querySelector('.tick');
                         if (tick) { tick.className = 'tick failed'; tick.textContent = '! Not sent'; }
                     }
-                    if (field && typed) field.value = typed;
+                    if (field && typed) { field.value = typed; saveDraft(); }
                     return;
                 }
+                clearDraft();
                 if (payload.message) swapPending(payload.message);
                 else if (node) node.remove();
                 poll();
@@ -2309,7 +2325,7 @@ window.addEventListener('pageshow', function (event) {
                     var tick = node.querySelector('.tick');
                     if (tick) { tick.className = 'tick failed'; tick.textContent = '! Not sent'; }
                 }
-                if (field && typed) field.value = typed;
+                if (field && typed) { field.value = typed; saveDraft(); }
             })
             .then(function () {
                 form.removeAttribute('data-sending');
@@ -3352,7 +3368,50 @@ window.addEventListener('pageshow', function (event) {
         window.visualViewport.addEventListener('scroll', fitInbox);
         fitInbox();
     }
+    function draftKey() {
+        var form = document.getElementById('chatCompose');
+        if (!form) return '';
+        return 'mai-draft:' + (form.getAttribute('action') || location.pathname);
+    }
+    function saveDraft() {
+        var field = document.getElementById('chatBody');
+        var key = draftKey();
+        if (!field || !key) return;
+        try {
+            if (field.value) localStorage.setItem(key, field.value);
+            else localStorage.removeItem(key);
+        } catch (e) {}
+    }
+    function clearDraft() {
+        var key = draftKey();
+        if (!key) return;
+        try { localStorage.removeItem(key); } catch (e) {}
+    }
+    function growCompose(field) {
+        if (!field) return;
+        field.style.height = 'auto';
+        var limit = 168;
+        var next = field.scrollHeight;
+        if (next > limit) next = limit;
+        if (next < 92) next = 92;
+        field.style.height = next + 'px';
+    }
+    function restoreDraft() {
+        var field = document.getElementById('chatBody');
+        var key = draftKey();
+        if (!field || !key || field.value) return;
+        try {
+            var saved = localStorage.getItem(key);
+            if (saved) field.value = saved;
+        } catch (e) {}
+        growCompose(field);
+    }
     var composeField = document.getElementById('chatBody');
+    if (composeField) {
+        restoreDraft();
+        composeField.addEventListener('input', function () { growCompose(composeField); saveDraft(); });
+        window.addEventListener('pagehide', saveDraft);
+    }
     if (composeField) composeField.addEventListener('focus', function () {
         setTimeout(function () {
             fitInbox();

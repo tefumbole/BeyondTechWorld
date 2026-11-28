@@ -219,14 +219,19 @@ class WhatsAppAssistantController extends Controller
         if (! $this->ownsPersonalChat($conversation) && ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.takeover', 'whatsapp.manage']))) {
             return $deny;
         }
+        if ($this->ownsPersonalChat($conversation) && ! app(\App\Contracts\Ai\AiProviderInterface::class)->isConfigured()) {
+            return back()->with('not_permitted', 'AI is not available for this chat yet. You can still reply yourself.');
+        }
         $note = trim((string) $request->input('handoff_note', ''));
         if ($note !== '') {
             app(WhatsAppConversationService::class)->addNote($conversation, $note, Auth::id());
         }
         app(WhatsAppConversationService::class)->enableAi($conversation, Auth::id());
-        try {
-            app(\App\Services\WhatsApp\WhatsAppTranslator::class)->setChat($conversation->id, true);
-        } catch (\Throwable $e) {
+        if (! $conversation->mai_session_id) {
+            try {
+                app(\App\Services\WhatsApp\WhatsAppTranslator::class)->setChat($conversation->id, true);
+            } catch (\Throwable $e) {
+            }
         }
 
         return back()->with('message', 'This chat is on AI with language detection. Incoming messages are shown in English.');
