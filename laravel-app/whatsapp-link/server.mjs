@@ -727,14 +727,18 @@ function historyIsComplete(dir) {
   }
 }
 
+let cachedClientVersion = null
+let clientVersionCheckedAt = 0
 async function clientVersion() {
-  let latest = null
-  try {
-    latest = await fetchLatestBaileysVersion()
-  } catch (e) {
-    latest = null
+  const bundled = bundledBaileysVersion(path.dirname(fileURLToPath(import.meta.url)))
+  if (!cachedClientVersion) cachedClientVersion = bundled
+  if (Date.now() - clientVersionCheckedAt > 6 * 60 * 60 * 1000) {
+    clientVersionCheckedAt = Date.now()
+    fetchLatestBaileysVersion().then((latest) => {
+      cachedClientVersion = chooseClientVersion(latest, bundled)
+    }).catch(() => {})
   }
-  return chooseClientVersion(latest, bundledBaileysVersion(path.dirname(fileURLToPath(import.meta.url))))
+  return cachedClientVersion
 }
 
 async function startSocket(id, expected) {
@@ -958,6 +962,21 @@ async function startSocketNow(id, expected) {
       entry.error = null
     }
     if (update.qr && !entry.scanned) {
+      entry.pairReady = true
+      if (entry.wantPair && !entry.pairing && !entry.pairAsked && typeof sock.requestPairingCode === 'function') {
+        entry.pairAsked = true
+        const pairPhone = String(entry.wantPair)
+        sock.requestPairingCode(pairPhone).then((code) => {
+          if (!current()) return
+          entry.pairing = String(code || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 17)
+          entry.pairingAt = Date.now()
+          entry.qr = null
+          entry.error = entry.pairing ? null : 'The link code could not be created.'
+        }).catch(() => {
+          entry.pairAsked = false
+        })
+      }
+      if (entry.wantPair) return
       const held = entry.qr && entry.qrAt && (Date.now() - entry.qrAt) < 60000 && !entry.replaceQr
       if (!held) {
         const image = await QRCode.toDataURL(update.qr)
@@ -1054,6 +1073,21 @@ async function startSocketNow(id, expected) {
   return entry
 }
 
+function waitForPair(entry, ms) {
+  if (!entry || entry.pairing || entry.status === 'CONNECTED' || entry.status === 'ERROR') {
+    return Promise.resolve()
+  }
+  return new Promise((resolve) => {
+    const started = Date.now()
+    const timer = setInterval(() => {
+      if (entry.pairing || entry.status === 'CONNECTED' || entry.status === 'ERROR' || Date.now() - started >= ms) {
+        clearInterval(timer)
+        resolve()
+      }
+    }, 100)
+  })
+}
+
 function waitForQr(entry, ms) {
   if (!entry || entry.qr || entry.status === 'CONNECTED') {
     return Promise.resolve()
@@ -1072,6 +1106,7 @@ function waitForQr(entry, ms) {
 async function forceQr(id) {
   const expected = id.indexOf('p') === 0 ? id.slice(1) : ''
   const existing = sessions.get(id)
+  if (existing) existing.wantPair = ''
   if (existing && (existing.status === 'CONNECTED' || existing.scanned)) {
     return publicState(existing, true)
   }
@@ -1138,8 +1173,10 @@ async function pairingFor(id, phone, fresh) {
   const expired = prior && prior.pairingAt && (Date.now() - prior.pairingAt) >= 60000
   const other = prior && prior.expected && !samePhone(prior.expected, given)
   if (prior && (fresh || expired || other)) retirePairing(prior)
+  if (prior) prior.wantPair = given
   const entry = await startSocket(id, given)
   entry.expected = given
+  entry.wantPair = given
   if (entry.status === 'CONNECTED') {
     if (entry.phone && !samePhone(given, entry.phone)) {
       entry.status = 'ERROR'
@@ -1154,11 +1191,17 @@ async function pairingFor(id, phone, fresh) {
     entry.error = 'The link code is not available on this engine.'
     return publicState(entry, false)
   }
-  await waitForQr(entry, 8000)
+  await waitForPair(entry, 5000)
+  if (entry.pairing || entry.status === 'CONNECTED') return publicState(entry, false)
+  if (entry.pairAsked) {
+    await waitForPair(entry, 4000)
+    if (entry.pairing || entry.status === 'CONNECTED') return publicState(entry, false)
+  }
   if (!entry.sock || typeof entry.sock.requestPairingCode !== 'function') {
     entry.error = 'The link code is not available on this engine.'
     return publicState(entry, false)
   }
+  entry.pairAsked = true
   const code = await entry.sock.requestPairingCode(given)
   entry.pairing = String(code || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 17)
   entry.pairingAt = Date.now()

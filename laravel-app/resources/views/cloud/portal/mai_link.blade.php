@@ -397,7 +397,7 @@
         if (!document.hidden) tickStatus();
     });
     window.addEventListener('pageshow', function () { tickStatus(); });
-    pollTimer = setInterval(tickStatus, 2000);
+    pollTimer = setInterval(tickStatus, 1000);
     tickTimer = setInterval(paintTimer, 1000);
 })();
 </script>

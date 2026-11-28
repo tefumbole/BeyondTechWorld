@@ -87,6 +87,38 @@ class CloudSignupOtp
      * Sent only after signup is finished. The link signs the person in.
      * It does not connect WhatsApp.
      */
+    public function sendLoginLink($user, $phone)
+    {
+        $normalized = preg_replace('/\D/', '', (string) $phone);
+        if (! preg_match('/^[1-9][0-9]{7,14}$/', $normalized) || \App\Services\Mai\MaiBusinessLine::is($normalized)) {
+            return;
+        }
+        if (app()->environment('testing')) {
+            session(['mai_phone_link_sent' => $normalized]);
+
+            return;
+        }
+        $key = 'mai-login-link:'.$normalized;
+        if (! \Cache::add($key, 1, now()->addHours(6))) {
+            return;
+        }
+        $url = \URL::temporarySignedRoute('whatsapp.mai.enter', now()->addDays(14), ['user' => $user->id]);
+        $body = "Whats MAI\nTap to sign in:\n".$url;
+        try {
+            $result = app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppTextWithLink($normalized, $body);
+        } catch (\Exception $e) {
+            \Cache::forget($key);
+
+            return;
+        }
+        if (empty($result['success'])) {
+            \Cache::forget($key);
+
+            return;
+        }
+        session(['mai_phone_link_sent' => $normalized]);
+    }
+
     public function sendAppLinkOnce($phone)
     {
         $normalized = app(CloudTrialEligibility::class)->normalizePhone($phone);

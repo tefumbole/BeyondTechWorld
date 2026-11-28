@@ -354,8 +354,11 @@ class CloudPortalController extends Controller
         if ($plan === 'trial') {
             $this->grantMaiTrial($user);
         }
-        app(\App\Services\Mai\PersonalHub::class)->ensure($user->fresh() ?: $user);
-        app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLinkOnce($phone);
+        $account = $user->fresh() ?: $user;
+        app(\App\Services\Mai\PersonalHub::class)->ensure($account);
+        app()->terminating(function () use ($account, $phone) {
+            app(\App\Services\Cloud\CloudSignupOtp::class)->sendLoginLink($account, $phone);
+        });
 
         return response()->json([
             'status' => 'CONNECTED',
