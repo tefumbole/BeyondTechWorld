@@ -456,6 +456,7 @@ class WhatsAppHubController extends Controller
         $callChats = collect();
         $mediaItems = collect();
         $updates = collect();
+        $openUpdate = null;
         if ($pane === 'more' || $pane === 'updates' || $pane === 'media') {
             if (Schema::hasTable('wa_announcements')) {
                 $updates = \App\WaAnnouncement::orderByDesc('id')->limit(40)->get();
@@ -466,6 +467,9 @@ class WhatsAppHubController extends Controller
                 $mediaQuery->whereIn('conversation_id', WhatsAppConversation::where('mai_session_id', $personal->id)->pluck('id'));
             }
             $mediaItems = $mediaQuery->orderByDesc('id')->limit(40)->get();
+            if ($pane === 'updates' && $request->filled('update')) {
+                $openUpdate = $updates->firstWhere('id', (int) $request->get('update'));
+            }
         }
         if ($pane === 'calls' && Schema::hasTable('whatsapp_calls')) {
             $calls = WhatsAppCall::with('contact')->orderByDesc('called_at')->orderByDesc('id')->limit(80)->get();
@@ -555,7 +559,7 @@ class WhatsAppHubController extends Controller
         return response()
             ->view('whatsapp_hub.chats', compact(
                 'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
-                'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
+                'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'openUpdate', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
                 'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady', 'historyProgress', 'syncStatus',
                 'briefs', 'maiAppLink', 'directory', 'hubRoute', 'hubDashboard'
             ))

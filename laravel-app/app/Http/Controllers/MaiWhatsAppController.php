@@ -295,6 +295,8 @@ class MaiWhatsAppController extends Controller
             }
             $session->save();
         }
+        app(\App\Services\WhatsApp\WhatsAppChatAccess::class)->grant($account);
+        app(\App\Services\WhatsApp\WhatsAppChatAccess::class)->rememberSession();
         $linkedPhone = $phone;
         app()->terminating(function () use ($account, $linkedPhone) {
             app(\App\Services\Cloud\CloudSignupOtp::class)->sendLoginLink($account, $linkedPhone);

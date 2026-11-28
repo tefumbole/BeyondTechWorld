@@ -74,6 +74,21 @@ class BeyondWasenderService
         );
     }
 
+    /**
+     * A timeout after the request left this server can mean WhatsApp already
+     * accepted the message. Retrying that sends it a second time.
+     */
+    protected function neverReachedWhatsApp(array $result)
+    {
+        $http = (int) (isset($result['http']) ? $result['http'] : 0);
+        if ($http !== 0) {
+            return false;
+        }
+        $error = isset($result['error']) ? (string) $result['error'] : '';
+
+        return (bool) preg_match('/could not resolve|connection refused|failed to connect|network is unreachable/i', $error);
+    }
+
     protected function isGatewayTimeout(array $result)
     {
         $http = (int) (isset($result['http']) ? $result['http'] : 0);
@@ -98,7 +113,7 @@ class BeyondWasenderService
             if ($this->isProtectionError(isset($result['error']) ? $result['error'] : '')) {
                 usleep((int) round($this->sendIntervalSeconds() * 1000000));
                 $result = $this->curlSendMessage($payload, $timeout);
-            } elseif ($retryGateway && $this->isGatewayTimeout($result)) {
+            } elseif ($retryGateway && $this->neverReachedWhatsApp($result)) {
                 usleep(1500000);
                 $result = $this->curlSendMessage($payload, $timeout);
             }

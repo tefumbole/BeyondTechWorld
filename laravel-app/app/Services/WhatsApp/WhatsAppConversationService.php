@@ -312,7 +312,7 @@ class WhatsAppConversationService
         }
         $recent = WhatsAppMessage::where('conversation_id', $conversation->id)
             ->where('direction', WhatsAppMessage::DIR_OUT)
-            ->whereIn('sender_type', ['ASSISTANT', 'STAFF'])
+            ->whereIn('sender_type', ['ASSISTANT', 'STAFF', 'PHONE', 'ECHO'])
             ->where('created_at', '>=', now()->subMinutes(3))
             ->orderByDesc('id')
             ->limit(5)
@@ -323,7 +323,17 @@ class WhatsAppConversationService
             if (! empty($meta['staff'])) {
                 $candidates[] = $this->echoText($meta['staff']);
             }
-            if (! in_array($body, $candidates, true)) {
+            $matched = false;
+            foreach ($candidates as $candidate) {
+                if ($candidate === '') {
+                    continue;
+                }
+                if ($body === $candidate || (strlen($candidate) >= 12 && strpos($body, $candidate) === 0)) {
+                    $matched = true;
+                    break;
+                }
+            }
+            if (! $matched) {
                 continue;
             }
             if ($incomingId !== '' && (string) $echo->provider_message_id !== $incomingId && preg_match('/^\d+$/', (string) $echo->provider_message_id)) {
@@ -792,6 +802,15 @@ class WhatsAppConversationService
             if ($quoteWasender === '' && $quoteSnippet !== '') {
                 $sendBody = "↩ ".$quoteSnippet."\n".$sendBody;
             }
+        }
+        $already = WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('direction', WhatsAppMessage::DIR_OUT)
+            ->where('body', $sendBody)
+            ->where('created_at', '>=', now()->subSeconds(8))
+            ->orderByDesc('id')
+            ->first();
+        if ($already) {
+            return ['success' => true, 'message' => $already, 'duplicate' => true];
         }
         $message = WhatsAppMessage::create([
             'conversation_id' => $conversation->id,

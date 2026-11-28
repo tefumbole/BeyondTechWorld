@@ -339,6 +339,33 @@ class WhatsAppWebhookTest extends WhatsAppHubTestCase
         $this->assertSame('Hello thank you for the letter', $staff->fresh()->last_message);
     }
 
+    public function test_a_phone_echo_does_not_add_a_second_message()
+    {
+        $this->postWebhook($this->chatPreview('+237675000311', 'Hello thank you for the letter', 'ECHO311', true))->assertStatus(200);
+        $this->assertSame(1, WhatsAppMessage::count());
+        $this->postWebhook($this->chatPreview('+237675000311', "Hello thank you for the letter\nBTW-100", 'ECHO312', true))->assertStatus(200);
+        $this->assertSame(1, WhatsAppMessage::count());
+    }
+
+    public function test_a_scanned_login_is_limited_to_whatsapp_chats()
+    {
+        $admin = $this->makeUser(1, '675000771');
+        app(\App\Services\WhatsApp\WhatsAppChatAccess::class)->grant($admin);
+        $this->assertSame(1, (int) $admin->fresh()->role_id);
+
+        $person = $this->makeUser(5, '675000772');
+        app(\App\Services\WhatsApp\WhatsAppChatAccess::class)->grant($person);
+        $person = $person->fresh();
+        $role = \Spatie\Permission\Models\Role::find($person->role_id);
+        $this->assertSame('WhatsApp Chats', $role->name);
+        $names = $role->permissions->pluck('name')->sort()->values()->all();
+        $this->assertSame(['whatsapp.conversations', 'whatsapp.reply', 'whatsapp.view'], $names);
+
+        $this->actingAs($person);
+        session(['whatsapp_chats_only' => 1]);
+        $this->get('/admin/whatsapp')->assertRedirect('/admin/whatsapp/chats');
+    }
+
     public function test_guest_cannot_open_hub()
     {
         $this->get('/admin/whatsapp')->assertRedirect();
@@ -371,7 +398,7 @@ class WhatsAppWebhookTest extends WhatsAppHubTestCase
         $this->assertSame('Configured', $diag['wasender_key']);
     }
 
-    protected function chatPreview($phone, $body, $id)
+    protected function chatPreview($phone, $body, $id, $fromMe = false)
     {
         $digits = preg_replace('/\D/', '', $phone);
 
@@ -387,7 +414,7 @@ class WhatsAppWebhookTest extends WhatsAppHubTestCase
                         'message' => [
                             'key' => [
                                 'id' => $id,
-                                'fromMe' => false,
+                                'fromMe' => (bool) $fromMe,
                                 'remoteJid' => $digits.'@s.whatsapp.net',
                                 'cleanedSenderPn' => $digits,
                             ],

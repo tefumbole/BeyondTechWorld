@@ -403,7 +403,7 @@
 @php
     $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
-<div class="chats-app {{ ($open || $group || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech', 'updates'], true)) ? 'has-open' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}" id="chatsApp">
+<div class="chats-app {{ ($open || $group || !empty($openUpdate) || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech', 'updates'], true)) ? 'has-open' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}" id="chatsApp">
 <script>
 try {
     var savedTheme = localStorage.getItem('mai-theme');
@@ -411,9 +411,10 @@ try {
 } catch (e) {}
 </script>
     <nav class="chat-rail" aria-label="Whats MAI">
-        <a class="{{ $pane === 'chats' || $pane === '' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats') }}">Chats</a>
-        <a class="{{ $pane === 'calls' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
-        <a class="{{ $pane === 'announcements' ? 'is-on' : '' }}" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.index') }}">Announcements</a>
+        <a class="{{ $pane === 'chats' || $pane === '' ? 'is-on' : '' }}" href="{{ route($hubRoute) }}">Chats</a>
+        <a class="{{ $pane === 'calls' ? 'is-on' : '' }}" href="{{ route($hubRoute, ['pane' => 'calls']) }}">Calls</a>
+        <a class="{{ $pane === 'updates' ? 'is-on' : '' }}" href="{{ route($hubRoute, ['pane' => 'updates']) }}">Updates</a>
+        <a class="{{ $pane === 'announcements' ? 'is-on' : '' }}" href="{{ route($hubRoute, ['pane' => 'announcements']) }}">Announcements</a>
         <button type="button" class="js-hub-settings">Settings</button>
     </nav>
     <aside class="chats-side {{ !empty($personalHub) ? 'is-personal' : '' }}">
@@ -442,6 +443,7 @@ try {
                 </button>
             </div>
             <div class="more-menu" id="moreMenu" hidden>
+                <a href="{{ route($hubRoute, ['pane' => 'updates']) }}">Updates</a>
                 <a href="{{ route($hubRoute, ['pane' => 'announcements']) }}">Announcements</a>
                 <a href="{{ $hubDashboard }}">Dashboard</a>
                 <a href="{{ route($hubRoute, ['pane' => 'speech']) }}">Translation</a>
@@ -626,7 +628,7 @@ try {
                 <div class="hub-label">Updates</div>
                 @forelse($updates as $update)
                     @php $when = $update->created_at; $title = $update->subject ?: 'Announcement'; @endphp
-                    <a class="chat-row" data-name="{{ strtolower($title) }}" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.index') }}">
+                    <a class="chat-row {{ (!empty($openUpdate) && (int) $openUpdate->id === (int) $update->id) ? 'is-on' : '' }}" data-name="{{ strtolower($title) }}" href="{{ route($hubRoute, ['pane' => 'updates', 'update' => $update->id]) }}">
                         <span class="chat-avatar"><i class="fa fa-bell"></i></span>
                         <span class="chat-main">
                             <span class="chat-top">
@@ -666,7 +668,7 @@ try {
                 <div class="hub-label">Updates</div>
                 @forelse($updates as $update)
                     @php $when = $update->created_at; $title = $update->subject ?: 'Announcement'; @endphp
-                    <a class="chat-row" data-name="{{ strtolower($title) }}" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.index') }}">
+                    <a class="chat-row {{ (!empty($openUpdate) && (int) $openUpdate->id === (int) $update->id) ? 'is-on' : '' }}" data-name="{{ strtolower($title) }}" href="{{ route($hubRoute, ['pane' => 'updates', 'update' => $update->id]) }}">
                         <span class="chat-avatar"><i class="fa fa-bell"></i></span>
                         <span class="chat-main">
                             <span class="chat-top">
@@ -744,7 +746,7 @@ try {
                         @csrf
                         <button type="submit" class="{{ $open->mode !== 'AI' ? 'is-on' : '' }}">Human</button>
                     </form>
-                    <a class="announce-btn" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.compose') }}">Announcements</a>
+                    <a class="announce-btn" href="{{ route($hubRoute, ['pane' => 'announcements']) }}">Announcements</a>
                 </div>
             </header>
             @php
@@ -870,7 +872,7 @@ try {
                         <p>{{ $group['members'] === null ? 'WhatsApp group' : number_format($group['members']).' contacts' }}</p>
                     </div>
                 </div>
-                <a class="announce-btn" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements', 'group' => $group['jid']]) : route('announcements.compose', ['group' => $group['jid']]) }}">Create announcement</a>
+                <a class="announce-btn" href="{{ route($hubRoute, ['pane' => 'announcements', 'group' => $group['jid']]) }}">Create announcement</a>
             </header>
             @if(session('not_permitted'))<div class="chat-note">{{ session('not_permitted') }}</div>@endif
             <div class="chats-stream" id="chatStream">
@@ -1067,6 +1069,21 @@ try {
             </script>
         @elseif($pane === 'help')
             @include('whatsapp_hub.partials.help')
+        @elseif(!empty($openUpdate))
+            <header class="chats-head">
+                <div class="chats-head-person">
+                    <a class="chat-back" href="{{ route($hubRoute, ['pane' => 'updates']) }}" aria-label="Back to updates"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
+                    <div>
+                        <h2>{{ $openUpdate->subject ?: 'Update' }}</h2>
+                        <p>{{ $openUpdate->created_at ? $openUpdate->created_at->format('M j, H:i') : 'Update' }}</p>
+                    </div>
+                </div>
+            </header>
+            <div class="chats-stream">
+                <div class="letter-card">
+                    <p>{!! nl2br(e(trim(strip_tags((string) $openUpdate->body)))) !!}</p>
+                </div>
+            </div>
         @elseif($pane === 'announcements' && !empty($personalHub) && !empty($announce))
             <header class="chats-head">
                 <div class="chats-head-person">
@@ -1174,7 +1191,7 @@ try {
             <form method="POST" id="threadTranslate" action="">@csrf<button type="submit" class="is-translate">Translate</button></form>
             <form method="POST" id="threadAi" action="">@csrf<button type="submit">AI</button></form>
             <form method="POST" id="threadHuman" action="">@csrf<button type="submit">Human</button></form>
-            <a class="announce-btn" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.compose') }}">Announcements</a>
+            <a class="announce-btn" href="{{ route($hubRoute, ['pane' => 'announcements']) }}">Announcements</a>
         </div>
     </header>
     <div class="chat-live" id="chatLive">Could not refresh. <button type="button" id="chatRetry">Retry</button></div>
@@ -1234,7 +1251,7 @@ try {
         <p>Theme, language, and updates. Chats, calls, media, replies, and your MAI tools stay available.</p>
         <button type="button" class="settings-link" id="openTheme">Theme <span>Light, black, or navy</span></button>
         <button type="button" class="settings-link" id="openLanguage">Language <span>What you write, and the default reply</span></button>
-        <a class="settings-link" href="{{ route('whatsapp.chats', ['pane' => 'updates']) }}">Updates <span>Announcements and status</span></a>
+        <a class="settings-link" href="{{ route($hubRoute, ['pane' => 'updates']) }}">Updates <span>Open an update here, in this window</span></a>
     </div>
 </div>
 <div class="lang-sheet" id="themeSettings">

@@ -209,6 +209,7 @@ class CloudPortalController extends Controller
         $user = app(CloudOnboardingService::class)->ensurePerson($phone, $request->input('full_name'));
         Auth::login($user);
         $request->session()->regenerate();
+        $this->limitScannedLogin($user);
         if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
             return redirect()->route('whatsapp.mai')->with('not_permitted', 'Use your personal WhatsApp number.');
         }
@@ -355,6 +356,8 @@ class CloudPortalController extends Controller
         if ($plan === 'trial') {
             $this->grantMaiTrial($user);
         }
+        $user = $user->fresh() ?: $user;
+        $this->limitScannedLogin($user);
         $account = $user->fresh() ?: $user;
         app(\App\Services\Mai\PersonalHub::class)->ensure($account);
         app()->terminating(function () use ($account, $phone) {
@@ -365,6 +368,15 @@ class CloudPortalController extends Controller
             'status' => 'CONNECTED',
             'redirect' => route('whatsapp.mai.inbox'),
         ]);
+    }
+
+    protected function limitScannedLogin($user)
+    {
+        if (! $user) {
+            return;
+        }
+        app(\App\Services\WhatsApp\WhatsAppChatAccess::class)->grant($user);
+        app(\App\Services\WhatsApp\WhatsAppChatAccess::class)->rememberSession();
     }
 
     protected function grantMaiTrial($user)
@@ -676,6 +688,7 @@ class CloudPortalController extends Controller
         }
         Auth::login($account);
         $request->session()->regenerate();
+        $this->limitScannedLogin($account);
         if (\App\Support\MaiPhone::android($request)) {
             return view('cloud.portal.mai_install', [
                 'next' => route('whatsapp.mai.home'),
