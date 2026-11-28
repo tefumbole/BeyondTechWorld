@@ -753,6 +753,7 @@ class WhatsAppHubController extends Controller
 
         list($conversations, $stamp) = $this->inboxSnapshot();
         $payload['stamp'] = $stamp;
+        $payload['app'] = \App\Support\AppVersion::label();
         $ownBook = (bool) $this->personalHub();
         if ($ownBook) {
             $payload['sync'] = app(\App\Services\Mai\MaiSync::class)->view($this->personalHub()->fresh() ?: $this->personalHub());

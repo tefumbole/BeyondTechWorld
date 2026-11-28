@@ -524,19 +524,20 @@
 @php
     $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
-<div class="chats-app is-web {{ ($open || $group || !empty($openUpdate) || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech'], true)) ? 'has-open' : '' }} {{ $pane === 'updates' ? 'is-updates' : '' }} {{ !empty($openUpdate) ? 'has-update' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}" id="chatsApp">
+<div class="chats-app {{ ($open || $group || !empty($openUpdate) || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech'], true)) ? 'has-open' : '' }} {{ $pane === 'updates' ? 'is-updates' : '' }} {{ !empty($openUpdate) ? 'has-update' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}" id="chatsApp">
 <script>
 try {
-    var savedTheme = localStorage.getItem('mai-theme');
+    var themeChosen = localStorage.getItem('mai-theme-set') === '1';
+    var savedTheme = themeChosen ? localStorage.getItem('mai-theme') : 'light';
     var themeApp = document.getElementById('chatsApp');
-    if (savedTheme === 'light') themeApp.classList.remove('is-web');
+    if (savedTheme === 'black' || savedTheme === 'navy') themeApp.classList.add('is-web');
     if (savedTheme === 'navy') themeApp.classList.add('theme-navy');
 } catch (e) {}
 </script>
     <nav class="chat-rail" aria-label="Whats MAI">
         <a class="{{ $pane === 'chats' || $pane === '' ? 'is-on' : '' }}" href="{{ route($hubRoute) }}">Chats</a>
         <a class="{{ $pane === 'calls' ? 'is-on' : '' }}" href="{{ route($hubRoute, ['pane' => 'calls']) }}">Calls</a>
-        <a class="{{ $pane === 'updates' ? 'is-on' : '' }}" href="{{ route($hubRoute, ['pane' => 'updates']) }}">Updates</a>
+        <button type="button" class="js-mai-update">Update</button>
         <a class="{{ $pane === 'announcements' ? 'is-on' : '' }}" href="{{ route($hubRoute, ['pane' => 'announcements']) }}">Announcements</a>
         <button type="button" class="js-hub-settings">Settings</button>
     </nav>
@@ -568,7 +569,7 @@ try {
                 </button>
             </div>
             <div class="more-menu" id="moreMenu" hidden>
-                <a href="{{ route($hubRoute, ['pane' => 'updates']) }}">Updates</a>
+                <button type="button" class="js-mai-update">Update</button>
                 <a href="{{ route($hubRoute, ['pane' => 'announcements']) }}">Announcements</a>
                 <a href="{{ $hubDashboard }}">Dashboard</a>
                 <a href="{{ route($hubRoute, ['pane' => 'speech']) }}">Translation</a>
@@ -1383,7 +1384,7 @@ try {
         <p>Theme, language, and updates. Chats, calls, media, replies, and your MAI tools stay available.</p>
         <button type="button" class="settings-link" id="openTheme">Theme <span>Light, black, or navy</span></button>
         <button type="button" class="settings-link" id="openLanguage">Language <span>What you write, and the default reply</span></button>
-        <a class="settings-link" href="{{ route($hubRoute, ['pane' => 'updates']) }}">Updates <span>Open an update here, in this window</span></a>
+        <button type="button" class="settings-link js-mai-update">Update <span>Contacts, chats, and the latest app</span></button>
     </div>
 </div>
 <div class="lang-sheet" id="themeSettings">
@@ -1393,8 +1394,8 @@ try {
             <button type="button" class="lang-close" data-close="themeSettings" aria-label="Close">×</button>
         </header>
         <p>The choice stays on this browser.</p>
-        <button type="button" class="lang-option" data-theme="light"><span class="theme-swatch" style="background:#fff"></span>Light</button>
-        <button type="button" class="lang-option is-on" data-theme="black"><span class="theme-swatch" style="background:#111b21"></span>Black</button>
+        <button type="button" class="lang-option is-on" data-theme="light"><span class="theme-swatch" style="background:#fff"></span>Light</button>
+        <button type="button" class="lang-option" data-theme="black"><span class="theme-swatch" style="background:#111b21"></span>Black</button>
         <button type="button" class="lang-option" data-theme="navy"><span class="theme-swatch" style="background:#0b1b3a"></span>Navy</button>
     </div>
 </div>
@@ -1860,9 +1861,10 @@ window.addEventListener('pageshow', function (event) {
     var openTheme = document.getElementById('openTheme');
     if (openLanguage) openLanguage.addEventListener('click', function () { closeSheet('hubSettings'); openSheet('langSettings'); });
     if (openTheme) openTheme.addEventListener('click', function () { closeSheet('hubSettings'); openSheet('themeSettings'); });
-    function applyHubTheme(theme) {
+    function applyHubTheme(theme, remember) {
         var app = document.getElementById('chatsApp');
         if (!app) return;
+        theme = theme === 'black' || theme === 'navy' ? theme : 'light';
         app.classList.remove('theme-black', 'theme-navy');
         app.classList.toggle('is-web', theme !== 'light');
         if (theme === 'navy') app.classList.add('theme-navy');
@@ -1870,15 +1872,42 @@ window.addEventListener('pageshow', function (event) {
         document.querySelectorAll('#themeSettings .lang-option').forEach(function (option) {
             option.classList.toggle('is-on', option.getAttribute('data-theme') === theme);
         });
-        try { localStorage.setItem('mai-theme', theme || 'light'); } catch (e) {}
+        try {
+            localStorage.setItem('mai-theme', theme);
+            if (remember) localStorage.setItem('mai-theme-set', '1');
+        } catch (e) {}
     }
     document.querySelectorAll('#themeSettings .lang-option').forEach(function (option) {
-        option.addEventListener('click', function () { applyHubTheme(option.getAttribute('data-theme') || 'black'); });
+        option.addEventListener('click', function () { applyHubTheme(option.getAttribute('data-theme') || 'light', true); });
     });
     try {
-        var storedTheme = localStorage.getItem('mai-theme');
-        applyHubTheme(storedTheme === 'light' || storedTheme === 'navy' ? storedTheme : 'black');
+        var themeWasChosen = localStorage.getItem('mai-theme-set') === '1';
+        var storedTheme = themeWasChosen ? localStorage.getItem('mai-theme') : 'light';
+        applyHubTheme(storedTheme, false);
     } catch (e) {}
+    function refreshMai(button) {
+        if (button) button.disabled = true;
+        var token = csrfToken();
+        var done = function () {
+            var fresh = new URL(window.location.href);
+            fresh.searchParams.set('_app', String(Date.now()));
+            window.location.replace(fresh.toString());
+        };
+        fetch(@json(route('whatsapp.mai.sync')), {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': token
+            },
+            body: '_token=' + encodeURIComponent(token)
+        }).then(done, done);
+    }
+    document.querySelectorAll('.js-mai-update').forEach(function (button) {
+        button.addEventListener('click', function () { refreshMai(button); });
+    });
     var openReply = document.getElementById('openReplyLang');
     if (openReply) openReply.addEventListener('click', function () { openSheet('replyLang'); });
     document.querySelectorAll('.lang-sheet').forEach(function (sheet) {
@@ -1914,6 +1943,7 @@ window.addEventListener('pageshow', function (event) {
         });
     });
     var chatPage = @json(route('whatsapp.chats'));
+    window.maiApp = @json(\App\Support\AppVersion::label());
     try {
         var chatUrl = new URL(chatPage, window.location.href);
         if (chatUrl.origin !== window.location.origin) chatPage = window.location.pathname;
@@ -2628,6 +2658,17 @@ window.addEventListener('pageshow', function (event) {
         fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
             .then(function (response) { if (!response.ok) throw new Error('poll'); return response.json(); })
             .then(function (data) {
+                if (data && data.app && String(data.app) !== String(window.maiApp || '')) {
+                    var seenApp = '';
+                    try { seenApp = sessionStorage.getItem('mai-app-reload') || ''; } catch (e) {}
+                    if (seenApp !== String(data.app)) {
+                        try { sessionStorage.setItem('mai-app-reload', String(data.app)); } catch (e) {}
+                        var fresh = new URL(window.location.href);
+                        fresh.searchParams.set('_app', String(data.app));
+                        window.location.replace(fresh.toString());
+                        return;
+                    }
+                }
                 if (data && data.csrf) setCsrf(data.csrf);
                 stream = document.getElementById('chatStream');
                 misses = 0;
