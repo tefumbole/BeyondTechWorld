@@ -464,7 +464,10 @@
     .chats-app.is-web .chat-row { border-bottom-color: #222d34; }
     .chats-app.is-web .chat-row:hover,
     .chats-app.is-web .chat-row.is-on { background: #2a3942; }
+    .chats-app.is-web .chat-row[data-read="0"],
     .chats-app.is-web .chats-side.is-personal .chat-row[data-read="0"] { background: transparent; box-shadow: none; }
+    .chats-app.is-web .chat-row[data-read="0"] .chat-name,
+    .chats-app.is-web .chat-row[data-read="0"] .chat-preview,
     .chats-app.is-web .chats-side.is-personal .chat-row[data-read="0"] .chat-name,
     .chats-app.is-web .chats-side.is-personal .chat-row[data-read="0"] .chat-preview { color: #e9edef; }
     .chats-app.is-web .chats-side.is-personal .chat-row[data-read="0"] .chat-time { color: #00a884; }
@@ -475,12 +478,20 @@
         background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
         background-size: 24px 24px;
     }
-    .chats-app.is-web .bubble.in { background: #202c33; color: #e9edef; box-shadow: none; }
-    .chats-app.is-web .bubble.out { background: #005c4b; color: #e9edef; box-shadow: none; }
+    .chats-app.is-web .bubble { max-width: min(520px, 78%); padding: 6px 8px 4px 9px; border-radius: 8px; box-shadow: 0 1px 0.5px rgba(11, 20, 26, .13); }
+    .chats-app.is-web .bubble.in { background: #202c33; color: #e9edef; border-top-left-radius: 0; }
+    .chats-app.is-web .bubble.out { background: #00a884; color: #fff; border-top-right-radius: 0; }
+    .chats-app.is-web .bubble.in::after,
+    .chats-app.is-web .bubble.out::after { content: ""; position: absolute; top: 0; width: 8px; height: 13px; }
+    .chats-app.is-web .bubble.in::after { left: -8px; background: #202c33; clip-path: polygon(100% 0, 0 0, 100% 100%); }
+    .chats-app.is-web .bubble.out::after { right: -8px; background: #00a884; clip-path: polygon(0 0, 100% 0, 0 100%); }
+    .chats-app.is-web .bubble .who { color: #7ee0c2; }
+    .chats-app.is-web .bubble-more { background: rgba(11, 20, 26, .45); color: #e9edef; box-shadow: none; }
+    .chats-app.is-web .day-chip { background: #182229; color: #8696a0; box-shadow: none; }
     .chats-app.is-web .bubble time,
     .chats-app.is-web .bubble.out time,
     .chats-app.is-web .bubble .aside,
-    .chats-app.is-web .bubble.out .aside { color: rgba(233, 237, 239, .65); }
+    .chats-app.is-web .bubble.out .aside { color: rgba(255, 255, 255, .72); }
     .chats-app.is-web .bubble .tick.sent,
     .chats-app.is-web .bubble .tick.delivered,
     .chats-app.is-web .bubble .tick.queued { color: rgba(233, 237, 239, .7); }
@@ -512,11 +523,13 @@
 @php
     $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
-<div class="chats-app {{ !empty($personalHub) ? 'is-web' : '' }} {{ ($open || $group || !empty($openUpdate) || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech'], true)) ? 'has-open' : '' }} {{ $pane === 'updates' ? 'is-updates' : '' }} {{ !empty($openUpdate) ? 'has-update' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}" id="chatsApp">
+<div class="chats-app is-web {{ ($open || $group || !empty($openUpdate) || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech'], true)) ? 'has-open' : '' }} {{ $pane === 'updates' ? 'is-updates' : '' }} {{ !empty($openUpdate) ? 'has-update' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}" id="chatsApp">
 <script>
 try {
     var savedTheme = localStorage.getItem('mai-theme');
-    if (savedTheme === 'black' || savedTheme === 'navy') document.getElementById('chatsApp').classList.add('theme-' + savedTheme);
+    var themeApp = document.getElementById('chatsApp');
+    if (savedTheme === 'light') themeApp.classList.remove('is-web');
+    if (savedTheme === 'navy') themeApp.classList.add('theme-navy');
 } catch (e) {}
 </script>
     <nav class="chat-rail" aria-label="Whats MAI">
@@ -1380,7 +1393,7 @@ try {
         </header>
         <p>The choice stays on this browser.</p>
         <button type="button" class="lang-option" data-theme="light"><span class="theme-swatch" style="background:#fff"></span>Light</button>
-        <button type="button" class="lang-option" data-theme="black"><span class="theme-swatch" style="background:#111b21"></span>Black</button>
+        <button type="button" class="lang-option is-on" data-theme="black"><span class="theme-swatch" style="background:#111b21"></span>Black</button>
         <button type="button" class="lang-option" data-theme="navy"><span class="theme-swatch" style="background:#0b1b3a"></span>Navy</button>
     </div>
 </div>
@@ -1850,15 +1863,21 @@ window.addEventListener('pageshow', function (event) {
         var app = document.getElementById('chatsApp');
         if (!app) return;
         app.classList.remove('theme-black', 'theme-navy');
-        if (theme === 'black' || theme === 'navy') app.classList.add('theme-' + theme);
+        app.classList.toggle('is-web', theme !== 'light');
+        if (theme === 'navy') app.classList.add('theme-navy');
+        if (theme === 'black') app.classList.add('theme-black');
         document.querySelectorAll('#themeSettings .lang-option').forEach(function (option) {
             option.classList.toggle('is-on', option.getAttribute('data-theme') === theme);
         });
         try { localStorage.setItem('mai-theme', theme || 'light'); } catch (e) {}
     }
     document.querySelectorAll('#themeSettings .lang-option').forEach(function (option) {
-        option.addEventListener('click', function () { applyHubTheme(option.getAttribute('data-theme') || 'light'); });
+        option.addEventListener('click', function () { applyHubTheme(option.getAttribute('data-theme') || 'black'); });
     });
+    try {
+        var storedTheme = localStorage.getItem('mai-theme');
+        applyHubTheme(storedTheme === 'light' || storedTheme === 'navy' ? storedTheme : 'black');
+    } catch (e) {}
     var openReply = document.getElementById('openReplyLang');
     if (openReply) openReply.addEventListener('click', function () { openSheet('replyLang'); });
     document.querySelectorAll('.lang-sheet').forEach(function (sheet) {
