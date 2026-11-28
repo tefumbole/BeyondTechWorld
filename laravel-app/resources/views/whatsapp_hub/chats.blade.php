@@ -433,17 +433,10 @@ try {
                 </button>
             </div>
             <div class="more-menu" id="moreMenu" hidden>
-                <a href="{{ route('whatsapp.chats') }}">Chats</a>
-                <a href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
                 <a href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.index') }}">Announcements</a>
-                @if(\App\Http\Controllers\Mai\MaiDashboardController::allows(Auth::user()))
-                    <a href="{{ route('whatsapp.mai.dashboard') }}">Clients dashboard</a>
-                @endif
                 <a href="{{ route('whatsapp.index') }}">Dashboard</a>
                 <a href="{{ route('whatsapp.chats', ['pane' => 'speech']) }}">Translation</a>
                 <a href="{{ route('whatsapp.chats', ['pane' => 'briefing']) }}">AI Brief</a>
-                <a href="{{ route('whatsapp.groups') }}">Groups</a>
-                <button type="button" id="hubInstall">App</button>
                 <button type="button" class="js-hub-settings">Settings</button>
                 <form method="POST" action="{{ url('/logout') }}">
                     @csrf
@@ -710,10 +703,7 @@ try {
                 <div class="mode-switch">
                     @php
                         $callDigits = preg_replace('/\D/', '', (string) optional($open->contact)->normalized_phone);
-                        $canDial = strlen($callDigits) >= 8 && strlen($callDigits) <= 13;
                     @endphp
-                    <a class="call-btn" id="threadCall" href="{{ $canDial ? 'tel:+'.$callDigits : '#' }}" @if(! $canDial) hidden @endif>Call by phone</a>
-                    <a class="call-btn" id="threadWhatsApp" href="{{ $canDial ? 'https://wa.me/'.$callDigits : '#' }}" target="_blank" rel="noopener" @if(! $canDial) hidden @endif>Open in WhatsApp</a>
                     @if(preg_match('/^(237)?6[0-9]{8}$/', (string) $callDigits))
                         <button type="button" class="call-btn" id="threadUnmask" data-chat="{{ (int) $open->id }}">Unmask</button>
                     @endif
@@ -1060,15 +1050,15 @@ try {
                         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18" cy="12" r="1.7"/></svg>
                     </button>
                     <div class="more-menu" id="announceMoreMenu" hidden>
-                        <a href="{{ route('whatsapp.chats') }}">Back to chat</a>
-                        @if(\App\Http\Controllers\Mai\MaiDashboardController::allows(Auth::user()))
-                            <a href="{{ route('whatsapp.mai.dashboard') }}">Clients dashboard</a>
-                        @endif
+                        <a href="{{ route('whatsapp.chats', ['pane' => 'announcements']) }}">Announcements</a>
                         <a href="{{ route('whatsapp.index') }}">Dashboard</a>
                         <a href="{{ route('whatsapp.chats', ['pane' => 'speech']) }}">Translation</a>
                         <a href="{{ route('whatsapp.chats', ['pane' => 'briefing']) }}">AI Brief</a>
-                        <a href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
                         <button type="button" class="js-hub-settings">Settings</button>
+                        <form method="POST" action="{{ url('/logout') }}">
+                            @csrf
+                            <button type="submit">Sign out</button>
+                        </form>
                     </div>
                 </div>
             </header>
@@ -1145,8 +1135,6 @@ try {
             </div>
         </div>
         <div class="mode-switch">
-            <a class="call-btn" id="threadCall" href="#" hidden>Call by phone</a>
-            <a class="call-btn" id="threadWhatsApp" href="#" target="_blank" rel="noopener" hidden>Open in WhatsApp</a>
             <button type="button" class="chat-gear js-hub-settings" aria-label="Settings">⚙</button>
             <form method="POST" id="threadTranslate" action="">@csrf<button type="submit" class="is-translate">Translate</button></form>
             <form method="POST" id="threadAi" action="">@csrf<button type="submit">AI</button></form>
