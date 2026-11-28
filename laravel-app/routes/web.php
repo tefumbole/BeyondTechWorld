@@ -216,6 +216,7 @@ Route::post('/pangwayu/pledge', 'PublicFuneralPledgeController@store')->name('fu
 Route::post('/pangwayu/eulogy', 'PublicFuneralPledgeController@storeEulogy')->name('funeral.pangwayu.eulogy');
 Route::get('/pangwayu/payment/check', 'PublicFuneralPledgeController@payment')->name('funeral.pangwayu.payment');
 Route::get('/pangwayu/stripe/check', 'PublicFuneralPledgeController@stripeReturn')->name('funeral.pangwayu.stripe');
+Route::get('/mama', 'PublicFuneralPledgeController@mama')->name('funeral.mama');
 
 Route::get('/nbc', 'NbcPublicController@home')->name('nbc.home');
 Route::get('/nbc/program', 'NbcPublicController@program')->name('nbc.program');
@@ -897,6 +898,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/chats/{id}/voice', 'WhatsApp\WhatsAppHubController@hearVoice')->name('whatsapp.chats.voice');
     Route::post('/admin/whatsapp/chats/{id}/typing', 'WhatsApp\WhatsAppHubController@showTyping')->name('whatsapp.chats.typing');
     Route::post('/admin/whatsapp/chats/{id}/ask', 'WhatsApp\WhatsAppHubController@askChat')->name('whatsapp.chats.askchat');
+    Route::post('/admin/whatsapp/chats/{id}/unmask', 'WhatsApp\WhatsAppHubController@unmaskContact')->middleware('throttle:20,1')->name('whatsapp.chats.unmask');
+    Route::post('/admin/whatsapp/mai/app-link', 'WhatsApp\WhatsAppHubController@saveMaiAppLink')->middleware('throttle:10,1')->name('whatsapp.mai.app_link');
     Route::post('/admin/whatsapp/chats/{id}/messages/{message}/edit', 'WhatsApp\WhatsAppHubController@editChatMessage')->name('whatsapp.chats.edit');
     Route::post('/admin/whatsapp/chats/{id}/messages/{message}/delete', 'WhatsApp\WhatsAppHubController@deleteChatMessage')->name('whatsapp.chats.delete');
     Route::post('/admin/whatsapp/chats/{id}/messages/{message}/star', 'WhatsApp\WhatsAppHubController@starChatMessage')->name('whatsapp.chats.star');

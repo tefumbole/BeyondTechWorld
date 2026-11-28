@@ -162,6 +162,21 @@ class MaiInboxStore
                 $conversation->unread_count = (int) $conversation->unread_count + 1;
             }
             $conversation->save();
+            if ($this->isLive($event) && $type === 'TEXT' && $text !== '') {
+                try {
+                    $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
+                    if (strtoupper((string) $conversation->mode) === WhatsAppConversation::MODE_AI && ! $translator->activeFor($conversation->id)) {
+                        $translator->setChat($conversation->id, true);
+                    }
+                    if ($translator->activeFor($conversation->id) || strtoupper((string) $conversation->mode) === WhatsAppConversation::MODE_AI) {
+                        if (! $translator->activeFor($conversation->id)) {
+                            $translator->setChat($conversation->id, true);
+                        }
+                        $message = $translator->decorate($message->fresh() ?: $message, true);
+                    }
+                } catch (\Throwable $e) {
+                }
+            }
 
             return $message;
         });
@@ -303,18 +318,19 @@ class MaiInboxStore
 
     protected function maybeReply(MaiSession $session, $message)
     {
-        if (! $message || ! $session->ai_enabled) {
-            return;
-        }
-        $generator = config('cloud.mai_customer.ai_reply');
-        if (! is_callable($generator)) {
+        if (! $message) {
             return;
         }
         $conversation = WhatsAppConversation::find($message->conversation_id);
         if (! $this->stillAi($conversation, $session)) {
             return;
         }
-        $text = call_user_func($generator, $conversation, $message);
+        $generator = config('cloud.mai_customer.ai_reply');
+        if (is_callable($generator)) {
+            $text = call_user_func($generator, $conversation, $message);
+        } else {
+            $text = app(MaiAiReply::class)->answer($conversation, $message);
+        }
         $conversation = $conversation->fresh();
         $session = $session->fresh();
         if (! $this->stillAi($conversation, $session) || trim((string) $text) === '') {
@@ -325,7 +341,7 @@ class MaiInboxStore
 
     protected function stillAi($conversation, $session)
     {
-        if (! $conversation || ! $session || ! $session->ai_enabled) {
+        if (! $conversation || ! $session) {
             return false;
         }
 

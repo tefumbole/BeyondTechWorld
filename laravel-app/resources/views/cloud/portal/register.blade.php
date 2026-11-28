@@ -374,9 +374,7 @@
                 @if(($selected ?? '') === 'MESSAGING')
                     <li data-stage="1" data-n="1" class="on">Subscribe</li>
                     <li data-stage="2" data-n="2">Phone</li>
-                    <li data-stage="3" data-n="3">Code</li>
-                    <li data-stage="4" data-n="4">Name</li>
-                    <li data-stage="7" data-n="5">Plan</li>
+                    <li data-stage="8" data-n="3">Link</li>
                 @else
                     <li data-stage="1" class="on">Type</li>
                     <li data-stage="2">Phone</li>
@@ -444,38 +442,46 @@
                     <input class="px-4 py-2" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel" inputmode="tel" data-wa-phone="local">
                 </div>
                 </div>
-                <button type="button" id="send-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Send WhatsApp code</button>
+                @if(($selected ?? '') === 'MESSAGING')
+                    <button type="button" id="mai-to-link" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Continue</button>
+                    <p class="hint mt-3">Next you link WhatsApp on this phone. A website code cannot open WhatsApp.</p>
+                @else
+                    <button type="button" id="send-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Send WhatsApp code</button>
+                @endif
                 <p class="form-error mt-3 rounded-xl px-3 py-2" id="send-error" hidden></p>
             </section>
             @if(($selected ?? '') === 'MESSAGING')
             <section class="step" data-step="8">
-                <button type="button" class="back-step" data-back="3">Back</button>
-                <h2 class="text-xl font-bold">Scan to link WhatsApp</h2>
-                <p class="hint mt-1">On your phone, open WhatsApp, then Linked devices, then Link a device, and scan this code.</p>
-                <img id="mai-qr" class="mai-qr" alt="WhatsApp QR code" hidden>
-                <p class="hint" id="mai-qr-wait">Preparing the QR code.</p>
+                <button type="button" class="back-step" data-back="2">Back</button>
+                <h2 class="text-xl font-bold">Link WhatsApp</h2>
+                <p class="hint mt-1">Choose one method. On a phone, use the link code — you cannot scan your own screen.</p>
+                <div class="link-tabs" id="mai-link-tabs" style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin:1rem 0;background:rgba(255,255,255,.06);border-radius:999px;padding:4px;">
+                    <button type="button" data-tab="qr" class="is-on" style="border:0;background:#D4AF37;color:#072f6b;font-weight:800;border-radius:999px;padding:0.7rem 0.4rem;cursor:pointer;">Scan QR</button>
+                    <button type="button" data-tab="code" style="border:0;background:transparent;color:#fff;font-weight:800;border-radius:999px;padding:0.7rem 0.4rem;cursor:pointer;">Link code</button>
+                </div>
+                <div id="mai-pane-qr">
+                    <p class="hint">On your phone open WhatsApp → Linked devices → Link a device, then scan this code.</p>
+                    <img id="mai-qr" class="mai-qr" alt="WhatsApp QR code" hidden>
+                    <p class="hint" id="mai-qr-wait">Preparing the QR code.</p>
+                </div>
+                <div id="mai-pane-code" hidden>
+                    <p class="hint">We create a code for this number. On the phone open WhatsApp → Linked devices → Link with phone number, then enter the code.</p>
+                    <p class="known-name" id="mai-pair-code" style="letter-spacing:.14em;font-size:1.6rem;text-align:center;"></p>
+                    <button type="button" id="mai-pair-btn" class="mt-3 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Get link code</button>
+                </div>
                 <p class="form-error mt-3 rounded-xl px-3 py-2" id="mai-qr-error" hidden></p>
             </section>
             @endif
 
-            <section class="step" data-step="3">
+            <section class="step" data-step="3" @if(($selected ?? '') === 'MESSAGING') hidden @endif>
                 <button type="button" class="back-step" data-back="2">Back</button>
-                <h2 class="text-xl font-bold">{{ ($selected ?? '') === 'MESSAGING' ? 'Enter your verification code' : 'Verification code' }}</h2>
+                <h2 class="text-xl font-bold">Verification code</h2>
                 <p class="hint mt-1">Enter the 6-digit code sent to your WhatsApp.</p>
-                @if(($selected ?? '') === 'MESSAGING')
-                    <div class="otp-boxes" id="otp-boxes">
-                        @for($i = 0; $i < 6; $i++)
-                            <input class="otp-box" inputmode="numeric" maxlength="1" autocomplete="{{ $i === 0 ? 'one-time-code' : 'off' }}">
-                        @endfor
-                    </div>
-                    <input type="hidden" id="otp-code">
-                @else
                 <div class="field-row">
                     <label for="otp-code">Code</label>
                     <input class="px-4 py-2" id="otp-code" inputmode="numeric" autocomplete="one-time-code">
                 </div>
-                @endif
-                <button type="button" id="check-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">{{ ($selected ?? '') === 'MESSAGING' ? 'Verify code' : 'Verify and continue' }}</button>
+                <button type="button" id="check-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Verify and continue</button>
                 <p class="hint mt-3" id="resend-wait">You can resend the code.</p>
                 <button type="button" id="resend-code" class="mt-2 bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5">Resend code</button>
                 <p class="form-error mt-3 rounded-xl px-3 py-2" id="code-error" hidden></p>
@@ -812,16 +818,20 @@
             document.getElementById('name-title').textContent = 'Contact person';
             show(2);
         };
-        document.getElementById('send-code').onclick = function () { sendCode('send-error'); };
-        document.getElementById('resend-code').onclick = function () {
+        var sendCodeBtn = document.getElementById('send-code');
+        if (sendCodeBtn) sendCodeBtn.onclick = function () { sendCode('send-error'); };
+        var resendCodeBtn = document.getElementById('resend-code');
+        if (resendCodeBtn) resendCodeBtn.onclick = function () {
             if (this.disabled) return;
             sendCode('code-error');
         };
         var maiLinkTimer = null;
+        var maiLinkMode = 'qr';
         function paintMaiQr(json) {
             var image = document.getElementById('mai-qr');
             var wait = document.getElementById('mai-qr-wait');
             var error = document.getElementById('mai-qr-error');
+            var pair = document.getElementById('mai-pair-code');
             if (json && json.redirect) {
                 if (maiLinkTimer) clearInterval(maiLinkTimer);
                 window.location = json.redirect;
@@ -831,39 +841,90 @@
                 image.src = json.qr;
                 image.hidden = false;
                 if (wait) wait.textContent = 'Scan this code with WhatsApp on your phone.';
+            } else if (wait && json && !json.qr) {
+                wait.textContent = (json.error) ? String(json.error) : (json.status === 'CONNECTING' ? 'Connecting your WhatsApp…' : 'Preparing the QR code…');
             }
-            if (error && json && json.error) {
-                error.hidden = false;
-                error.textContent = json.error;
+            if (pair && json && json.pairing_code) {
+                pair.textContent = String(json.pairing_code);
+            }
+            if (error) {
+                if (json && json.error && !json.qr && !json.pairing_code) {
+                    error.hidden = false;
+                    error.textContent = json.error;
+                } else {
+                    error.hidden = true;
+                }
             }
         }
-        function beginMaiLink() {
+        function beginMaiLink(mode) {
+            maiLinkMode = mode === 'code' ? 'code' : 'qr';
             show(8);
             var fields = phoneFields();
             var plan = document.getElementById('mai-plan');
+            var error = document.getElementById('mai-qr-error');
+            if (!fields.phone) {
+                if (error) {
+                    error.hidden = false;
+                    error.textContent = 'Enter your phone number first.';
+                }
+                show(2);
+                return;
+            }
             post('{{ route('whatsapp.mai.begin') }}', {
                 phone: fields.phone,
                 dial: fields.dial,
-                mai_plan: plan ? plan.value : 'trial'
+                mai_plan: plan ? plan.value : 'trial',
+                link: maiLinkMode
             }, function (ok, json) {
-                var error = document.getElementById('mai-qr-error');
                 if (!ok) {
                     if (error) {
                         error.hidden = false;
-                        error.textContent = json.message || 'The QR code could not be started.';
+                        error.textContent = (json && json.message) || 'WhatsApp could not be started.';
                     }
                     return;
                 }
                 paintMaiQr(json);
                 if (maiLinkTimer) clearInterval(maiLinkTimer);
                 maiLinkTimer = setInterval(function () {
-                    fetch('{{ route('whatsapp.mai.link.status') }}', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    fetch('{{ route('whatsapp.mai.link.status') }}', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
                         .then(function (response) { return response.json(); })
                         .then(paintMaiQr)
                         .catch(function () {});
                 }, 2000);
             });
         }
+        var maiToLink = document.getElementById('mai-to-link');
+        if (maiToLink) maiToLink.onclick = function () {
+            var err = document.getElementById('send-error');
+            var fields = phoneFields();
+            if (!fields.phone) {
+                if (err) { err.hidden = false; err.textContent = 'Enter your phone number.'; }
+                return;
+            }
+            if (err) err.hidden = true;
+            beginMaiLink('qr');
+        };
+        var maiTabs = document.getElementById('mai-link-tabs');
+        if (maiTabs) {
+            maiTabs.addEventListener('click', function (event) {
+                var button = event.target.closest('button');
+                if (!button) return;
+                var name = button.getAttribute('data-tab');
+                maiTabs.querySelectorAll('button').forEach(function (b) {
+                    var on = b === button;
+                    b.classList.toggle('is-on', on);
+                    b.style.background = on ? '#D4AF37' : 'transparent';
+                    b.style.color = on ? '#072f6b' : '#fff';
+                });
+                var qrPane = document.getElementById('mai-pane-qr');
+                var codePane = document.getElementById('mai-pane-code');
+                if (qrPane) qrPane.hidden = name !== 'qr';
+                if (codePane) codePane.hidden = name !== 'code';
+                if (name === 'qr') beginMaiLink('qr');
+            });
+        }
+        var maiPairBtn = document.getElementById('mai-pair-btn');
+        if (maiPairBtn) maiPairBtn.onclick = function () { beginMaiLink('code'); };
         var verifyingCode = false;
         document.getElementById('check-code').onclick = function () {
             if (verifyingCode) return;

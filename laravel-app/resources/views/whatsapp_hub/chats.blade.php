@@ -302,7 +302,7 @@
 @php
     $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
-<div class="chats-app {{ ($open || $group || $pane === 'announcements' || $pane === 'help') ? 'has-open' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}">
+<div class="chats-app {{ ($open || $group || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech'], true)) ? 'has-open' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}">
     <aside class="chats-side {{ !empty($personalHub) ? 'is-personal' : '' }}">
         <nav class="hub-screens">
             <a class="{{ $screen === 'chats' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}">Chats</a>
@@ -435,8 +435,14 @@
                     $more = [
                         ['Help', 'How to use Whats MAI', route('whatsapp.chats', ['pane' => 'help'])],
                     ];
+                    if (!empty($personalHub)) {
+                        $more[] = ['AI briefing', 'Event and reply instructions for AI mode', route('whatsapp.chats', ['pane' => 'briefing'])];
+                        $more[] = ['Linked apps', 'Connect an app so AI can use its data', route('whatsapp.chats', ['pane' => 'apps'])];
+                        $more[] = ['Speech translation', 'Translated calls from Whats MAI', route('whatsapp.chats', ['pane' => 'speech'])];
+                    }
                     if (empty($personalHub)) {
                         $more[] = ['People', 'Names and numbers', route('whatsapp.people')];
+                        $more[] = ['AI brief', 'Standing notes for the assistant', route('whatsapp.brief')];
                     }
                     $more[] = ['Groups', 'WhatsApp groups', route('whatsapp.groups')];
                     $more[] = ['Leads', 'Enquiries from chats', route('whatsapp.leads')];
@@ -515,6 +521,9 @@
                 <div class="mode-switch">
                     @php $callDigits = preg_replace('/\D/', '', (string) optional($open->contact)->normalized_phone); @endphp
                     <a class="call-btn" id="threadCall" href="{{ $callDigits !== '' ? 'tel:+'.$callDigits : '#' }}" @if($callDigits === '') hidden @endif><i class="fa fa-phone"></i> Call</a>
+                    @if(preg_match('/^(237)?6[0-9]{8}$/', (string) $callDigits))
+                        <button type="button" class="call-btn" id="threadUnmask" data-chat="{{ (int) $open->id }}">Unmask</button>
+                    @endif
                     <button type="button" class="chat-gear js-lang-settings" aria-label="Language settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
                     <form method="POST" id="threadTranslate" action="{{ route('whatsapp.chats.translator', $open->id) }}">
                         @csrf
@@ -714,6 +723,86 @@
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
             @endif
+        @elseif($pane === 'briefing' && !empty($personalHub))
+            <header class="chats-head">
+                <div class="chats-head-person">
+                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back">‹ Back</a>
+                    <div>
+                        <h2>AI briefing</h2>
+                        <p>Updates AI uses when a chat is on AI mode</p>
+                    </div>
+                </div>
+            </header>
+            @if(session('message'))<div class="chat-note">{{ session('message') }}</div>@endif
+            <div class="letter-card" style="overflow:auto;">
+                <form method="post" action="{{ route('whatsapp.brief.store') }}">
+                    @csrf
+                    <input type="hidden" name="brief_form" value="1">
+                    <label>What is this about?</label>
+                    <input type="text" name="title" required maxlength="191" placeholder="Conference, product launch, office hours">
+                    <label class="mt-2"><input type="checkbox" name="timed" value="1" class="brief-timed"> Only true for a period</label>
+                    <div class="brief-times" hidden>
+                        <label>Starts</label>
+                        <input type="datetime-local" name="starts_at">
+                        <label>Ends</label>
+                        <input type="datetime-local" name="ends_at">
+                    </div>
+                    <label class="mt-2">Details AI may tell people</label>
+                    <textarea name="details" rows="5" required maxlength="4000" placeholder="Date, place, price, what to say when someone asks…"></textarea>
+                    <button class="mt-3" type="submit">Save briefing</button>
+                </form>
+                @foreach(($briefs ?? []) as $brief)
+                    <form method="post" action="{{ route('whatsapp.brief.update', $brief->id) }}" class="mt-4" style="border-top:1px solid #d7e3f4;padding-top:1rem;">
+                        @csrf
+                        <input type="hidden" name="brief_form" value="1">
+                        <input type="text" name="title" required maxlength="191" value="{{ $brief->title }}">
+                        <textarea name="details" rows="4" required maxlength="4000" class="mt-2">{{ $brief->details }}</textarea>
+                        <label class="mt-2"><input type="checkbox" name="enabled" value="1" {{ $brief->enabled ? 'checked' : '' }}> Use in AI replies</label>
+                        <button type="submit">Update</button>
+                    </form>
+                    <form method="post" action="{{ route('whatsapp.brief.delete', $brief->id) }}" onsubmit="return confirm('Remove this briefing?');">
+                        @csrf
+                        <button type="submit">Remove</button>
+                    </form>
+                @endforeach
+            </div>
+        @elseif($pane === 'apps' && !empty($personalHub))
+            <header class="chats-head">
+                <div class="chats-head-person">
+                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back">‹ Back</a>
+                    <div>
+                        <h2>Linked apps</h2>
+                        <p>AI can read data from your application</p>
+                    </div>
+                </div>
+            </header>
+            @if(session('message'))<div class="chat-note">{{ session('message') }}</div>@endif
+            @if(session('not_permitted'))<div class="chat-note">{{ session('not_permitted') }}</div>@endif
+            <form class="letter-card" method="POST" action="{{ route('whatsapp.mai.app_link') }}">
+                @csrf
+                <p>Paste an https URL that returns JSON or text your AI may use. Optional bearer token for private APIs.</p>
+                <label>Application URL</label>
+                <input type="url" name="url" value="{{ $maiAppLink['url'] ?? '' }}" placeholder="https://your-app.example/api/mai-data">
+                <label class="mt-2">Bearer token (optional)</label>
+                <input type="text" name="token" value="{{ $maiAppLink['token'] ?? '' }}" autocomplete="off">
+                <button class="mt-3" type="submit">Save link</button>
+            </form>
+        @elseif($pane === 'speech' && !empty($personalHub))
+            <header class="chats-head">
+                <div class="chats-head-person">
+                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back">‹ Back</a>
+                    <div>
+                        <h2>Speech translation</h2>
+                        <p>Call with live language help</p>
+                    </div>
+                </div>
+            </header>
+            <div class="letter-card">
+                <p>Open a chat, tap Call, and speak. Turn Translate on for that chat so MAI shows their words in English and can send your reply in their language.</p>
+                <p>For a bridged translated line, open the voice desk when your carrier is connected.</p>
+                <a class="announce-btn" href="{{ route('mai.voice') }}">Open voice desk</a>
+                <a class="announce-btn" href="{{ route('whatsapp.chats') }}">Back to chats</a>
+            </div>
         @elseif($pane === 'help')
             @include('whatsapp_hub.partials.help')
         @elseif($pane === 'announcements' && !empty($personalHub) && !empty($announce))
@@ -2221,7 +2310,7 @@ window.addEventListener('pageshow', function (event) {
         var use = document.getElementById('transcribeUse');
         var prompt = document.getElementById('transcribePrompt');
         var ask = document.getElementById('transcribeAsk');
-        if (sheet) sheet.setAttribute('data-kind', 'chat');
+        if (sheet) sheet.setAttribute('data-kind', 'general');
         if (result) { result.hidden = true; result.textContent = ''; }
         if (use) use.hidden = true;
         var draft = document.getElementById('chatBody');
@@ -2230,7 +2319,7 @@ window.addEventListener('pageshow', function (event) {
         if (ask) { ask.disabled = false; ask.textContent = 'MAI'; }
         clearAskFile();
         var statusNode = document.getElementById('transcribeStatus');
-        if (statusNode) statusNode.textContent = typed ? 'Answering the message you typed.' : 'This chat, including the photos.';
+        if (statusNode) statusNode.textContent = 'Ask MAI anything. This is not limited to the open chat.';
         paintRecentChat();
         openSheet('transcribeSheet');
         if (typed) {
@@ -2245,8 +2334,8 @@ window.addEventListener('pageshow', function (event) {
         var prompt = document.getElementById('transcribePrompt');
         var file = askAttachment();
         instruction = (instruction || (prompt ? prompt.value : '')).trim();
-        if (!instruction && !file) { window.alert('Write what you want the assistant to do.'); return; }
-        if (!instruction) instruction = 'Read the attached file and say what it means for this chat.';
+        if (!instruction && !file) { window.alert('Write what you want to ask MAI.'); return; }
+        if (!instruction) instruction = 'Read the attached file and explain it.';
         if (file && file.size > ((/\.(png|jpe?g|webp|gif)$/i).test(file.name) ? 1500000 : 4000000)) {
             window.alert('That file is too large.');
             return;
@@ -2262,6 +2351,7 @@ window.addEventListener('pageshow', function (event) {
         var data = new FormData();
         data.append('instruction', instruction);
         if (activeMessage) data.append('message', activeMessage.getAttribute('data-id'));
+        else if (sheet && sheet.getAttribute('data-kind') === 'general') data.append('scope', 'general');
         if (file) data.append('file', file);
         data.append('_token', csrfToken());
         fetch(chatPage + '/' + openChat + '/ask', {
@@ -2280,8 +2370,8 @@ window.addEventListener('pageshow', function (event) {
                 window.alert((payload && payload.error) || 'The assistant could not answer that.');
                 return;
             }
-            var kindName = sheet && sheet.getAttribute('data-kind') === 'audio' ? 'Voice note as text' : (sheet && sheet.getAttribute('data-kind') === 'chat' ? 'This chat' : 'This message as text');
-            if (payload.text && sheet && sheet.getAttribute('data-kind') !== 'chat') fillTranscribe(kindName, payload.text);
+            var kindName = sheet && sheet.getAttribute('data-kind') === 'audio' ? 'Voice note as text' : (sheet && sheet.getAttribute('data-kind') === 'general' ? 'MAI' : (sheet && sheet.getAttribute('data-kind') === 'chat' ? 'This chat' : 'This message as text'));
+            if (payload.text && sheet && sheet.getAttribute('data-kind') !== 'chat' && sheet.getAttribute('data-kind') !== 'general') fillTranscribe(kindName, payload.text);
             if (result) { result.hidden = false; result.textContent = payload.answer; }
             if (use) use.hidden = false;
             var thread = document.getElementById('askThread');
@@ -2375,6 +2465,35 @@ window.addEventListener('pageshow', function (event) {
         if (event.target && event.target.id === 'askFileClear') { clearAskFile(); return; }
         var askOpen = event.target.closest && event.target.closest('#openAsk');
         if (askOpen) { openAsk(null); return; }
+        var unmask = event.target.closest && event.target.closest('#threadUnmask');
+        if (unmask) {
+            var chatId = unmask.getAttribute('data-chat');
+            if (!chatId) return;
+            unmask.disabled = true;
+            unmask.textContent = '…';
+            fetch(chatPage + '/' + chatId + '/unmask', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ _token: csrfToken() })
+            }).then(function (response) { return response.json().then(function (payload) { payload._ok = response.ok; return payload; }); })
+                .then(function (payload) {
+                    unmask.disabled = false;
+                    unmask.textContent = 'Unmask';
+                    if (!payload || !payload._ok || !payload.name) {
+                        window.alert((payload && payload.error) || 'No MoMo name found.');
+                        return;
+                    }
+                    var title = document.getElementById('threadName');
+                    if (title) title.textContent = payload.name;
+                    unmask.textContent = 'Unmasked';
+                }).catch(function () {
+                    unmask.disabled = false;
+                    unmask.textContent = 'Unmask';
+                    window.alert('Could not look up that MoMo name.');
+                });
+            return;
+        }
         var chip = event.target.closest && event.target.closest('[data-prompt]');
         if (chip) { runAsk(chip.getAttribute('data-prompt') || ''); return; }
         var quoteClear = event.target.closest && event.target.closest('#quoteClear');

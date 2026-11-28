@@ -407,7 +407,7 @@ class WhatsAppHubController extends Controller
         }
         $canReply = $personal ? true : $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
         $pane = (string) $request->get('pane', 'chats');
-        if (! in_array($pane, ['chats', 'updates', 'calls', 'media', 'more', 'announcements', 'help'], true)) {
+        if (! in_array($pane, ['chats', 'updates', 'calls', 'media', 'more', 'announcements', 'help', 'briefing', 'apps', 'speech'], true)) {
             $pane = 'chats';
         }
         $calls = collect();
@@ -480,12 +480,30 @@ class WhatsAppHubController extends Controller
         $announce = ($personal && $pane === 'announcements')
             ? app(\App\Http\Controllers\AnnouncementManagerController::class)->composeState($request)
             : null;
+        $briefs = [];
+        $maiAppLink = ['url' => '', 'token' => ''];
+        if ($personal) {
+            try {
+                $briefs = app(\App\Services\Assistant\AssistantBriefService::class)->visible()->get();
+            } catch (\Throwable $e) {
+                $briefs = [];
+            }
+            $rawLink = WhatsAppSetting::getValue('mai_app_link_'.$personal->id, '');
+            $decodedLink = json_decode((string) $rawLink, true);
+            if (is_array($decodedLink)) {
+                $maiAppLink = [
+                    'url' => isset($decodedLink['url']) ? (string) $decodedLink['url'] : '',
+                    'token' => isset($decodedLink['token']) ? (string) $decodedLink['token'] : '',
+                ];
+            }
+        }
 
         return response()
             ->view('whatsapp_hub.chats', compact(
                 'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
                 'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
-                'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady', 'historyProgress'
+                'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady', 'historyProgress',
+                'briefs', 'maiAppLink'
             ))
             ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
     }
@@ -1239,6 +1257,76 @@ class WhatsAppHubController extends Controller
         ]);
     }
 
+    public function unmaskContact(Request $request, $id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage', 'whatsapp.reply'])) {
+            return $deny;
+        }
+        $conversation = WhatsAppConversation::with('contact')->findOrFail($id);
+        if ($personal = $this->personalHub()) {
+            if ((int) $conversation->mai_session_id !== (int) $personal->id) {
+                return response()->json(['ok' => false, 'error' => 'That chat is not on this phone.'], 404);
+            }
+        }
+        $phone = preg_replace('/\D/', '', (string) optional($conversation->contact)->normalized_phone);
+        if (! preg_match('/^(237)?6[0-9]{8}$/', $phone)) {
+            return response()->json(['ok' => false, 'error' => 'Unmask works for Cameroon Mobile Money numbers.'], 422);
+        }
+        $hit = app(\App\Services\MobileMoneyHolderService::class)->lookup($phone, true);
+        $name = is_array($hit) && ! empty($hit['name']) ? trim((string) $hit['name']) : '';
+        if ($name === '') {
+            return response()->json(['ok' => false, 'error' => 'No MoMo name was found for that number.'], 404);
+        }
+        if ($personal) {
+            app(\App\Services\Mai\MaiIdentity::class)->remember($personal, [
+                'jid' => $phone.'@s.whatsapp.net',
+                'phone' => $phone,
+                'saved_name' => $name,
+            ]);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'peer_label')) {
+                $conversation->peer_label = function_exists('mb_substr') ? mb_substr($name, 0, 191) : substr($name, 0, 191);
+                $conversation->save();
+            }
+        }
+
+        return response()->json(['ok' => true, 'name' => $name]);
+    }
+
+    public function saveMaiAppLink(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage', 'whatsapp.reply'])) {
+            return $deny;
+        }
+        $personal = $this->personalHub();
+        if (! $personal) {
+            return redirect()->route('whatsapp.chats', ['pane' => 'more'])->with('not_permitted', 'Link an app from your personal Whats MAI session.');
+        }
+        $url = trim((string) $request->input('url'));
+        $token = trim((string) $request->input('token'));
+        if ($url !== '' && ! preg_match('#^https://#i', $url)) {
+            return redirect()->route('whatsapp.chats', ['pane' => 'apps'])->with('not_permitted', 'Use an https:// address.');
+        }
+        $payload = [
+            'url' => $url,
+            'token' => $token,
+            'snapshot' => '',
+            'fetched_at' => null,
+        ];
+        WhatsAppSetting::putValue('mai_app_link_'.$personal->id, json_encode($payload));
+        if ($url !== '') {
+            try {
+                app(\App\Services\Mai\MaiAiReply::class)->appData(
+                    tap(new WhatsAppConversation(), function ($row) use ($personal) {
+                        $row->mai_session_id = $personal->id;
+                    })
+                );
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return redirect()->route('whatsapp.chats', ['pane' => 'apps'])->with('message', $url !== '' ? 'Application linked for AI.' : 'Application link cleared.');
+    }
+
     public function askChat(Request $request, $id)
     {
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage', 'whatsapp.reply'])) {
@@ -1268,6 +1356,15 @@ class WhatsAppHubController extends Controller
             }
 
             return $this->answerAboutMessage($row, $instruction, false, $material);
+        }
+        if ((string) $request->input('scope') === 'general') {
+            return $this->answerAbout(
+                '(No chat context. Answer the request on its own.)',
+                $instruction,
+                'You are MAI, a helpful assistant. Answer any question clearly and directly. You are not limited to the current WhatsApp chat. If a file is attached, use it. Do not invent private account facts. Keep answers short and useful.',
+                true,
+                $material
+            );
         }
         $rows = WhatsAppMessage::visible()->where('conversation_id', $id)->orderByDesc('id')->limit(120)->get()->reverse()->values();
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);

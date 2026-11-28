@@ -88,7 +88,7 @@ class WhatsAppTranslator
 
         $staff = $this->staffLanguage();
         $parsed = $this->ask(
-            'Translate this WhatsApp message into natural '.$staff['name'].', the way ChatGPT would: accurate, complete, and like a real person texting. Keep their tone, whether they are warm, brief, annoyed, or joking. Do not sound like a textbook and do not make the language childish. Do not add facts, prices, or promises. Do not answer them. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the source language","is_english":true,"english":"the natural '.$staff['name'].'"}. If it is already natural '.$staff['name'].', set is_english true and copy it. If it is not, english must be real '.$staff['name'].', never a copy of the original. Keep names, phone numbers, amounts, and dates unchanged.',
+            'Translate this WhatsApp message into clear, simple '.$staff['name'].'. Be straight to the point and meaningful. Fix obvious typing errors so the message makes sense, without changing the meaning. Keep the tone. Do not add facts, prices, or promises. Do not answer them. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the source language","is_english":true,"english":"the clear '.$staff['name'].'"}. If it is already clear '.$staff['name'].', set is_english true and return a cleaned copy. If it is not, english must be real '.$staff['name'].', never a copy of the original. Keep names, phone numbers, amounts, and dates unchanged.',
             $original
         );
         if (! $parsed || ! isset($parsed['english'])) {
@@ -120,7 +120,7 @@ class WhatsAppTranslator
         if ($same && $code !== '' && $code !== $staffCode) {
             $fromName = $name !== '' ? $name : 'its original language';
             $again = $this->ask(
-                'The WhatsApp message below is in '.$fromName.', not '.$staff['name'].'. Translate it into natural '.$staff['name'].', the way ChatGPT would for a real chat: accurate, complete, and conversational. Keep the tone. Do not add facts and do not copy the original. If it is already '.$staff['name'].', copy it unchanged. Reply with JSON only: {"english":"the translation"}. Keep names, phone numbers, amounts, and dates unchanged.',
+                'The WhatsApp message below is in '.$fromName.', not '.$staff['name'].'. Translate it into clear, simple '.$staff['name'].'. Be straight to the point. Fix obvious typing errors so it makes sense, without changing the meaning. Keep the tone. Do not add facts and do not copy the original. If it is already '.$staff['name'].', return a cleaned copy. Reply with JSON only: {"english":"the translation"}. Keep names, phone numbers, amounts, and dates unchanged.',
                 $original
             );
             $english = $again && isset($again['english']) ? trim((string) $again['english']) : '';
@@ -353,7 +353,7 @@ class WhatsAppTranslator
             return null;
         }
         $parsed = $this->ask(
-            'The message below was written in '.$staff['name'].'. Translate it into natural '.$known['name'].', the way ChatGPT would write a WhatsApp message: accurate, complete, and like a real person. Keep the tone. Do not sound like a textbook and do not make it childish. Do not add a greeting, a fact, or a note that was not written. Reply with JSON only: {"text":"the translation"}. Keep names, phone numbers, amounts, and dates. If it is already natural '.$known['name'].', return it unchanged.',
+            'The message below was written in '.$staff['name'].'. Translate it into clear, simple '.$known['name'].'. Be straight to the point and meaningful. Fix obvious typing errors so it makes sense, without changing the meaning. Keep the tone. Do not add a greeting, a fact, or a note that was not written. Reply with JSON only: {"text":"the translation"}. Keep names, phone numbers, amounts, and dates. If it is already clear '.$known['name'].', return a cleaned copy.',
             $english
         );
         if (! $parsed || ! isset($parsed['text'])) {
@@ -585,7 +585,7 @@ class WhatsAppTranslator
         }
         $staff = $this->staffLanguage();
         $parsed = $this->ask(
-            'Translate this WhatsApp voice note into natural '.$staff['name'].', the way ChatGPT would: accurate, complete, and like a real person talking. Keep the tone. Do not sound like a textbook. Do not add facts. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the source language","is_english":true,"english":"the natural '.$staff['name'].'"}. If it is already natural '.$staff['name'].', set is_english true and copy it. Keep names, phone numbers, amounts, and dates unchanged.',
+            'Translate this WhatsApp voice note into clear, simple '.$staff['name'].'. Be straight to the point and meaningful. Fix obvious typing or speech errors so it makes sense, without changing the meaning. Keep the tone. Do not add facts. Reply with JSON only: {"language":"iso-639-1","language_name":"English name of the source language","is_english":true,"english":"the clear '.$staff['name'].'"}. If it is already clear '.$staff['name'].', set is_english true and return a cleaned copy. Keep names, phone numbers, amounts, and dates unchanged.',
             $text
         );
         if (! $parsed || ! isset($parsed['english'])) {

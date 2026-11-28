@@ -199,13 +199,16 @@ class CloudPortalController extends Controller
     public function whatsappMaiBegin(Request $request)
     {
         $phone = app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial'));
-        if (! app(\App\Services\Cloud\CloudSignupOtp::class)->matches($phone)) {
-            return response()->json(['message' => 'Verify the phone number first.'], 422);
+        $digits = preg_replace('/\D/', '', (string) $phone);
+        if (! preg_match('/^[1-9][0-9]{7,14}$/', $digits)) {
+            return response()->json(['message' => 'Enter a valid phone number.'], 422);
         }
+        // A website OTP cannot open WhatsApp. Linking the phone (QR or link code) proves ownership.
         if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
             return response()->json(['message' => 'Use your personal WhatsApp number. The business line stays separate.'], 422);
         }
-        $user = app(CloudOnboardingService::class)->ensurePerson($phone);
+        $name = trim((string) $request->input('full_name'));
+        $user = app(CloudOnboardingService::class)->ensurePerson($phone, $name !== '' ? $name : null);
         Auth::login($user);
         $request->session()->regenerate();
         session(['mai_plan' => $request->input('mai_plan') === 'paid' ? 'paid' : 'trial']);
@@ -220,10 +223,15 @@ class CloudPortalController extends Controller
                 'redirect' => route('whatsapp.mai.inbox'),
             ]);
         }
+        $wantPair = $request->input('link') === 'code';
+        if ($wantPair && ($state['status'] ?? '') !== 'CONNECTED') {
+            $state = $engine->pair($phone);
+        }
 
         return response()->json([
             'status' => isset($state['status']) ? $state['status'] : 'NOT_CONNECTED',
             'qr' => isset($state['qr']) ? $state['qr'] : null,
+            'pairing_code' => isset($state['pairing_code']) ? $state['pairing_code'] : null,
             'error' => isset($state['error']) ? $state['error'] : null,
         ]);
     }

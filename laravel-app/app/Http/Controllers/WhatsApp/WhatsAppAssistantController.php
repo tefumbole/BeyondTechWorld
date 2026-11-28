@@ -33,12 +33,13 @@ class WhatsAppAssistantController extends Controller
 
     public function storeBrief(Request $request)
     {
-        if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.ai.manage', 'whatsapp.manage', 'whatsapp.ai.knowledge'])) {
+        if ($deny = $this->denyBrief()) {
             return $deny;
         }
         $data = $this->briefInput($request);
+        $back = $this->briefBack();
         if ($data['ends_at'] && $data['ends_at']->lt(now())) {
-            return redirect()->route('whatsapp.brief')->with('message', 'That end time has already passed, so the note was not kept.');
+            return redirect()->to($back)->with('message', 'That end time has already passed, so the note was not kept.');
         }
         AssistantBrief::create([
             'cloud_tenant_id' => app(AssistantBriefService::class)->tenantIdForSave(),
@@ -50,12 +51,12 @@ class WhatsAppAssistantController extends Controller
             'updated_by' => Auth::id(),
         ]);
 
-        return redirect()->route('whatsapp.brief')->with('message', 'The assistant will use this from now on.');
+        return redirect()->to($back)->with('message', 'The assistant will use this from now on.');
     }
 
     public function updateBrief(Request $request, $id)
     {
-        if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.ai.manage', 'whatsapp.manage', 'whatsapp.ai.knowledge'])) {
+        if ($deny = $this->denyBrief()) {
             return $deny;
         }
         $brief = app(AssistantBriefService::class)->visible()->where('id', $id)->first();
@@ -63,6 +64,7 @@ class WhatsAppAssistantController extends Controller
             abort(404);
         }
         $data = $this->briefInput($request);
+        $back = $this->briefBack();
         $brief->title = $data['title'];
         $brief->starts_at = $data['starts_at'];
         $brief->ends_at = $data['ends_at'];
@@ -73,15 +75,15 @@ class WhatsAppAssistantController extends Controller
         if ($brief->ends_at && $brief->ends_at->lt(now())) {
             $brief->delete();
 
-            return redirect()->route('whatsapp.brief')->with('message', 'That end time has passed, so the note was removed.');
+            return redirect()->to($back)->with('message', 'That end time has passed, so the note was removed.');
         }
 
-        return redirect()->route('whatsapp.brief')->with('message', 'Updated. The assistant will use the new details.');
+        return redirect()->to($back)->with('message', 'Updated. The assistant will use the new details.');
     }
 
     public function destroyBrief($id)
     {
-        if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.ai.manage', 'whatsapp.manage', 'whatsapp.ai.knowledge'])) {
+        if ($deny = $this->denyBrief()) {
             return $deny;
         }
         $brief = app(AssistantBriefService::class)->visible()->where('id', $id)->first();
@@ -89,7 +91,25 @@ class WhatsAppAssistantController extends Controller
             $brief->delete();
         }
 
-        return redirect()->route('whatsapp.brief')->with('message', 'Removed from the assistant.');
+        return redirect()->to($this->briefBack())->with('message', 'Removed from the assistant.');
+    }
+
+    protected function denyBrief()
+    {
+        if (\App\Support\MaiHost::is(request()) && Auth::check()) {
+            return null;
+        }
+
+        return $this->denyUnless(['whatsapp.ai', 'whatsapp.ai.manage', 'whatsapp.manage', 'whatsapp.ai.knowledge']);
+    }
+
+    protected function briefBack()
+    {
+        if (\App\Support\MaiHost::is(request())) {
+            return route('whatsapp.chats', ['pane' => 'briefing']);
+        }
+
+        return route('whatsapp.brief');
     }
 
     protected function briefInput(Request $request)
@@ -204,8 +224,12 @@ class WhatsAppAssistantController extends Controller
             app(WhatsAppConversationService::class)->addNote($conversation, $note, Auth::id());
         }
         app(WhatsAppConversationService::class)->enableAi($conversation, Auth::id());
+        try {
+            app(\App\Services\WhatsApp\WhatsAppTranslator::class)->setChat($conversation->id, true);
+        } catch (\Throwable $e) {
+        }
 
-        return back()->with('message', 'This chat is on AI. Other chats stay as they are.');
+        return back()->with('message', 'This chat is on AI with language detection. Incoming messages are shown in English.');
     }
 
     public function suggest($id)
