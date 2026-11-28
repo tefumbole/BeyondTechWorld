@@ -189,6 +189,9 @@ class WhatsAppConversationService
             'sender_type' => 'CONTACT',
             'delivered_at' => now(),
         ]);
+        if (strtoupper((string) $conversation->mode) === WhatsAppConversation::MODE_AI) {
+            app(WhatsAppTranslator::class)->setChat($conversation->id, true);
+        }
         app(WhatsAppTranslator::class)->decorate($message);
         $message = $message->fresh() ?: $message;
         $preview = $this->preview($message->hubText(), $parsed['message_type'] ?? 'TEXT');
@@ -1583,6 +1586,7 @@ class WhatsAppConversationService
         }
         $conversation->save();
         $this->event($conversation, WhatsAppConversationEvent::MODE, 'AI enabled', $userId);
+        app(WhatsAppTranslator::class)->setChat($conversation->id, true);
         $this->resumeLatestCustomerMessage($conversation);
 
         return $conversation;

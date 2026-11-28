@@ -482,13 +482,14 @@ class WhatsAppHubController extends Controller
             : null;
         $briefs = [];
         $maiAppLink = ['url' => '', 'token' => ''];
-        if ($personal) {
-            try {
-                $briefs = app(\App\Services\Assistant\AssistantBriefService::class)->visible()->get();
-            } catch (\Throwable $e) {
-                $briefs = [];
-            }
-            $rawLink = WhatsAppSetting::getValue('mai_app_link_'.$personal->id, '');
+        try {
+            $briefs = app(\App\Services\Assistant\AssistantBriefService::class)->visible()->get();
+        } catch (\Throwable $e) {
+            $briefs = [];
+        }
+        $linkKey = $personal ? (string) $personal->id : 'staff';
+        if ($linkKey !== '') {
+            $rawLink = WhatsAppSetting::getValue('mai_app_link_'.$linkKey, '');
             $decodedLink = json_decode((string) $rawLink, true);
             if (is_array($decodedLink)) {
                 $maiAppLink = [
@@ -1257,6 +1258,24 @@ class WhatsAppHubController extends Controller
         ]);
     }
 
+    public function speech(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage', 'whatsapp.reply'])) {
+            return $deny;
+        }
+        $text = trim((string) $request->input('text'));
+        $language = trim((string) $request->input('language', 'English'));
+        if ($text === '') {
+            return response()->json(['ok' => false, 'error' => 'Say something first.'], 422);
+        }
+        $translated = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->utterance($text, $language !== '' ? $language : 'English');
+        if ($translated === '') {
+            return response()->json(['ok' => false, 'error' => 'That line could not be translated.'], 422);
+        }
+
+        return response()->json(['ok' => true, 'text' => $translated]);
+    }
+
     public function unmaskContact(Request $request, $id)
     {
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage', 'whatsapp.reply'])) {
@@ -1298,9 +1317,7 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $personal = $this->personalHub();
-        if (! $personal) {
-            return redirect()->route('whatsapp.chats', ['pane' => 'more'])->with('not_permitted', 'Link an app from your personal Whats MAI session.');
-        }
+        $linkKey = $personal ? (string) $personal->id : 'staff';
         $url = trim((string) $request->input('url'));
         $token = trim((string) $request->input('token'));
         if ($url !== '' && ! preg_match('#^https://#i', $url)) {
@@ -1312,12 +1329,12 @@ class WhatsAppHubController extends Controller
             'snapshot' => '',
             'fetched_at' => null,
         ];
-        WhatsAppSetting::putValue('mai_app_link_'.$personal->id, json_encode($payload));
+        WhatsAppSetting::putValue('mai_app_link_'.$linkKey, json_encode($payload));
         if ($url !== '') {
             try {
                 app(\App\Services\Mai\MaiAiReply::class)->appData(
                     tap(new WhatsAppConversation(), function ($row) use ($personal) {
-                        $row->mai_session_id = $personal->id;
+                        $row->mai_session_id = $personal ? $personal->id : 0;
                     })
                 );
             } catch (\Throwable $e) {

@@ -59,10 +59,8 @@ class MaiAiReply
     public function appData(WhatsAppConversation $conversation)
     {
         $sessionId = (int) $conversation->mai_session_id;
-        if ($sessionId < 1) {
-            return '';
-        }
-        $raw = WhatsAppSetting::getValue('mai_app_link_'.$sessionId, '');
+        $key = $sessionId > 0 ? (string) $sessionId : 'staff';
+        $raw = WhatsAppSetting::getValue('mai_app_link_'.$key, '');
         if ($raw === '') {
             return '';
         }
@@ -79,7 +77,7 @@ class MaiAiReply
             return '';
         }
 
-        return $this->pull($url, isset($decoded['token']) ? (string) $decoded['token'] : '', $sessionId);
+        return $this->pull($url, isset($decoded['token']) ? (string) $decoded['token'] : '', $key);
     }
 
     protected function pull($url, $token, $sessionId)

@@ -454,6 +454,19 @@
                 <button type="button" class="back-step" data-back="1">Back</button>
                 <h2 class="text-xl font-bold">Scan to link WhatsApp</h2>
                 <p class="hint mt-1">On your phone open WhatsApp → Linked devices → Link a device, then scan this code. After it links, Whats MAI opens on this computer and a link is sent to that WhatsApp so you can open it on the phone too. The code lasts 60 seconds.</p>
+                <div class="flex flex-col gap-3 mt-4">
+                    <button type="button" id="mai-use-qr" class="subscribe-choice bg-brand-gold text-brand-blue">Scan QR code</button>
+                    <button type="button" id="mai-use-code" class="subscribe-choice bg-white/15 border border-brand-gold text-brand-gold">Use a link code</button>
+                </div>
+                <div id="mai-code-box" hidden>
+                    <p class="hint mt-3">On this phone, open WhatsApp, then Linked devices, then Link with phone number, and enter the code below.</p>
+                    <div class="field-row">
+                        <label for="mai-link-phone">WhatsApp number</label>
+                        <input class="px-4 py-2" id="mai-link-phone" inputmode="tel" autocomplete="tel" placeholder="2376xxxxxxxx or full number">
+                    </div>
+                    <button type="button" id="mai-code-go" class="mt-3 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Create link code</button>
+                    <p class="known-name" id="mai-pair" hidden></p>
+                </div>
                 <img id="mai-qr" class="mai-qr" alt="WhatsApp QR code" hidden>
                 <p class="hint" id="mai-qr-wait">Preparing the QR code.</p>
                 <p class="hint" id="mai-qr-timer"></p>
@@ -855,7 +868,14 @@
                 window.location = '{{ route('whatsapp.mai.inbox') }}';
                 return;
             }
-            if (json && json.qr && image) {
+            var pair = document.getElementById('mai-pair');
+            if (pair && json && json.pairing_code) {
+                pair.hidden = false;
+                pair.textContent = json.pairing_code;
+                if (image) image.hidden = true;
+                if (wait) { wait.hidden = false; wait.textContent = 'Enter this code in WhatsApp under Linked devices, then Link with phone number.'; }
+            }
+            if (json && json.qr && image && !(json.pairing_code)) {
                 var stillGood = maiQrShownAt && (Date.now() - maiQrShownAt) < QR_LIFE && image.src && image.src.indexOf('data:image') === 0 && !image.hidden;
                 if (!stillGood) {
                     image.src = json.qr;
@@ -865,7 +885,7 @@
                     if (refresh) refresh.hidden = true;
                     paintMaiQrTimer();
                 }
-            } else if (wait && json && !json.qr) {
+            } else if (wait && json && !json.qr && !json.pairing_code) {
                 wait.hidden = false;
                 wait.textContent = (json.error) ? String(json.error) : (json.status === 'CONNECTING' ? 'Connecting your WhatsApp…' : 'Preparing the QR code…');
                 if (refresh && json.error) refresh.hidden = false;
@@ -881,6 +901,9 @@
         }
         function beginMaiLink() {
             show(8);
+            var mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+            var codeBox = document.getElementById('mai-code-box');
+            if (mobile && codeBox) codeBox.hidden = false;
             var plan = document.getElementById('mai-plan');
             var error = document.getElementById('mai-qr-error');
             var wait = document.getElementById('mai-qr-wait');
@@ -915,6 +938,34 @@
                 maiQrClock = setInterval(paintMaiQrTimer, 1000);
             });
         }
+        var useQr = document.getElementById('mai-use-qr');
+        var useCode = document.getElementById('mai-use-code');
+        if (useQr) useQr.onclick = function () {
+            var box = document.getElementById('mai-code-box');
+            if (box) box.hidden = true;
+            beginMaiLink();
+        };
+        if (useCode) useCode.onclick = function () {
+            var box = document.getElementById('mai-code-box');
+            if (box) box.hidden = false;
+        };
+        var codeGo = document.getElementById('mai-code-go');
+        if (codeGo) codeGo.onclick = function () {
+            var phone = document.getElementById('mai-link-phone');
+            var dial = document.getElementById('dial');
+            var raw = phone ? String(phone.value || '').replace(/\D+/g, '') : '';
+            post('{{ route('whatsapp.mai.begin.pair') }}', {
+                phone: phone ? phone.value : '',
+                dial: raw.length >= 11 ? '' : (dial ? String(dial.value || '').replace(/\D+/g, '') : '')
+            }, function (ok, json) {
+                var error = document.getElementById('mai-qr-error');
+                if (!ok) {
+                    if (error) { error.hidden = false; error.textContent = (json && (json.message || json.error)) || 'The link code could not be created.'; }
+                    return;
+                }
+                paintMaiQr(json);
+            });
+        };
         var maiToLink = document.getElementById('mai-to-link');
         if (maiToLink) maiToLink.onclick = function () {
             var err = document.getElementById('send-error');

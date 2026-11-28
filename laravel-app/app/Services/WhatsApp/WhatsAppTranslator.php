@@ -338,6 +338,24 @@ class WhatsAppTranslator
      *
      * @return array{text:string,staff:string,language:string,language_name:string}|null
      */
+    public function utterance($text, $languageName)
+    {
+        $text = trim((string) $text);
+        $languageName = trim((string) $languageName);
+        if ($text === '' || $languageName === '') {
+            return '';
+        }
+        $parsed = $this->ask(
+            'Translate the spoken line into simple, direct '.$languageName.'. Correct slips so it makes sense. Do not add facts. Reply with JSON only: {"text":"the translation"}. Keep names, phone numbers, amounts, and dates.',
+            $text
+        );
+        if (! $parsed || empty($parsed['text'])) {
+            return '';
+        }
+
+        return trim((string) $parsed['text']);
+    }
+
     public function forClient(WhatsAppConversation $conversation, $english)
     {
         $english = trim((string) $english);

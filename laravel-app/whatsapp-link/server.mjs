@@ -1059,8 +1059,10 @@ async function forceQr(id) {
   return publicState(entry, true)
 }
 
-async function pairingFor(id) {
+async function pairingFor(id, phone) {
   const entry = await startSocket(id, id.indexOf('p') === 0 ? id.slice(1) : '')
+  const given = String(phone || '').replace(/\D/g, '')
+  if (given.length >= 8) entry.expected = given
   if (!entry.sock || entry.status === 'CONNECTED') {
     return publicState(entry, false)
   }
@@ -1072,8 +1074,12 @@ async function pairingFor(id) {
     return publicState(entry, false)
   }
   await waitForQr(entry, 8000)
-  const phone = String(entry.expected || (id.indexOf('p') === 0 ? id.slice(1) : '')).replace(/\D/g, '')
-  const code = await entry.sock.requestPairingCode(phone)
+  const linkPhone = String(entry.expected || (id.indexOf('p') === 0 ? id.slice(1) : '')).replace(/\D/g, '')
+  if (linkPhone.length < 8) {
+    entry.error = 'Enter the WhatsApp number for the link code.'
+    return publicState(entry, false)
+  }
+  const code = await entry.sock.requestPairingCode(linkPhone)
   entry.pairing = String(code || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 17)
   if (!entry.pairing) {
     entry.error = 'The link code could not be created.'
@@ -1365,10 +1371,13 @@ const server = http.createServer((req, res) => {
       return
     }
     if (req.method === 'POST' && parts[2] === 'pair') {
-      pairingFor(id).then((payload) => send(res, 200, payload)).catch((error) => {
-        const message = error && error.message ? String(error.message).slice(0, 180) : 'The link code could not be created.'
-        console.error('pairing code failed', message)
-        send(res, 200, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: message })
+      readBody(req, 2000, (body) => {
+        const linkPhone = body && body.phone ? body.phone : ''
+        pairingFor(id, linkPhone).then((payload) => send(res, 200, payload)).catch((error) => {
+          const message = error && error.message ? String(error.message).slice(0, 180) : 'The link code could not be created.'
+          console.error('pairing code failed', message)
+          send(res, 200, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: message })
+        })
       })
       return
     }

@@ -279,6 +279,14 @@ class ConversationalTurnService
     protected function buildMessages(WhatsAppConversation $conversation, array $context, AssistantMemory $memory, $incoming)
     {
         $system = $this->prompts->build($context, $memory->parameters());
+        try {
+            $appData = trim((string) app(\App\Services\Mai\MaiAiReply::class)->appData($conversation));
+        } catch (\Throwable $e) {
+            $appData = '';
+        }
+        if ($appData !== '') {
+            $system .= "\nLinked application data:\n".$appData;
+        }
         $knowledge = $this->knowledgeText();
         if ($knowledge !== '') {
             $system .= "\nApproved company knowledge excerpts:\n".$knowledge;

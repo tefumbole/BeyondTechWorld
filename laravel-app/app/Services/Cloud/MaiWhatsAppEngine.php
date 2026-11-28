@@ -74,7 +74,20 @@ class MaiWhatsAppEngine
             return $this->blank('ERROR');
         }
 
-        return $this->shape($this->request('POST', '/sessions/'.$id.'/pair', [], 25));
+        return $this->shape($this->request('POST', '/sessions/'.$id.'/pair', ['phone' => $this->digits($phone)], 25));
+    }
+
+    public function pairGuest($sessionId, $phone)
+    {
+        if ($this->guestId($sessionId) === '') {
+            return $this->blank('ERROR');
+        }
+        $digits = $this->digits($phone);
+        if ($digits === '') {
+            return $this->blank('ERROR');
+        }
+
+        return $this->shape($this->request('POST', '/sessions/'.$sessionId.'/pair', ['phone' => $digits], 25));
     }
 
     public function refreshQr($phone)

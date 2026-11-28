@@ -435,14 +435,11 @@
                     $more = [
                         ['Help', 'How to use Whats MAI', route('whatsapp.chats', ['pane' => 'help'])],
                     ];
-                    if (!empty($personalHub)) {
-                        $more[] = ['AI briefing', 'Event and reply instructions for AI mode', route('whatsapp.chats', ['pane' => 'briefing'])];
-                        $more[] = ['Linked apps', 'Connect an app so AI can use its data', route('whatsapp.chats', ['pane' => 'apps'])];
-                        $more[] = ['Speech translation', 'Translated calls from Whats MAI', route('whatsapp.chats', ['pane' => 'speech'])];
-                    }
+                    $more[] = ['AI briefing', 'Event and reply instructions for AI mode', route('whatsapp.chats', ['pane' => 'briefing'])];
+                    $more[] = ['Linked apps', 'Connect an app so AI can use its data', route('whatsapp.chats', ['pane' => 'apps'])];
+                    $more[] = ['Speech translation', 'Translated calls from this line', route('whatsapp.chats', ['pane' => 'speech'])];
                     if (empty($personalHub)) {
                         $more[] = ['People', 'Names and numbers', route('whatsapp.people')];
-                        $more[] = ['AI brief', 'Standing notes for the assistant', route('whatsapp.brief')];
                     }
                     $more[] = ['Groups', 'WhatsApp groups', route('whatsapp.groups')];
                     $more[] = ['Leads', 'Enquiries from chats', route('whatsapp.leads')];
@@ -723,7 +720,7 @@
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
             @endif
-        @elseif($pane === 'briefing' && !empty($personalHub))
+        @elseif($pane === 'briefing')
             <header class="chats-head">
                 <div class="chats-head-person">
                     <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back">‹ Back</a>
@@ -766,7 +763,7 @@
                     </form>
                 @endforeach
             </div>
-        @elseif($pane === 'apps' && !empty($personalHub))
+        @elseif($pane === 'apps')
             <header class="chats-head">
                 <div class="chats-head-person">
                     <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back">‹ Back</a>
@@ -787,22 +784,67 @@
                 <input type="text" name="token" value="{{ $maiAppLink['token'] ?? '' }}" autocomplete="off">
                 <button class="mt-3" type="submit">Save link</button>
             </form>
-        @elseif($pane === 'speech' && !empty($personalHub))
+        @elseif($pane === 'speech')
             <header class="chats-head">
                 <div class="chats-head-person">
                     <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back">‹ Back</a>
                     <div>
                         <h2>Speech translation</h2>
-                        <p>Call with live language help</p>
+                        <p>Call, then translate what is said</p>
                     </div>
                 </div>
             </header>
-            <div class="letter-card">
-                <p>Open a chat, tap Call, and speak. Turn Translate on for that chat so MAI shows their words in English and can send your reply in their language.</p>
-                <p>For a bridged translated line, open the voice desk when your carrier is connected.</p>
-                <a class="announce-btn" href="{{ route('mai.voice') }}">Open voice desk</a>
-                <a class="announce-btn" href="{{ route('whatsapp.chats') }}">Back to chats</a>
-            </div>
+            <form id="speechForm" class="letter-card">
+                @csrf
+                <p>Tap Call in a chat to dial. Then listen here. Speech is translated into simple language on this device.</p>
+                <textarea id="speechText" maxlength="1000" rows="3" placeholder="Speak, or type what was said"></textarea>
+                <label class="mt-2">Translate into</label>
+                <input id="speechLanguage" value="English" maxlength="40">
+                <button type="button" id="speechListen" class="mt-3">Listen</button>
+                <button type="submit">Translate</button>
+                <p id="speechOut" class="mt-3"></p>
+            </form>
+            <script>
+            (function () {
+                var form = document.getElementById('speechForm');
+                if (!form) return;
+                var field = document.getElementById('speechText');
+                var out = document.getElementById('speechOut');
+                var listen = document.getElementById('speechListen');
+                var rec = null;
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    var body = new FormData(form);
+                    body.append('text', field ? field.value : '');
+                    body.append('language', (document.getElementById('speechLanguage') || {}).value || 'English');
+                    fetch('{{ route('whatsapp.chats.speech') }}', { method: 'POST', body: body, headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function (response) { return response.json(); })
+                        .then(function (payload) {
+                            if (out) out.textContent = payload && payload.text ? payload.text : (payload && payload.error ? payload.error : 'That line could not be translated.');
+                            if (payload && payload.text && window.speechSynthesis) {
+                                window.speechSynthesis.cancel();
+                                window.speechSynthesis.speak(new SpeechSynthesisUtterance(payload.text));
+                            }
+                        })
+                        .catch(function () { if (out) out.textContent = 'That line could not be translated.'; });
+                });
+                if (listen) listen.addEventListener('click', function () {
+                    var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    if (!Rec) { if (out) out.textContent = 'This browser cannot listen. Type the line instead.'; return; }
+                    if (rec) { rec.stop(); rec = null; listen.textContent = 'Listen'; return; }
+                    rec = new Rec();
+                    rec.continuous = true;
+                    rec.onresult = function (event) {
+                        var said = '';
+                        for (var i = event.resultIndex; i < event.results.length; i++) said += event.results[i][0].transcript;
+                        if (field) field.value = (field.value ? field.value + ' ' : '') + said.trim();
+                    };
+                    rec.onend = function () { listen.textContent = 'Listen'; rec = null; };
+                    rec.start();
+                    listen.textContent = 'Stop';
+                });
+            })();
+            </script>
         @elseif($pane === 'help')
             @include('whatsapp_hub.partials.help')
         @elseif($pane === 'announcements' && !empty($personalHub) && !empty($announce))
@@ -2259,6 +2301,8 @@ window.addEventListener('pageshow', function (event) {
         var isAudio = bubble.getAttribute('data-audio') === '1' || !!bubble.querySelector('audio');
         var existing = messageBody(bubble);
         if (sheet) sheet.setAttribute('data-kind', isAudio ? 'audio' : 'text');
+        var scope = sheet ? sheet.querySelector('.ask-scope') : null;
+        if (scope) scope.textContent = 'Mbole AI · this message';
         if (result) { result.hidden = true; result.textContent = ''; }
         if (use) use.hidden = true;
         if (prompt) prompt.value = '';
@@ -2311,6 +2355,8 @@ window.addEventListener('pageshow', function (event) {
         var prompt = document.getElementById('transcribePrompt');
         var ask = document.getElementById('transcribeAsk');
         if (sheet) sheet.setAttribute('data-kind', 'general');
+        var scope = sheet ? sheet.querySelector('.ask-scope') : null;
+        if (scope) scope.textContent = 'Mbole AI · any question';
         if (result) { result.hidden = true; result.textContent = ''; }
         if (use) use.hidden = true;
         var draft = document.getElementById('chatBody');

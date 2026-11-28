@@ -228,6 +228,22 @@ class CloudPortalController extends Controller
         return $this->maiGuestJson($state);
     }
 
+    public function whatsappMaiBeginPair(Request $request)
+    {
+        $id = $this->maiGuestId(true);
+        $phone = app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial'));
+        if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
+            return response()->json(['status' => 'ERROR', 'error' => 'Use your personal WhatsApp number. The business line stays separate.']);
+        }
+        $state = app(\App\Services\Cloud\MaiWhatsAppEngine::class)->pairGuest($id, $phone);
+        $claimed = $this->claimMaiGuest($request, $state);
+        if ($claimed) {
+            return $claimed;
+        }
+
+        return $this->maiGuestJson($state);
+    }
+
     public function whatsappMaiBeginQr(Request $request)
     {
         $id = $this->maiGuestId(false);
@@ -264,6 +280,7 @@ class CloudPortalController extends Controller
             'status' => isset($state['status']) ? $state['status'] : 'NOT_CONNECTED',
             'qr' => isset($state['qr']) ? $state['qr'] : null,
             'qr_age_ms' => isset($state['qr_age_ms']) ? (int) $state['qr_age_ms'] : 0,
+            'pairing_code' => isset($state['pairing_code']) ? $state['pairing_code'] : null,
             'error' => isset($state['error']) ? $state['error'] : null,
         ]);
     }

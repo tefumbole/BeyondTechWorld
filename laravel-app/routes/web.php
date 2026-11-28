@@ -543,6 +543,7 @@ Route::post('/whatsapp-mai/session', 'CloudPortalController@whatsappMaiSession')
 Route::post('/whatsapp-mai/begin', 'CloudPortalController@whatsappMaiBegin')->middleware('throttle:10,10')->name('whatsapp.mai.begin');
 Route::get('/whatsapp-mai/begin/status', 'CloudPortalController@whatsappMaiBeginStatus')->name('whatsapp.mai.begin.status');
 Route::post('/whatsapp-mai/begin/qr', 'CloudPortalController@whatsappMaiBeginQr')->middleware('throttle:12,1')->name('whatsapp.mai.begin.qr');
+Route::post('/whatsapp-mai/begin/pair', 'CloudPortalController@whatsappMaiBeginPair')->middleware('throttle:6,1')->name('whatsapp.mai.begin.pair');
 Route::get('/whatsapp-mai/inbox', 'MaiWhatsAppController@inbox')->name('whatsapp.mai.inbox');
 Route::get('/whatsapp-mai/sw.js', 'CloudPortalController@whatsappMaiWorker')->name('whatsapp.mai.worker');
 Route::post('/whatsapp-mai/join', 'CloudPortalController@whatsappMaiJoin')->middleware('throttle:10,10')->name('whatsapp.mai.join');
@@ -901,6 +902,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/chats/{id}/voice', 'WhatsApp\WhatsAppHubController@hearVoice')->name('whatsapp.chats.voice');
     Route::post('/admin/whatsapp/chats/{id}/typing', 'WhatsApp\WhatsAppHubController@showTyping')->name('whatsapp.chats.typing');
     Route::post('/admin/whatsapp/chats/{id}/ask', 'WhatsApp\WhatsAppHubController@askChat')->name('whatsapp.chats.askchat');
+    Route::post('/admin/whatsapp/chats/speech', 'WhatsApp\WhatsAppHubController@speech')->middleware('throttle:30,1')->name('whatsapp.chats.speech');
     Route::post('/admin/whatsapp/chats/{id}/unmask', 'WhatsApp\WhatsAppHubController@unmaskContact')->middleware('throttle:20,1')->name('whatsapp.chats.unmask');
     Route::post('/admin/whatsapp/mai/app-link', 'WhatsApp\WhatsAppHubController@saveMaiAppLink')->middleware('throttle:10,1')->name('whatsapp.mai.app_link');
     Route::post('/admin/whatsapp/chats/{id}/messages/{message}/edit', 'WhatsApp\WhatsAppHubController@editChatMessage')->name('whatsapp.chats.edit');
