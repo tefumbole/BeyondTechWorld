@@ -832,7 +832,7 @@ async function startSocketNow(id, expected) {
     printQRInTerminal: false,
     browser: Browsers.ubuntu('Chrome'),
     qrTimeout: 60000,
-    syncFullHistory: shouldSyncFullHistory(entry.registered, historyIsComplete(dir)),
+    syncFullHistory: shouldSyncFullHistory(entry.registered, historyIsComplete(dir)) && !entry.scanned,
     markOnlineOnConnect: false,
     getMessage: async (key) => {
       const id = key && key.id ? String(key.id) : ''
@@ -1056,7 +1056,7 @@ async function startSocketNow(id, expected) {
             entry.status = 'ERROR'
             entry.error = 'WhatsApp linked, but this computer could not open it. Refresh this page.'
           })
-        }, 300)
+        }, 0)
         return
       }
       const held = entry.qr && entry.qrAt && (Date.now() - entry.qrAt) < 60000
@@ -1201,10 +1201,10 @@ async function pairingFor(id, phone, fresh) {
     entry.error = 'The link code is not available on this engine.'
     return publicState(entry, false)
   }
-  await waitForPair(entry, 5000)
+  await waitForPair(entry, 1200)
   if (entry.pairing || entry.status === 'CONNECTED') return publicState(entry, false)
   if (entry.pairAsked) {
-    await waitForPair(entry, 4000)
+    await waitForPair(entry, 600)
     if (entry.pairing || entry.status === 'CONNECTED') return publicState(entry, false)
   }
   if (!entry.sock || typeof entry.sock.requestPairingCode !== 'function') {

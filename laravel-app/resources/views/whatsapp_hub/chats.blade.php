@@ -342,6 +342,12 @@
     .sync-status.is-incomplete, .sync-status.is-failed { background: #fff1f0; color: #8a2b2b; }
     .sync-status form { margin: 0; }
     .sync-status button { min-height: 32px; border: 0; border-radius: 999px; padding: 0 12px; background: #0b3f90; color: #fff; font-weight: 800; cursor: pointer; }
+    .sync-bar { flex: 1 1 100%; height: 8px; border-radius: 999px; background: rgba(11, 63, 144, .14); overflow: hidden; }
+    .sync-bar i { display: block; height: 100%; width: 0; background: #0b3f90; border-radius: 999px; }
+    .sync-status.is-complete .sync-bar { background: rgba(13, 107, 50, .16); }
+    .sync-status.is-complete .sync-bar i { background: #0d6b32; }
+    .sync-bar.is-wait i { width: 35%; animation: sync-slide 1.1s ease-in-out infinite; }
+    @keyframes sync-slide { 0% { transform: translateX(-130%); } 100% { transform: translateX(320%); } }
     @media (max-width: 800px) {
         .chats-app { width: 100%; max-width: 100%; height: 100dvh; min-height: 0; margin: 0; border-radius: 0; box-shadow: none; overflow: hidden; }
         .chats-side, .chats-thread { width: 100%; max-width: 100%; flex: 1 1 auto; }
@@ -482,6 +488,11 @@ try {
                 <span>{{ $syncStatus['text'] }}</span>
                 @if(!empty($syncStatus['detail']))<span>{{ $syncStatus['detail'] }}</span>@endif
                 @if(isset($syncStatus['percent']) && $syncStatus['percent'] !== null)<span>{{ (int) $syncStatus['percent'] }}% received.</span>@endif
+                @if(isset($syncStatus['bar']) && $syncStatus['bar'] !== null)
+                    <span class="sync-bar"><i style="width: {{ (int) $syncStatus['bar'] }}%"></i></span>
+                @elseif(($syncStatus['state'] ?? '') === 'syncing')
+                    <span class="sync-bar is-wait"><i></i></span>
+                @endif
                 @if(!empty($syncStatus['retry']))
                     <form method="POST" action="{{ route('whatsapp.mai.sync') }}">
                         @csrf
@@ -2433,6 +2444,18 @@ window.addEventListener('pageshow', function (event) {
             var percent = document.createElement('span');
             percent.textContent = sync.percent + '% received.';
             node.appendChild(percent);
+        }
+        var bar = document.createElement('span');
+        var fill = document.createElement('i');
+        if (sync.bar !== null && sync.bar !== undefined && sync.bar !== '') {
+            bar.className = 'sync-bar';
+            fill.style.width = sync.bar + '%';
+        } else if ((sync.state || 'syncing') === 'syncing') {
+            bar.className = 'sync-bar is-wait';
+        }
+        if (bar.className) {
+            bar.appendChild(fill);
+            node.appendChild(bar);
         }
         if (sync.retry) {
             var form = document.createElement('form');

@@ -136,6 +136,7 @@ class MaiSync
                 'text' => 'Initial sync complete',
                 'detail' => $this->receivedLine($done),
                 'percent' => null,
+                'bar' => 100,
                 'retry' => false,
             ];
         }
@@ -151,6 +152,7 @@ class MaiSync
                 'text' => 'Could not finish syncing',
                 'detail' => '',
                 'percent' => null,
+                'bar' => null,
                 'retry' => true,
             ];
         }
@@ -162,6 +164,7 @@ class MaiSync
                 'text' => 'Sync incomplete',
                 'detail' => '',
                 'percent' => null,
+                'bar' => null,
                 'retry' => true,
             ];
         }
@@ -171,11 +174,14 @@ class MaiSync
             $percent = null;
         }
 
+        $counts = Cache::get('mai.sync.counts.'.$session->id);
+
         return [
             'state' => 'syncing',
             'text' => 'Connected · Syncing contacts and chats',
-            'detail' => '',
+            'detail' => $this->progressLine($counts),
             'percent' => $percent,
+            'bar' => $percent,
             'retry' => false,
         ];
     }
@@ -198,6 +204,12 @@ class MaiSync
         if ($progress !== null && $progress >= 0 && $progress <= 100) {
             Cache::put('mai.sync.'.$session->id, $progress, now()->addDay());
         }
+        if (array_key_exists('contacts', $event) && array_key_exists('chats', $event)) {
+            Cache::put('mai.sync.counts.'.$session->id, [
+                'contacts' => (int) $event['contacts'],
+                'chats' => (int) $event['chats'],
+            ], now()->addDay());
+        }
         if (empty($event['ready']) || $progress === null || $progress < 100 || ! Schema::hasColumn('mai_sessions', 'history_ready')) {
             return;
         }
@@ -209,6 +221,16 @@ class MaiSync
                 'chats' => (int) $event['chats'],
             ], now()->addDays(30));
         }
+    }
+
+    protected function progressLine($done)
+    {
+        $line = $this->receivedLine($done);
+        if ($line === '') {
+            return '';
+        }
+
+        return str_replace(' received.', ' so far.', $line);
     }
 
     protected function receivedLine($done)

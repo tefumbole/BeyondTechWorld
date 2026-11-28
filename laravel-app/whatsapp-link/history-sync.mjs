@@ -9,9 +9,9 @@ export function historySyncNote(decision, counts) {
     progress: decision && decision.progress != null ? decision.progress : null,
     ready: !!(decision && decision.complete),
   }
-  if (note.ready) {
-    note.contacts = counts && counts.contacts != null ? Number(counts.contacts) : 0
-    note.chats = counts && counts.chats != null ? Number(counts.chats) : 0
+  if (counts && (counts.contacts != null || counts.chats != null)) {
+    note.contacts = counts.contacts != null ? Number(counts.contacts) : 0
+    note.chats = counts.chats != null ? Number(counts.chats) : 0
   }
   return note
 }

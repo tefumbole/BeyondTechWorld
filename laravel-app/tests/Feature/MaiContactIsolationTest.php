@@ -1119,7 +1119,32 @@ class MaiContactIsolationTest extends TestCase
         $this->assertSame('complete', $done['state']);
         $this->assertSame('Initial sync complete', $done['text']);
         $this->assertSame('2 contacts and 1 chat received.', $done['detail']);
+        $this->assertSame(100, $done['bar']);
         $this->assertSame(0, $calls);
+    }
+
+    public function test_sync_progress_shows_the_counts_before_it_finishes()
+    {
+        $ada = $this->linked(23, 'p237670000223');
+        $ada->sync_generation = 1;
+        $ada->history_ready = 0;
+        $ada->save();
+        $sync = app(\App\Services\Mai\MaiSync::class);
+        $sync->ingest($ada, [[
+            'generation' => 1,
+            'seq' => 1,
+            'kind' => 'history',
+            'progress' => 40,
+            'ready' => false,
+            'contacts' => 12,
+            'chats' => 3,
+        ]], 1);
+        $moving = $sync->view($ada->fresh());
+        $this->assertSame('syncing', $moving['state']);
+        $this->assertSame(40, $moving['percent']);
+        $this->assertSame(40, $moving['bar']);
+        $this->assertSame('12 contacts and 3 chats so far.', $moving['detail']);
+        $this->assertSame(0, (int) $ada->fresh()->history_ready);
     }
 
     protected function historyMessage($seq, $id, $text, $at)

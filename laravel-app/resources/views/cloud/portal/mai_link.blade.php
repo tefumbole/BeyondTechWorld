@@ -21,6 +21,10 @@
     .pair-form label { display: block; font-weight: 700; margin: 0.7rem 0 0.25rem; }
     .pair-form input, .pair-form select { width: 100%; box-sizing: border-box; border-radius: 12px; border: 0; padding: 0.75rem 0.8rem; font-size: 16px; }
     .pair-code { font-size: 2rem; letter-spacing: 0.12em; font-weight: 800; color: #072f6b; background: #fff; border-radius: 12px; padding: 0.7rem 0.4rem; margin: 0.4rem 0; }
+    .pair-bar { height: 8px; border-radius: 999px; background: rgba(11, 63, 144, .14); overflow: hidden; margin: 0.4rem 0 0.2rem; }
+    .pair-bar i { display: block; height: 100%; width: 35%; background: #0b3f90; border-radius: 999px; animation: pair-slide 1.1s ease-in-out infinite; }
+    .pair-bar.is-off { display: none; }
+    @keyframes pair-slide { 0% { transform: translateX(-130%); } 100% { transform: translateX(320%); } }
     .pair-help li { margin: 0.35rem 0; }
     @media (max-width: 480px) {
         .mai-link { padding: 1rem 0.8rem 1.2rem; border-radius: 18px; }
@@ -90,6 +94,7 @@
                 <div id="pair-code" class="pair-code">{{ $pairCode }}</div>
                 <button type="button" class="ghost" id="pair-copy">Copy code</button>
                 <p id="pair-status">{{ $pairExpired ? 'This code expired. Create a new one.' : ($pairFailed ? ($session['error'] ?: 'The link failed.') : 'Waiting for approval in WhatsApp.') }}</p>
+                <div id="pair-bar" class="pair-bar {{ ($pairExpired || $pairFailed) ? 'is-off' : '' }}"><i></i></div>
                 <div class="pair-help">
                     <strong>iPhone</strong>
                     <ol>
@@ -253,6 +258,8 @@
                 : (shownAt ? 'This code expired. Create a new one.' : '');
         }
         if (fresh) fresh.classList.toggle('is-off', left > 0 && !failed);
+        var bar = document.getElementById('pair-bar');
+        if (bar) bar.classList.toggle('is-off', failed || expired);
         if (data && data.error && !(data.pairing_code)) showError(data.error);
         else showError('');
     }
@@ -462,7 +469,7 @@
     window.addEventListener('focus', function () { tickStatus(); });
     window.addEventListener('pageshow', function () { tickStatus(); });
     restoreAttempt();
-    pollTimer = setInterval(tickStatus, 1000);
+    pollTimer = setInterval(tickStatus, 400);
     tickTimer = setInterval(paintTimer, 1000);
 })();
 </script>
