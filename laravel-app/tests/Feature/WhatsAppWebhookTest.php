@@ -298,6 +298,47 @@ class WhatsAppWebhookTest extends WhatsAppHubTestCase
         $this->assertSame(0, (int) $conversation->fresh()->unread_count);
     }
 
+    public function test_a_message_saved_on_another_chat_still_appears_in_this_thread()
+    {
+        $this->postWebhook($this->incomingText('+237675000111', 'Thanks', 'OLD111'))->assertStatus(200);
+        $staff = WhatsAppConversation::first();
+        $otherContact = \App\WhatsApp\WhatsAppContact::create([
+            'normalized_phone' => '237699000222',
+            'display_phone' => '+237 699 000 222',
+        ]);
+        $other = WhatsAppConversation::create([
+            'contact_id' => $otherContact->id,
+            'mode' => WhatsAppConversation::MODE_HUMAN,
+            'status' => WhatsAppConversation::STATUS_OPEN,
+            'last_message' => 'Hello thank you for the letter',
+        ]);
+        WhatsAppMessage::create([
+            'conversation_id' => $other->id,
+            'contact_id' => $otherContact->id,
+            'direction' => WhatsAppMessage::DIR_OUT,
+            'type' => 'TEXT',
+            'provider_message_id' => 'HELLO111',
+            'body' => 'Hello thank you for the letter',
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'sender_type' => 'STAFF',
+        ]);
+        $staff->last_message = 'Hello thank you for the letter';
+        $staff->last_activity_at = now();
+        $staff->save();
+
+        $placed = app(WhatsAppConversationService::class)->showListedMessages();
+        $this->assertSame(1, $placed);
+        $this->assertSame(1, WhatsAppMessage::where('conversation_id', $staff->id)->where('body', 'Hello thank you for the letter')->count());
+        $copy = WhatsAppMessage::where('conversation_id', $staff->id)->where('body', 'Hello thank you for the letter')->first();
+        $this->assertSame('INCOMING', $copy->direction);
+        $this->assertSame('DELIVERED', $copy->status);
+        $this->assertSame('Hello thank you for the letter', WhatsAppMessage::where('provider_message_id', 'HELLO111')->value('body'));
+
+        $this->postWebhook($this->chatPreview('+237675000111', 'Hello thank you for the letter', 'HELLO111'))->assertStatus(200);
+        $this->assertSame(1, WhatsAppMessage::where('conversation_id', $staff->id)->where('body', 'Hello thank you for the letter')->count());
+        $this->assertSame('Hello thank you for the letter', $staff->fresh()->last_message);
+    }
+
     public function test_guest_cannot_open_hub()
     {
         $this->get('/admin/whatsapp')->assertRedirect();
@@ -328,6 +369,35 @@ class WhatsAppWebhookTest extends WhatsAppHubTestCase
         $this->assertStringNotContainsString('super-secret-hook', $blob);
         $this->assertSame('Configured', $diag['webhook_secret']);
         $this->assertSame('Configured', $diag['wasender_key']);
+    }
+
+    protected function chatPreview($phone, $body, $id)
+    {
+        $digits = preg_replace('/\D/', '', $phone);
+
+        return [
+            'event' => 'chats.update',
+            'timestamp' => time(),
+            'data' => [
+                'chats' => [
+                    'id' => $digits.'@s.whatsapp.net',
+                    'unreadCount' => 1,
+                    'conversationTimestamp' => time(),
+                    'messages' => [[
+                        'message' => [
+                            'key' => [
+                                'id' => $id,
+                                'fromMe' => false,
+                                'remoteJid' => $digits.'@s.whatsapp.net',
+                                'cleanedSenderPn' => $digits,
+                            ],
+                            'messageBody' => $body,
+                            'message' => ['conversation' => $body],
+                        ],
+                    ]],
+                ],
+            ],
+        ];
     }
 
     protected function incomingText($phone, $body, $id)

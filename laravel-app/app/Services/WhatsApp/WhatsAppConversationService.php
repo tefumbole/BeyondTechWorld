@@ -128,9 +128,11 @@ class WhatsAppConversationService
 
     public function openConversation(WhatsAppContact $contact)
     {
-        $conversation = WhatsAppConversation::where('contact_id', $contact->id)
-            ->orderByDesc('id')
-            ->first();
+        $query = WhatsAppConversation::where('contact_id', $contact->id);
+        if (\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'mai_session_id')) {
+            $query->whereNull('mai_session_id');
+        }
+        $conversation = $query->orderByDesc('id')->first();
 
         if ($conversation) {
             if (in_array($conversation->status, [WhatsAppConversation::STATUS_CLOSED, WhatsAppConversation::STATUS_RESOLVED], true)) {
@@ -166,7 +168,10 @@ class WhatsAppConversationService
         $conversation = $this->openConversation($contact);
         $conversation = $this->promoteToAiIfDefault($conversation);
         if (! empty($parsed['message_id'])) {
-            $existing = WhatsAppMessage::where('provider_message_id', $parsed['message_id'])->first();
+            $parsed['message_id'] = $this->idForThisChat($conversation, $parsed['message_id']);
+            $existing = WhatsAppMessage::where('conversation_id', $conversation->id)
+                ->where('provider_message_id', $parsed['message_id'])
+                ->first();
             if ($existing) {
                 // A chat update often saves the row first, without the text, the
                 // voice-note file, or an assistant turn. Keep the fuller event.
@@ -293,7 +298,8 @@ class WhatsAppConversationService
     {
         $incomingId = isset($parsed['message_id']) ? (string) $parsed['message_id'] : '';
         if ($incomingId !== '') {
-            $same = WhatsAppMessage::where('provider_message_id', $incomingId)
+            $same = WhatsAppMessage::where('conversation_id', $conversation->id)
+                ->where('provider_message_id', $incomingId)
                 ->where('direction', WhatsAppMessage::DIR_OUT)
                 ->first();
             if ($same) {
@@ -359,10 +365,7 @@ class WhatsAppConversationService
         if (! $contact) {
             return null;
         }
-        $conversation = WhatsAppConversation::where('contact_id', $contact->id)->orderByDesc('id')->first();
-        if (! $conversation) {
-            $conversation = $this->openConversation($contact);
-        }
+        $conversation = $this->staffConversation($contact);
 
         $stamp = isset($parsed['timestamp']) ? (int) $parsed['timestamp'] : 0;
         if ($stamp > 1000000000000) {
@@ -404,17 +407,10 @@ class WhatsAppConversationService
         $this->recountUnread($conversation);
 
         $current = $conversation->last_activity_at;
-            if ($at && (! $current || $at->greaterThan($current))) {
-            $previewBody = isset($parsed['body']) ? $parsed['body'] : '';
-            if (! empty($parsed['message_id'])) {
-                $savedMessage = WhatsAppMessage::where('provider_message_id', $parsed['message_id'])->first();
-                if ($savedMessage) {
-                    $previewBody = $savedMessage->hubText();
-                }
-            }
-            $previewType = isset($parsed['message_type']) ? $parsed['message_type'] : 'TEXT';
-            if (trim((string) $previewBody) !== '' || ! in_array($previewType, ['TEXT', 'UNKNOWN', ''], true)) {
-                $preview = $this->preview($previewBody, $previewType);
+        $local = $this->messageOnChat($conversation, isset($parsed['message_id']) ? $parsed['message_id'] : '');
+        if ($at && (! $current || $at->greaterThan($current)) && $local) {
+            $preview = $this->preview($local->hubText(), $local->type ?: 'TEXT');
+            if (trim($preview) !== '') {
                 $conversation->last_message = $preview;
                 if (! $conversation->first_message) {
                     $conversation->first_message = $preview;
@@ -426,17 +422,159 @@ class WhatsAppConversationService
             } else {
                 $conversation->last_incoming_at = $at;
             }
+        } elseif ($at && (! $current || $at->greaterThan($current)) && trim((string) (isset($parsed['body']) ? $parsed['body'] : '')) === '') {
+            $conversation->last_activity_at = $at;
         }
         $conversation->save();
 
         return $conversation;
     }
 
+    /**
+     * The business inbox is the chat with no MAI session. A newer MAI thread
+     * for the same number must not take the Wasender message.
+     */
+    protected function staffConversation(WhatsAppContact $contact)
+    {
+        $query = WhatsAppConversation::where('contact_id', $contact->id);
+        if (\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'mai_session_id')) {
+            $query->whereNull('mai_session_id');
+        }
+        $conversation = $query->orderByDesc('id')->first();
+        if ($conversation) {
+            return $conversation;
+        }
+
+        return $this->openConversation($contact);
+    }
+
+    /**
+     * One WhatsApp id can already be the sender's own MAI message. This chat
+     * still needs its own row, under an id the unique index will accept.
+     */
+    protected function idForThisChat(WhatsAppConversation $conversation, $providerId)
+    {
+        $providerId = (string) $providerId;
+        if ($providerId === '') {
+            return $providerId;
+        }
+        $taken = WhatsAppMessage::where('provider_message_id', $providerId)->first();
+        if (! $taken || (int) $taken->conversation_id === (int) $conversation->id) {
+            return $providerId;
+        }
+
+        return $this->chatCopyId($conversation, $providerId);
+    }
+
+    protected function chatCopyId(WhatsAppConversation $conversation, $providerId)
+    {
+        $id = 'chat'.$conversation->id.':'.(string) $providerId;
+        if (strlen($id) > 120) {
+            $id = 'chat'.$conversation->id.':'.substr(sha1((string) $providerId), 0, 40);
+        }
+
+        return $id;
+    }
+
+    protected function messageOnChat(WhatsAppConversation $conversation, $providerId)
+    {
+        $providerId = (string) $providerId;
+        if ($providerId === '') {
+            return null;
+        }
+
+        return WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->whereIn('provider_message_id', [$providerId, $this->chatCopyId($conversation, $providerId)])
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * Put a list preview that already exists on another chat into this thread.
+     * The line beside the name is then a message the open chat can show.
+     */
+    public function showListedMessages()
+    {
+        return app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation(function () {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('whatsapp_messages')) {
+                return 0;
+            }
+            $fixed = 0;
+            $query = WhatsAppConversation::query()->orderBy('id');
+            if (\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'mai_session_id')) {
+                $query->whereNull('mai_session_id');
+            }
+            $query->where('last_message', '!=', '')->chunk(80, function ($rows) use (&$fixed) {
+                foreach ($rows as $conversation) {
+                    $preview = trim((string) $conversation->last_message);
+                    if ($preview === '' || $this->chatShowsPreview($conversation, $preview)) {
+                        continue;
+                    }
+                    $source = WhatsAppMessage::where('conversation_id', '!=', $conversation->id)
+                        ->where('status', '!=', WhatsAppMessage::STATUS_HIDDEN)
+                        ->where('body', $preview)
+                        ->orderByDesc('id')
+                        ->first();
+                    if (! $source) {
+                        continue;
+                    }
+                    $copyId = $this->chatCopyId($conversation, $source->provider_message_id ?: ('row'.$source->id));
+                    if (WhatsAppMessage::where('provider_message_id', $copyId)->exists()) {
+                        continue;
+                    }
+                    $message = new WhatsAppMessage([
+                        'conversation_id' => $conversation->id,
+                        'contact_id' => $conversation->contact_id,
+                        'direction' => WhatsAppMessage::DIR_IN,
+                        'type' => $source->type ?: 'TEXT',
+                        'provider_message_id' => $copyId,
+                        'body' => $source->body,
+                        'status' => WhatsAppMessage::STATUS_DELIVERED,
+                        'sender_type' => 'CONTACT',
+                        'delivered_at' => $source->created_at ?: now(),
+                    ]);
+                    $message->created_at = $source->created_at ?: now();
+                    $message->updated_at = $source->created_at ?: now();
+                    $message->save();
+                    $fixed++;
+                }
+            });
+
+            return $fixed;
+        });
+    }
+
+    protected function chatShowsPreview(WhatsAppConversation $conversation, $preview)
+    {
+        if (WhatsAppMessage::where('conversation_id', $conversation->id)->where('body', $preview)->exists()) {
+            return true;
+        }
+        $recent = WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('status', '!=', WhatsAppMessage::STATUS_HIDDEN)
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+        foreach ($recent as $message) {
+            if (trim((string) $message->hubText()) === $preview) {
+                return true;
+            }
+            $staff = isset($message->translationMeta()['staff']) ? trim((string) $message->translationMeta()['staff']) : '';
+            if ($staff !== '' && $staff === $preview) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     protected function storePhoneMessage(WhatsAppConversation $conversation, WhatsAppContact $contact, array $parsed, $at)
     {
         $media = (! empty($parsed['media']) && is_array($parsed['media'])) ? $parsed['media'] : [];
         if (! empty($parsed['message_id'])) {
-            $existing = WhatsAppMessage::where('provider_message_id', $parsed['message_id'])->first();
+            $parsed['message_id'] = $this->idForThisChat($conversation, $parsed['message_id']);
+            $existing = WhatsAppMessage::where('conversation_id', $conversation->id)
+                ->where('provider_message_id', $parsed['message_id'])
+                ->first();
             if ($existing) {
                 $this->fillFromEvent($existing, $parsed);
 
