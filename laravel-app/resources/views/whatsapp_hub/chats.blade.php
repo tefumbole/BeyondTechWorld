@@ -427,11 +427,92 @@
         padding-top: env(safe-area-inset-top);
         box-sizing: border-box;
     }
+    body:has(.chats-app.is-web) { margin: 0; background: #0b141a !important; overflow: hidden; }
+    .chats-app.is-web {
+        --wa-green: #00a884; --wa-teal: #00a884; --wa-ink: #e9edef; --wa-muted: #8696a0; --wa-line: #222d34;
+        --wa-grad: linear-gradient(135deg, #00a884, #008069);
+        height: 100dvh; min-height: 0; width: 100%; margin: 0; border-radius: 0; box-shadow: none;
+        background: #111b21; color: #e9edef;
+    }
+    .chats-app.is-web .chat-rail { background: #202c33; }
+    .chats-app.is-web .chat-rail a, .chats-app.is-web .chat-rail button { color: #aebac1; }
+    .chats-app.is-web .chat-rail a.is-on, .chats-app.is-web .chat-rail a:hover, .chats-app.is-web .chat-rail button:hover { background: #0b141a; color: #00a884; }
+    .chats-app.is-web .chats-side,
+    .chats-app.is-web .inbox-bar,
+    .chats-app.is-web .chats-search,
+    .chats-app.is-web .chat-filters,
+    .chats-app.is-web .chats-head,
+    .chats-app.is-web .chats-compose,
+    .chats-app.is-web .reply-bar,
+    .chats-app.is-web .send-lang { background: #111b21; color: #e9edef; border-color: #222d34; }
+    .chats-app.is-web .chats-head,
+    .chats-app.is-web .chats-compose { background: #202c33; }
+    .chats-app.is-web .inbox-brand h1,
+    .chats-app.is-web .chat-name,
+    .chats-app.is-web .chats-head h2,
+    .chats-app.is-web .chats-head p { color: #e9edef; }
+    .chats-app.is-web .inbox-status,
+    .chats-app.is-web .chat-preview,
+    .chats-app.is-web .chat-time,
+    .chats-app.is-web .hub-label { color: #8696a0; }
+    .chats-app.is-web .inbox-icon { background: transparent; border-color: transparent; color: #aebac1; }
+    .chats-app.is-web .chats-search input,
+    .chats-app.is-web .chats-compose textarea,
+    .chats-app.is-web .new-chat input { background: #2a3942; color: #e9edef; border-color: transparent; }
+    .chats-app.is-web .chat-filters button { background: #202c33; color: #d1d7db; }
+    .chats-app.is-web .chat-filters button.is-on { background: #00a884; color: #111b21; }
+    .chats-app.is-web .chat-row { border-bottom-color: #222d34; }
+    .chats-app.is-web .chat-row:hover,
+    .chats-app.is-web .chat-row.is-on { background: #2a3942; }
+    .chats-app.is-web .chats-side.is-personal .chat-row[data-read="0"] { background: transparent; box-shadow: none; }
+    .chats-app.is-web .chats-side.is-personal .chat-row[data-read="0"] .chat-name,
+    .chats-app.is-web .chats-side.is-personal .chat-row[data-read="0"] .chat-preview { color: #e9edef; }
+    .chats-app.is-web .chats-side.is-personal .chat-row[data-read="0"] .chat-time { color: #00a884; }
+    .chats-app.is-web .chat-badge,
+    .chats-app.is-web .chats-side.is-personal .chat-badge { background: #00a884; color: #111b21; box-shadow: none; }
+    .chats-app.is-web .chats-thread {
+        background-color: #0b141a;
+        background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
+        background-size: 24px 24px;
+    }
+    .chats-app.is-web .bubble.in { background: #202c33; color: #e9edef; box-shadow: none; }
+    .chats-app.is-web .bubble.out { background: #005c4b; color: #e9edef; box-shadow: none; }
+    .chats-app.is-web .bubble time,
+    .chats-app.is-web .bubble.out time,
+    .chats-app.is-web .bubble .aside,
+    .chats-app.is-web .bubble.out .aside { color: rgba(233, 237, 239, .65); }
+    .chats-app.is-web .bubble .tick.sent,
+    .chats-app.is-web .bubble .tick.delivered,
+    .chats-app.is-web .bubble .tick.queued { color: rgba(233, 237, 239, .7); }
+    .chats-app.is-web .bubble .tick.read,
+    .chats-app.is-web .bubble .tick.played { color: #53bdeb; background: transparent; padding: 0; }
+    .chats-app.is-web .bubble a.chat-link,
+    .chats-app.is-web .bubble a.chat-file { color: #53bdeb; }
+    .chats-app.is-web .chats-compose button[type="submit"] { background: #00a884; box-shadow: none; }
+    .chats-app.is-web .chats-compose .tool { background: #2a3942; color: #aebac1; }
+    .chats-app.is-web .mode-switch button { background: #2a3942; color: #d1d7db; }
+    .chats-app.is-web .mode-switch button.is-on,
+    .chats-app.is-web .announce-btn { background: #00a884; color: #111b21; box-shadow: none; }
+    .chats-app.is-web .more-menu,
+    .chats-app.is-web .new-chat { background: #233138; color: #e9edef; border-color: #2a3942; }
+    .chats-app.is-web .more-menu button,
+    .chats-app.is-web .more-menu a { color: #e9edef; }
+    .chats-app.is-web .more-menu button:hover,
+    .chats-app.is-web .more-menu a:hover { background: #182229; color: #e9edef; }
+    .chats-app.is-web .sync-status.is-complete { background: #103629; color: #7fdcb8; }
+    .chats-app.is-web .sync-status.is-complete .sync-bar { background: rgba(0, 168, 132, .25); }
+    .chats-app.is-web .sync-status.is-complete .sync-bar i { background: #00a884; }
+    .chats-app.is-web .chat-note { background: #182229; color: #d1d7db; }
+    .chats-app.is-web .update-row { background: #202c33; border-color: #2a3942; }
+    .chats-app.is-web .update-letter { background: #202c33; box-shadow: none; }
+    .chats-app.is-web .update-letter h2,
+    .chats-app.is-web .update-letter .update-body { color: #e9edef; }
+    .chats-app.is-web .chats-empty strong { color: #e9edef; }
 </style>
 @php
     $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
-<div class="chats-app {{ ($open || $group || !empty($openUpdate) || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech'], true)) ? 'has-open' : '' }} {{ $pane === 'updates' ? 'is-updates' : '' }} {{ !empty($openUpdate) ? 'has-update' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}" id="chatsApp">
+<div class="chats-app {{ !empty($personalHub) ? 'is-web' : '' }} {{ ($open || $group || !empty($openUpdate) || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech'], true)) ? 'has-open' : '' }} {{ $pane === 'updates' ? 'is-updates' : '' }} {{ !empty($openUpdate) ? 'has-update' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}" id="chatsApp">
 <script>
 try {
     var savedTheme = localStorage.getItem('mai-theme');
