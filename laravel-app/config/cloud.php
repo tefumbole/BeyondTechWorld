@@ -85,6 +85,13 @@ return [
         'webhook_sender' => null,
         'webhook_resolver' => null,
         'webhook_allow_http' => false,
+        'media_max_bytes' => (int) env('MAI_MEDIA_MAX_BYTES', 8 * 1024 * 1024),
+        'pilot_phones' => env('MAI_PILOT_PHONES', ''),
+        // No plan row defines an API price. Sending stays on until a subscription exists and lapses.
+        'api_sending' => env('MAI_API_SENDING', true),
+        'api_without_subscription' => env('MAI_API_WITHOUT_SUBSCRIPTION', true),
+        'session_limit' => env('MAI_SESSION_LIMIT'),
+        'sends_per_minute' => (int) env('MAI_SENDS_PER_MINUTE', 60),
     ],
 
     /*

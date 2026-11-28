@@ -66,6 +66,7 @@ class MaiCustomerAuth
             throw new \InvalidArgumentException('Confirm the email sent to you before opening Whats MAI.');
         }
         Auth::login($user);
+        $this->rememberSignIn($user);
 
         return $user;
     }
@@ -87,6 +88,7 @@ class MaiCustomerAuth
             throw new \InvalidArgumentException('That confirmation link has expired.');
         }
         Auth::login($user);
+        $this->rememberSignIn($user);
 
         return $user;
     }
@@ -119,6 +121,19 @@ class MaiCustomerAuth
             });
         } catch (\Throwable $e) {
         }
+    }
+
+    protected function rememberSignIn(User $user)
+    {
+        if (! Schema::hasTable('mai_signins')) {
+            return;
+        }
+        DB::table('mai_signins')->insert([
+            'user_id' => $user->id,
+            'signed_in_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     protected function ready()

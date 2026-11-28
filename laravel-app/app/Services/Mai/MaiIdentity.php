@@ -29,20 +29,15 @@ class MaiIdentity
         }
         $saved = $this->clip(isset($row['saved_name']) ? $row['saved_name'] : '');
         $profile = $this->clip(isset($row['profile_name']) ? $row['profile_name'] : '');
-        $named = $this->clip(isset($row['name']) ? $row['name'] : '');
-        $best = $this->fuller($this->fuller($saved, $profile), $named);
-        if ($best !== '') {
-            $current = trim((string) $peer->saved_name);
-            $chosen = $this->fuller($current, $best);
-            if ($chosen !== '' && $chosen !== $current) {
-                $peer->saved_name = $chosen;
-            }
+        if ($saved !== '') {
+            $peer->saved_name = $this->chooseSaved(trim((string) $peer->saved_name), $saved);
         }
-        if ($profile !== '' && $profile !== $saved) {
+        if ($profile !== '') {
             $peer->profile_name = $profile;
         }
         $phone = $this->phoneFromRow($row);
-        if ($phone !== '') {
+        $currentPhone = preg_replace('/\D/', '', (string) $peer->phone_digits);
+        if ($phone !== '' && ($currentPhone === '' || $currentPhone === $phone)) {
             $peer->phone_digits = $phone;
         }
         $lid = isset($row['lid']) ? preg_replace('/\D/', '', (string) $row['lid']) : '';
@@ -96,6 +91,10 @@ class MaiIdentity
         $phone = preg_replace('/\D/', '', (string) optional($contact)->normalized_phone);
         $query = MaiPeer::where('mai_session_id', (int) $conversation->mai_session_id);
         if ($phone !== '') {
+            $mapped = $this->mappedPeer($query, $phone);
+            if ($mapped) {
+                return $mapped;
+            }
             $found = (clone $query)->where('phone_digits', $phone)->first();
             if ($found) {
                 return $found;
@@ -111,6 +110,34 @@ class MaiIdentity
             $found = (clone $query)->where('lid', $phone)->first();
             if ($found) {
                 return $found;
+            }
+        }
+
+        return null;
+    }
+
+    public function aliasPhone(MaiSession $session, $jid)
+    {
+        $jid = (string) $jid;
+        if (substr($jid, -4) !== '@lid' || ! Schema::hasTable('mai_peers')) {
+            return '';
+        }
+        $lid = preg_replace('/\D/', '', strtok($jid, '@'));
+        $peer = $this->mappedPeer(MaiPeer::where('mai_session_id', $session->id), $lid);
+
+        return $peer ? preg_replace('/\D/', '', (string) $peer->phone_digits) : '';
+    }
+
+    protected function mappedPeer($query, $phone)
+    {
+        if ($phone === '') {
+            return null;
+        }
+        $rows = (clone $query)->where('lid', $phone)->get();
+        foreach ($rows as $row) {
+            $digits = preg_replace('/\D/', '', (string) $row->phone_digits);
+            if ($digits !== '' && $digits !== $phone && strlen($digits) >= 8 && strlen($digits) <= 13 && trim((string) $row->saved_name) !== '') {
+                return $row;
             }
         }
 
@@ -172,6 +199,31 @@ class MaiIdentity
         }
 
         return $phone;
+    }
+
+    public function chooseSaved($current, $incoming)
+    {
+        $now = trim((string) $current);
+        $next = trim((string) $incoming);
+        if ($next === '') {
+            return $now;
+        }
+        if ($now === '' || $now === 'WhatsApp') {
+            return $next;
+        }
+        $short = $this->plain($now);
+        $long = $this->plain($next);
+        if ($short !== '' && $long !== '' && strlen($long) > strlen($short) && strpos($long, $short) !== false) {
+            return $next;
+        }
+        if ($short !== '' && $long !== '' && strlen($short) > strlen($long) && strpos($short, $long) !== false) {
+            return $now;
+        }
+        if ($short === $long) {
+            return $now;
+        }
+
+        return $next;
     }
 
     public function prefer($primary, $alternate)

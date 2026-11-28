@@ -26,10 +26,13 @@ class MaiPortalController extends Controller
             return view('mai.guest');
         }
         $sessions = MaiSession::where('user_id', Auth::id())->orderByDesc('id')->get();
+        $keys = \App\Mai\MaiApiKey::where('user_id', Auth::id())->orderByDesc('id')->get();
 
         return view('mai.home', [
             'sessions' => $sessions,
+            'keys' => $keys,
             'capabilities' => MaiCapabilities::matrix(),
+            'apiBase' => url('/api/mai/v1'),
         ]);
     }
 
@@ -115,11 +118,29 @@ class MaiPortalController extends Controller
         return redirect()->to('/mai');
     }
 
-    public function disconnect($publicId)
+    public function rename(Request $request, $publicId)
     {
-        $session = $this->owned($publicId);
+        $session = $this->managed($publicId);
         if (! $session) {
             return redirect()->to('/mai');
+        }
+        $name = trim((string) $request->input('name'));
+        if ($name !== '') {
+            $session->display_name = substr($name, 0, 191);
+            $session->save();
+        }
+
+        return redirect()->to('/mai')->with('message', 'Session name saved.');
+    }
+
+    public function disconnect(Request $request, $publicId)
+    {
+        $session = $this->managed($publicId);
+        if (! $session) {
+            return redirect()->to('/mai');
+        }
+        if ($request->input('confirm') !== 'yes') {
+            return redirect()->to('/mai')->with('not_permitted', 'Confirm before disconnecting this session.');
         }
         app(MaiSessionService::class)->disconnect($session);
 
@@ -153,13 +174,52 @@ class MaiPortalController extends Controller
         if (! $user) {
             return redirect()->to('/mai');
         }
+        $session = null;
+        if ($request->filled('session')) {
+            $session = MaiSession::where('public_id', $request->input('session'))->first();
+            if (! $session || ! $session->canManage($user)) {
+                return redirect()->to('/mai')->with('not_permitted', 'Choose a session you can manage.');
+            }
+        }
         try {
-            $issued = app(MaiSessionService::class)->issueKey($user, $request->input('name'));
+            $issued = app(MaiSessionService::class)->issueKey($user, $request->input('name'), $session, $request->input('scopes'));
         } catch (\RuntimeException $e) {
             return response()->view('mai.closed', [], 404);
         }
 
-        return redirect()->to('/mai')->with('mai_key', $issued['plain'])->with('message', 'Copy this API key now. It is shown once.');
+        return redirect()->to('/mai')->with('mai_key', $issued['plain'])->with('message', 'Copy this API token now. It is shown once.');
+    }
+
+    public function rotateKey($id)
+    {
+        $user = $this->person();
+        if (! $user) {
+            return redirect()->to('/mai');
+        }
+        $key = \App\Mai\MaiApiKey::where('id', $id)->where('user_id', $user->id)->first();
+        if (! $key) {
+            return redirect()->to('/mai');
+        }
+        $issued = app(MaiSessionService::class)->rotateKey($user, $key);
+        if (! $issued) {
+            return redirect()->to('/mai')->with('not_permitted', 'That token is already revoked.');
+        }
+
+        return redirect()->to('/mai')->with('mai_key', $issued['plain'])->with('message', 'The new token is shown once. The previous token no longer works.');
+    }
+
+    public function revokeKey($id)
+    {
+        $user = $this->person();
+        if (! $user) {
+            return redirect()->to('/mai');
+        }
+        $key = \App\Mai\MaiApiKey::where('id', $id)->where('user_id', $user->id)->first();
+        if ($key) {
+            app(MaiSessionService::class)->revokeKey($user, $key);
+        }
+
+        return redirect()->to('/mai')->with('message', 'Token revoked.');
     }
 
     protected function person()
@@ -183,6 +243,20 @@ class MaiPortalController extends Controller
         }
         $session = MaiSession::where('public_id', $publicId)->first();
         if (! $session || ! $session->allows($user)) {
+            return null;
+        }
+
+        return $session;
+    }
+
+    protected function managed($publicId)
+    {
+        $user = $this->person();
+        if (! $user) {
+            return null;
+        }
+        $session = MaiSession::where('public_id', $publicId)->first();
+        if (! $session || ! $session->canManage($user)) {
             return null;
         }
 

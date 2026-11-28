@@ -26,6 +26,16 @@ class MaiSessionService
         if (MaiBusinessLine::is($digits)) {
             throw new \InvalidArgumentException('That number is the business line and cannot be linked here.');
         }
+        if (! MaiPilot::allows($digits)) {
+            throw new \InvalidArgumentException('This WhatsApp is not in the current MAI pilot.');
+        }
+        $limit = config('cloud.mai_customer.session_limit');
+        if ($limit !== null && $limit !== '' && (int) $limit > 0) {
+            $openSessions = MaiSession::where('user_id', $user->id)->where('status', '!=', 'UNLINKED')->count();
+            if ($openSessions >= (int) $limit) {
+                throw new \InvalidArgumentException('This plan has no free session left.');
+            }
+        }
         $session = new MaiSession();
         $session->public_id = 'c'.bin2hex(random_bytes(16));
         $session->user_id = $user->id;
@@ -143,7 +153,7 @@ class MaiSessionService
         return $session;
     }
 
-    public function issueKey(User $user, $name)
+    public function issueKey(User $user, $name, MaiSession $session = null, $scopes = null)
     {
         $this->ready();
         $plain = 'mai_'.bin2hex(random_bytes(20));
@@ -152,10 +162,36 @@ class MaiSessionService
         $key->name = substr(trim((string) $name) !== '' ? trim((string) $name) : 'Whats MAI', 0, 80);
         $key->prefix = substr($plain, 0, 12);
         $key->key_hash = hash('sha256', $plain);
-        $key->scopes = 'sessions,messages,webhooks';
+        $allowed = ['sessions', 'messages', 'webhooks'];
+        $chosen = [];
+        foreach (array_filter(array_map('trim', explode(',', (string) ($scopes !== null ? $scopes : 'sessions,messages,webhooks')))) as $scope) {
+            if (in_array($scope, $allowed, true)) {
+                $chosen[] = $scope;
+            }
+        }
+        $key->scopes = $chosen ? implode(',', $chosen) : 'messages';
+        if ($session && \Illuminate\Support\Facades\Schema::hasColumn('mai_api_keys', 'mai_session_id')) {
+            $key->mai_session_id = $session->id;
+            $key->cloud_tenant_id = $session->cloud_tenant_id;
+        }
         $key->save();
 
         return ['key' => $key, 'plain' => $plain];
+    }
+
+    public function rotateKey(User $user, MaiApiKey $key)
+    {
+        if ((int) $key->user_id !== (int) $user->id || $key->revoked_at) {
+            return null;
+        }
+        $session = null;
+        if (! empty($key->mai_session_id)) {
+            $session = MaiSession::find($key->mai_session_id);
+        }
+        $issued = $this->issueKey($user, $key->name, $session, $key->scopes);
+        $this->revokeKey($user, $key);
+
+        return $issued;
     }
 
     public function revokeKey(User $user, MaiApiKey $key)

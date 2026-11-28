@@ -10,6 +10,9 @@ Route::post('/mai/logout', 'Mai\MaiPortalController@logout')->name('mai.customer
 Route::post('/mai/sessions', 'Mai\MaiPortalController@createSession')->middleware('throttle:10,10')->name('mai.customer.sessions');
 Route::post('/mai/sessions/{publicId}/pair', 'Mai\MaiPortalController@pair')->middleware('throttle:10,10')->name('mai.customer.pair');
 Route::post('/mai/sessions/{publicId}/refresh', 'Mai\MaiPortalController@refresh')->middleware('throttle:30,1')->name('mai.customer.refresh');
+Route::post('/mai/sessions/{publicId}/rename', 'Mai\MaiPortalController@rename')->middleware('throttle:20,1')->name('mai.customer.rename');
 Route::post('/mai/sessions/{publicId}/disconnect', 'Mai\MaiPortalController@disconnect')->middleware('throttle:10,10')->name('mai.customer.disconnect');
 Route::post('/mai/sessions/{publicId}/send', 'Mai\MaiPortalController@send')->middleware('throttle:20,1')->name('mai.customer.send');
 Route::post('/mai/keys', 'Mai\MaiPortalController@createKey')->middleware('throttle:10,10')->name('mai.customer.keys');
+Route::post('/mai/keys/{id}/rotate', 'Mai\MaiPortalController@rotateKey')->middleware('throttle:10,10')->name('mai.customer.keys.rotate');
+Route::post('/mai/keys/{id}/revoke', 'Mai\MaiPortalController@revokeKey')->middleware('throttle:10,10')->name('mai.customer.keys.revoke');

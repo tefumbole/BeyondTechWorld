@@ -160,6 +160,92 @@ class MaiContactIsolationTest extends TestCase
         $this->assertSame(0, MaiPeer::where('mai_session_id', $bola->id)->where('saved_name', 'Ada Two')->count());
     }
 
+    public function test_a_profile_update_does_not_replace_the_saved_name()
+    {
+        $contact = $this->contact('');
+        $contact->normalized_phone = '250788000111';
+        $contact->display_phone = '+250788000111';
+        $contact->save();
+        $session = $this->linked(31, 'p237670000031');
+        $chat = $this->chat($contact, $session, '');
+        $identity = app(MaiIdentity::class);
+        $identity->remember($session, [
+            'jid' => '250788000111@s.whatsapp.net',
+            'phone' => '250788000111',
+            'saved_name' => 'Pa. Nasrah Umwali',
+        ]);
+        $identity->remember($session, [
+            'jid' => '250788000111@s.whatsapp.net',
+            'phone' => '250788000111',
+            'profile_name' => 'Nasrah',
+            'name' => 'Nasrah',
+        ]);
+        $identity->remember($session, [
+            'jid' => '250788000111@s.whatsapp.net',
+            'phone' => '250788000111',
+            'saved_name' => 'Nasrah',
+        ]);
+        $peer = MaiPeer::where('mai_session_id', $session->id)->where('phone_digits', '250788000111')->first();
+        $this->assertSame('Pa. Nasrah Umwali', $peer->saved_name);
+        $this->assertSame('Nasrah', $peer->profile_name);
+        $this->assertSame('Pa. Nasrah Umwali', $identity->display($chat->fresh(), $contact->fresh()));
+
+        $identity->remember($session, [
+            'jid' => '250788000111@s.whatsapp.net',
+            'phone' => '250799999999',
+            'saved_name' => 'Pa. Nasrah Umwali',
+        ]);
+        $this->assertSame('250788000111', $peer->fresh()->phone_digits);
+
+        $identity->remember($session, [
+            'jid' => '250788000222@s.whatsapp.net',
+            'phone' => '250788000222',
+            'saved_name' => 'David Office',
+        ]);
+        $identity->remember($session, [
+            'jid' => '250788000222@s.whatsapp.net',
+            'phone' => '250788000222',
+            'saved_name' => 'David Church',
+        ]);
+        $renamed = MaiPeer::where('mai_session_id', $session->id)->where('phone_digits', '250788000222')->first();
+        $this->assertSame('David Church', $renamed->saved_name);
+        $this->assertSame('Pa. Nasrah Umwali', $peer->fresh()->saved_name);
+    }
+
+    public function test_a_verified_lid_mapping_keeps_the_saved_name_and_the_messages()
+    {
+        $session = $this->linked(32, 'p237670000032');
+        $lidContact = $this->contact('Nasrah');
+        $lidContact->normalized_phone = '155512345465';
+        $lidContact->display_phone = '155512345465';
+        $lidContact->wa_name = 'Nasrah';
+        $lidContact->save();
+        $lidChat = $this->chat($lidContact, $session, 'Nasrah');
+        $message = new WhatsAppMessage();
+        $message->conversation_id = $lidChat->id;
+        $message->contact_id = $lidContact->id;
+        $message->direction = WhatsAppMessage::DIR_IN;
+        $message->type = 'TEXT';
+        $message->body = 'kept';
+        $message->provider_message_id = 'mai-lid-kept';
+        $message->save();
+        app(MaiIdentity::class)->remember($session, [
+            'jid' => '250788004793@s.whatsapp.net',
+            'phone' => '250788004793',
+            'lid' => '155512345465',
+            'saved_name' => 'PA Nasrah Umwali',
+            'profile_name' => 'Nasrah',
+        ]);
+
+        $this->assertSame('PA Nasrah Umwali', app(MaiIdentity::class)->display($lidChat->fresh(), $lidContact->fresh()));
+        $this->artisan('mai:repair-labels', ['--session' => 32])
+            ->expectsOutput('rebuilt=1 cleared=0 kept=0 dry=no')
+            ->assertExitCode(0);
+        $this->assertSame('PA Nasrah Umwali', $lidChat->fresh()->peer_label);
+        $this->assertSame(1, WhatsAppMessage::where('conversation_id', $lidChat->id)->count());
+        $this->assertSame(1, WhatsAppConversation::where('mai_session_id', $session->id)->count());
+    }
+
     public function test_a_lid_is_not_turned_into_a_phone_number()
     {
         $contact = $this->contact('');

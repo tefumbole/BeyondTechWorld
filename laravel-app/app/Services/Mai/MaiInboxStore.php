@@ -76,6 +76,12 @@ class MaiInboxStore
         if (substr($jid, -15) === '@s.whatsapp.net' || substr($jid, -4) === '@lid' || $group) {
             $remote = preg_replace('/\D+/', '', strtok($jid, '@'));
         }
+        if (substr($jid, -4) === '@lid') {
+            $alias = app(MaiIdentity::class)->aliasPhone($session, $jid);
+            if ($alias !== '') {
+                $remote = $alias;
+            }
+        }
         if ($remote === '' || strlen($remote) < 8 || strlen($remote) > ($group ? 32 : 20)) {
             return null;
         }

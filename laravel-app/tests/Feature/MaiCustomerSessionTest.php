@@ -92,6 +92,7 @@ class MaiCustomerSessionTest extends TestCase
             $table->timestamps();
         });
         $this->artisan('migrate', ['--path' => 'database/migrations/2026_11_26_233000_create_mai_customer_sessions.php', '--force' => true]);
+        $this->artisan('migrate', ['--path' => 'database/migrations/2026_11_28_120000_mai_dashboard_tokens.php', '--force' => true]);
         $this->script(function ($method, $path) {
             $this->linkCalls[] = $method.' '.$path;
             if (substr($path, -5) === '/send') {
@@ -233,7 +234,7 @@ class MaiCustomerSessionTest extends TestCase
         $this->assertSame($before, $this->sendCount());
         $this->assertSame('uncertain', MaiOutbound::where('idempotency_key', 'slow')->value('status'));
 
-        $this->post('/mai/sessions/'.$session->public_id.'/disconnect')->assertRedirect('/mai');
+        $this->post('/mai/sessions/'.$session->public_id.'/disconnect', ['confirm' => 'yes'])->assertRedirect('/mai');
         $this->assertSame('UNLINKED', $session->fresh()->status);
         $this->assertSame(1, WhatsAppConversation::where('mai_session_id', $session->id)->count());
 
@@ -372,6 +373,266 @@ class MaiCustomerSessionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'CONNECTED')
             ->assertJsonPath('redirect', url('/whatsapp-mai/inbox'));
+    }
+
+    public function test_a_pdf_above_eight_megabytes_is_refused_before_the_worker()
+    {
+        $dir = sys_get_temp_dir().'/mai-pdf-'.bin2hex(random_bytes(4));
+        mkdir($dir);
+        $small = $dir.'/below.pdf';
+        $big = $dir.'/above.pdf';
+        file_put_contents($small, "%PDF-1.4\n".str_repeat('a', 2048));
+        file_put_contents($big, "%PDF-1.4\n".str_repeat('b', 8 * 1024 * 1024));
+        $seen = 0;
+        config(['cloud.whatsapp.link_transport' => function ($method, $path, $body) use (&$seen) {
+            $seen++;
+
+            return ['success' => true, 'id' => 'm1'];
+        }]);
+        $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
+        $ok = $engine->sendFile('237670000111', '237671111222', $small, 'document', 'application/pdf', 'below.pdf', '');
+        $blocked = $engine->sendFile('237670000111', '237671111222', $big, 'document', 'application/pdf', 'above.pdf', '');
+        $this->assertTrue($ok['success']);
+        $this->assertSame(1, $seen);
+        $this->assertFalse($blocked['success']);
+        $this->assertSame('Send a file up to 8 MB.', $blocked['error']);
+        $this->assertGreaterThan(8 * 1024 * 1024, filesize($big));
+        $this->assertLessThan(8 * 1024 * 1024, filesize($small));
+    }
+
+    public function test_pilot_list_blocks_a_number_that_is_not_listed()
+    {
+        config(['cloud.mai_customer.pilot_phones' => '237670000222']);
+        $user = new \App\User();
+        $user->name = 'Ada';
+        $user->email = 'ada-pilot@example.test';
+        $user->password = bcrypt('portal-secret');
+        $user->phone = '237670000111';
+        $user->role_id = 5;
+        $user->is_active = 1;
+        $user->save();
+        $this->actingAs($user);
+        $seen = 0;
+        config(['cloud.whatsapp.link_transport' => function () use (&$seen) {
+            $seen++;
+
+            return ['status' => 'AWAITING_QR'];
+        }]);
+        $this->postJson('/whatsapp-mai/link/pair', ['phone' => '670000111', 'dial' => '237'])
+            ->assertOk()
+            ->assertJsonPath('error', 'This WhatsApp is not in the current MAI pilot.');
+        $this->assertSame(0, $seen);
+    }
+
+    public function test_dashboard_and_notification_tokens()
+    {
+        Schema::create('cloud_subscriptions', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('cloud_tenant_id')->nullable();
+            $table->unsignedInteger('cloud_plan_id')->nullable();
+            $table->string('status');
+            $table->timestamp('trial_started_at')->nullable();
+            $table->timestamp('trial_ends_at')->nullable();
+            $table->timestamp('current_period_start')->nullable();
+            $table->timestamp('current_period_end')->nullable();
+            $table->timestamp('cancelled_at')->nullable();
+            $table->timestamp('suspended_at')->nullable();
+            $table->boolean('cancel_at_period_end')->default(false);
+            $table->timestamps();
+        });
+        Schema::create('cloud_plans', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('name');
+            $table->timestamps();
+        });
+        \DB::table('cloud_plans')->insert(['id' => 1, 'name' => 'Whats MAI', 'created_at' => now(), 'updated_at' => now()]);
+        $idle = $this->maiUser('idle@example.test');
+        \DB::table('mai_signins')->insert(['user_id' => $idle->id, 'signed_in_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        $trial = $this->maiUser('trial@example.test');
+        $paid = $this->maiUser('paid@example.test');
+        $expired = $this->maiUser('expired@example.test');
+        $down = $this->maiUser('down@example.test');
+        $this->seedPlan($trial, 11, 'TRIALING', now()->addDay(), null, 'CONNECTED');
+        $this->seedPlan($paid, 12, 'ACTIVE', null, now()->addMonth(), 'CONNECTED');
+        $this->seedPlan($expired, 13, 'EXPIRED', now()->subDay(), null, 'CONNECTED');
+        $this->seedPlan($down, 14, 'ACTIVE', null, now()->addMonth(), 'UNLINKED');
+
+        $query = app(\App\Services\Mai\MaiDashboardQuery::class);
+        $summary = $query->summary();
+        $this->assertSame(2, $summary['paid']);
+        $this->assertSame(1, $summary['trials']);
+        $this->assertGreaterThanOrEqual(1, $summary['signed_in_without_plan']);
+        $names = array_column($query->accounts('', 'no_session', 1)['rows'], 'email');
+        $this->assertContains('idle@example.test', $names);
+        $this->assertContains('trial@example.test', array_column($query->accounts('', 'trial', 1)['rows'], 'email'));
+        $this->assertContains('paid@example.test', array_column($query->accounts('', 'paid', 1)['rows'], 'email'));
+        $this->assertContains('expired@example.test', array_column($query->accounts('', 'expired', 1)['rows'], 'email'));
+        $this->assertContains('down@example.test', array_column($query->accounts('', 'disconnected', 1)['rows'], 'email'));
+        $html = view('mai.dashboard', [
+            'summary' => $summary,
+            'list' => $query->accounts('', 'all', 1),
+            'account' => $query->account($paid->id),
+            'filter' => 'all',
+            'q' => '',
+        ])->render();
+        $this->assertStringContainsString('Operator dashboard', $html);
+        $this->assertStringContainsString('paid@example.test', $html);
+        $this->assertStringContainsString('CONNECTED', $html);
+        $this->assertStringContainsString('API ready', $html);
+        $this->assertStringNotContainsString('127.0.0.1', $html);
+
+        $key = $this->account('notify@example.test');
+        $this->get('/mai');
+        $this->get('/mai')->assertDontSee($key, false);
+        $this->script(function ($method, $path) {
+            $this->linkCalls[] = $method.' '.$path;
+            if (substr($path, -5) === '/send' || substr($path, -10) === '/send-file') {
+                return ['success' => true, 'id' => 'msg-1', 'status' => 'sent'];
+            }
+
+            return ['status' => 'CONNECTED', 'phone' => '237670000111', 'qr' => null];
+        });
+        $first = $this->json('POST', '/api/mai/v1/sessions', ['phone' => '237670000111'], $this->auth($key));
+        $second = $this->json('POST', '/api/mai/v1/sessions', ['phone' => '237670000222'], $this->auth($key));
+        $sessionA = MaiSession::where('public_id', $first->json('session.id'))->first();
+        $sessionB = MaiSession::where('public_id', $second->json('session.id'))->first();
+        $sessionA->status = 'CONNECTED';
+        $sessionA->phone_number = '237670000111';
+        $sessionA->save();
+        $sessionB->status = 'CONNECTED';
+        $sessionB->phone_number = '237670000222';
+        $sessionB->save();
+        $issued = app(MaiSessionService::class)->issueKey($sessionA->user, 'Shop notices', $sessionA, 'messages');
+        $scoped = $issued['plain'];
+        $this->assertStringStartsWith('mai_', $scoped);
+        $shown = $this->json('GET', '/api/mai/v1/sessions/'.$sessionA->public_id, [], $this->auth($key));
+        $shown->assertOk();
+        $this->assertStringNotContainsString($scoped, $shown->getContent());
+        $this->json('POST', '/api/mai/v1/sessions/'.$sessionB->public_id.'/messages', [
+            'to' => '237671111222',
+            'text' => 'Wrong session',
+            'idempotency_key' => 'cross-1',
+        ], $this->auth($scoped))->assertStatus(404);
+
+        $sent = $this->json('POST', '/api/mai/v1/sessions/'.$sessionA->public_id.'/messages', [
+            'to' => '237671111222',
+            'text' => 'Ready',
+            'idempotency_key' => 'notice-1',
+        ], $this->auth($scoped));
+        $sent->assertOk()->assertJsonPath('status', 'sent');
+        $again = $this->json('POST', '/api/mai/v1/sessions/'.$sessionA->public_id.'/messages', [
+            'to' => '237671111222',
+            'text' => 'Ready',
+            'idempotency_key' => 'notice-1',
+        ], $this->auth($scoped));
+        $again->assertOk();
+        $this->assertSame(1, MaiOutbound::where('idempotency_key', 'notice-1')->count());
+        $this->json('GET', '/api/mai/v1/sessions/'.$sessionA->public_id.'/messages/notice-1', [], $this->auth($scoped))
+            ->assertOk()
+            ->assertJsonPath('status', 'sent')
+            ->assertJsonPath('recipient_received', false);
+
+        $image = $this->json('POST', '/api/mai/v1/sessions/'.$sessionA->public_id.'/messages', [
+            'type' => 'image',
+            'to' => '237671111222',
+            'filename' => 'note.jpg',
+            'mime' => 'image/jpeg',
+            'data' => base64_encode('image-bytes'),
+            'idempotency_key' => 'notice-img',
+        ], $this->auth($scoped));
+        $image->assertOk()->assertJsonPath('status', 'sent');
+
+        $token = \App\Mai\MaiApiKey::where('key_hash', hash('sha256', $scoped))->first();
+        $token->revoked_at = now();
+        $token->save();
+        $queued = new MaiOutbound();
+        $queued->mai_session_id = $sessionA->id;
+        $queued->idempotency_key = 'notice-revoked';
+        $queued->to_phone = '237671111222';
+        $queued->body = 'After revoke';
+        $queued->status = 'pending';
+        $queued->save();
+        $before = count($this->linkCalls);
+        app(\App\Services\Mai\MaiOutboundService::class)->sendTo($sessionA, '237671111222', 'After revoke', 'notice-revoked', $token);
+        $this->assertSame($before, count($this->linkCalls));
+        $this->assertSame('failed', MaiOutbound::where('idempotency_key', 'notice-revoked')->value('status'));
+
+        $sessionA->cloud_tenant_id = 13;
+        $sessionA->save();
+        $fresh = $token->fresh();
+        $fresh->revoked_at = null;
+        $before = count($this->linkCalls);
+        $blocked = app(\App\Services\Mai\MaiOutboundService::class)->sendTo($sessionA, '237671111222', 'Expired', 'notice-expired', $fresh);
+        $this->assertFalse($blocked['success']);
+        $this->assertSame($before, count($this->linkCalls));
+
+        $sessionB->status = 'UNLINKED';
+        $sessionB->save();
+        $open = app(MaiSessionService::class)->issueKey($sessionB->user, 'Other', $sessionB, 'messages');
+        $this->json('POST', '/api/mai/v1/sessions/'.$sessionB->public_id.'/messages', [
+            'to' => '237671111222',
+            'text' => 'Down',
+            'idempotency_key' => 'notice-down',
+        ], $this->auth($open['plain']))->assertStatus(422);
+
+        $rotated = app(MaiSessionService::class)->rotateKey($sessionA->user, $fresh);
+        $this->assertNotSame($scoped, $rotated['plain']);
+        $this->assertNotNull($token->fresh()->revoked_at);
+        $this->json('POST', '/api/mai/v1/sessions/'.$sessionA->public_id.'/messages', [
+            'to' => '237671111222',
+            'text' => 'Old token',
+            'idempotency_key' => 'notice-old',
+        ], $this->auth($scoped))->assertStatus(401);
+
+        $operator = $this->maiUser('operator@example.test');
+        $operator->role_id = 1;
+        $operator->save();
+        $this->actingAs($operator);
+        app(\App\Http\Controllers\Mai\MaiDashboardController::class)->revoke(request(), $rotated['key']->id);
+        $this->assertNotNull($rotated['key']->fresh()->revoked_at);
+        $this->assertSame('revoke_token', \DB::table('mai_operator_actions')->value('action'));
+        $this->assertStringNotContainsString($rotated['plain'], json_encode(\DB::table('mai_operator_actions')->first()));
+
+        $webhook = app('router')->getRoutes()->match(request()->create('/api/webhooks/wasender', 'POST'));
+        $this->assertStringContainsString('WaSenderWebhookController@handle', $webhook->getActionName());
+    }
+
+    protected function maiUser($email)
+    {
+        $user = new \App\User();
+        $user->name = $email;
+        $user->email = $email;
+        $user->password = bcrypt('portal-secret');
+        $user->phone = '237670000111';
+        $user->company_name = $email;
+        $user->role_id = 5;
+        $user->is_active = 1;
+        $user->save();
+
+        return $user;
+    }
+
+    protected function seedPlan($user, $tenantId, $status, $trialEnd, $periodEnd, $sessionStatus)
+    {
+        \DB::table('cloud_subscriptions')->insert([
+            'cloud_tenant_id' => $tenantId,
+            'cloud_plan_id' => 1,
+            'status' => $status,
+            'trial_ends_at' => $trialEnd,
+            'current_period_end' => $periodEnd,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $session = new MaiSession();
+        $session->public_id = 'c'.bin2hex(random_bytes(16));
+        $session->user_id = $user->id;
+        $session->cloud_tenant_id = $tenantId;
+        $session->provider = MaiProviderRouter::MAI;
+        $session->worker_session_id = 's'.bin2hex(random_bytes(8));
+        $session->expected_phone = '237670000'.$tenantId;
+        $session->phone_number = $sessionStatus === 'CONNECTED' ? $session->expected_phone : null;
+        $session->status = $sessionStatus;
+        $session->save();
     }
 
     protected function account($email)

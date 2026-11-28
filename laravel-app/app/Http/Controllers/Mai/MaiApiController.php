@@ -120,8 +120,23 @@ class MaiApiController extends Controller
             return response()->json(['ok' => false, 'error' => 'That session was not found.'], 404);
         }
         $key = trim((string) $request->header('Idempotency-Key', $request->input('idempotency_key')));
-        $result = app(MaiOutboundService::class)->sendTo($session, $request->input('to'), $request->input('text'), $key);
-        $status = ! empty($result['success']) ? 200 : (! empty($result['uncertain']) ? 202 : 422);
+        $apiKey = $request->attributes->get('mai_key');
+        $type = strtolower(trim((string) $request->input('type', 'text')));
+        if ($type === 'image' || $type === 'document') {
+            $result = app(MaiOutboundService::class)->sendFile(
+                $session,
+                $request->input('to'),
+                $type,
+                $request->input('filename', $type),
+                $request->input('mime', $type === 'image' ? 'image/jpeg' : 'application/pdf'),
+                $request->input('data'),
+                $key,
+                $apiKey
+            );
+        } else {
+            $result = app(MaiOutboundService::class)->sendTo($session, $request->input('to'), $request->input('text'), $key, $apiKey);
+        }
+        $status = ! empty($result['rate_limited']) ? 429 : (! empty($result['success']) ? 200 : (! empty($result['uncertain']) ? 202 : 422));
 
         return response()->json([
             'ok' => ! empty($result['success']),
@@ -142,10 +157,13 @@ class MaiApiController extends Controller
             return response()->json(['ok' => false, 'error' => 'That send was not found.'], 404);
         }
 
+        $state = $row->status === 'pending' ? 'queued' : (string) $row->status;
+
         return response()->json([
             'ok' => true,
-            'status' => $row->status,
+            'status' => $state,
             'provider_message_id' => $row->provider_message_id,
+            'recipient_received' => false,
         ]);
     }
 
@@ -177,6 +195,10 @@ class MaiApiController extends Controller
         $user = $request->attributes->get('mai_user');
         $session = MaiSession::where('public_id', $publicId)->first();
         if (! $session || ! $user || ! $session->allows($user)) {
+            return null;
+        }
+        $key = $request->attributes->get('mai_key');
+        if ($key && \Illuminate\Support\Facades\Schema::hasColumn('mai_api_keys', 'mai_session_id') && ! empty($key->mai_session_id) && (int) $key->mai_session_id !== (int) $session->id) {
             return null;
         }
 

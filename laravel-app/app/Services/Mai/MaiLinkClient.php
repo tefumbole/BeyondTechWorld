@@ -42,6 +42,17 @@ class MaiLinkClient
         return $this->call('POST', '/sessions/'.$workerId.'/send', $body);
     }
 
+    public function sendFile($workerId, $to, $kind, $name, $mime, $raw)
+    {
+        return $this->call('POST', '/sessions/'.$workerId.'/send-file', [
+            'to' => $to,
+            'kind' => $kind,
+            'name' => (string) $name,
+            'mime' => (string) $mime,
+            'data' => base64_encode($raw),
+        ]);
+    }
+
     public function disconnect($workerId)
     {
         return $this->call('DELETE', '/sessions/'.$workerId, null);

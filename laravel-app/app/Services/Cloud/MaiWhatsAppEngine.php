@@ -413,8 +413,8 @@ class MaiWhatsAppEngine
             return ['success' => false, 'error' => 'Choose a file to send.'];
         }
         $raw = file_get_contents($path);
-        if ($raw === false || strlen($raw) > 8 * 1024 * 1024) {
-            return ['success' => false, 'error' => 'Send a file up to 8 MB.'];
+        if ($raw === false || \App\Services\Mai\MaiMediaLimit::tooLarge(strlen($raw))) {
+            return ['success' => false, 'error' => 'Send a file up to '.\App\Services\Mai\MaiMediaLimit::label().'.'];
         }
         $target = trim((string) $to);
         if (substr($target, -5) !== '@g.us') {

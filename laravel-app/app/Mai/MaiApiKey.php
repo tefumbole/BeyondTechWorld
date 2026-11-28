@@ -9,7 +9,7 @@ class MaiApiKey extends Model
     protected $table = 'mai_api_keys';
 
     protected $fillable = [
-        'user_id', 'cloud_tenant_id', 'name', 'prefix', 'key_hash', 'scopes', 'revoked_at', 'last_used_at',
+        'user_id', 'cloud_tenant_id', 'mai_session_id', 'name', 'prefix', 'key_hash', 'scopes', 'revoked_at', 'last_used_at',
     ];
 
     protected $dates = ['revoked_at', 'last_used_at'];

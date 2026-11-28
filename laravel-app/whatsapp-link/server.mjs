@@ -25,6 +25,8 @@ import {
 } from './session-store.mjs'
 import { classifyHistory, historyMarkerComplete } from './history-sync.mjs'
 import { bundledBaileysVersion, chooseClientVersion, shouldSyncFullHistory } from './client-version.mjs'
+import { findStoredMessage, mediaLimitReason, mediaMaxBytes, mediaTooLarge } from './store-lookup.mjs'
+import { keepSavedName } from './name-rules.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../storage/app/whatsapp-link')
 const tokenPath = path.join(root, 'token')
@@ -159,7 +161,7 @@ function scheduleSave(entry) {
     try {
       fs.writeFileSync(path.join(sessionDir(entry.id), 'chats.json'), JSON.stringify({
         chats: entry.chats || {},
-        inbox: (entry.inbox || []).slice(-200),
+        inbox: (entry.inbox || []).slice(-500),
         lids: entry.lids || {},
         book: entry.book || {},
         generation: entry.generation || 1,
@@ -222,7 +224,16 @@ function rememberLid(entry, lid, phone) {
   if (!entry.lids) entry.lids = {}
   entry.lids[from] = to
   const saved = entry.chats && entry.chats[from]
-  if (saved) touchChat(entry, to, { name: saved.name, preview: saved.preview, at: saved.at, unread: saved.unread, trusted: !looksLikeNumber(saved.name) })
+  if (saved) {
+    touchChat(entry, to, {
+      name: saved.saved_name || '',
+      fromPhone: !!saved.saved_name,
+      profile: saved.profile_name || '',
+      preview: saved.preview,
+      at: saved.at,
+      unread: saved.unread,
+    })
+  }
 }
 
 function rememberContact(entry, person) {
@@ -243,11 +254,8 @@ function rememberContact(entry, person) {
     if (!key) return
     const current = entry.book[key] || { name: '', saved: false }
     if (phoneName) {
-      if (current.saved && current.name && current.name.length > phoneName.length) {
-        entry.book[key] = current
-        return
-      }
-      entry.book[key] = { name: phoneName, saved: true }
+      const chosen = keepSavedName(current.saved ? current.name : '', phoneName, true)
+      entry.book[key] = { name: chosen, saved: true }
       return
     }
     if (current.saved && current.name) {
@@ -286,17 +294,14 @@ function touchChat(entry, jid, patch) {
   const previousSaved = current.saved_name || ''
   const book = entry.book && entry.book[id]
   if (book && book.saved && book.name) {
-    const fromBook = String(book.name).slice(0, 80)
-    if (!current.saved_name || fromBook.length >= current.saved_name.length) current.saved_name = fromBook
+    current.saved_name = keepSavedName(current.saved_name, book.name, true)
   }
-  if (patch.fromPhone && patch.name && !looksLikeNumber(patch.name)) {
-    const next = String(patch.name).slice(0, 80)
-    if (!current.saved_name || next.length >= current.saved_name.length) current.saved_name = next
+  if (patch.fromPhone && patch.name) {
+    current.saved_name = keepSavedName(current.saved_name, patch.name, true)
   }
   if (patch.profile && !looksLikeNumber(patch.profile)) current.profile_name = String(patch.profile).slice(0, 80)
-  if (patch.trusted && patch.name && !looksLikeNumber(patch.name)) {
-    const next = String(patch.name).slice(0, 80)
-    if (!current.saved_name || next.length > current.saved_name.length) current.saved_name = next
+  if (!patch.fromPhone && patch.trusted && patch.name && !looksLikeNumber(patch.name) && !current.profile_name) {
+    current.profile_name = String(patch.name).slice(0, 80)
   }
   const saved = current.saved_name || ''
   const profile = current.profile_name || ''
@@ -550,8 +555,8 @@ async function saveMedia(entry, msg, kind) {
   if (!buffer || !buffer.length) {
     return { file: '', reason: 'WhatsApp did not send this file to MAI. It is still on the phone.' }
   }
-  if (buffer.length > 8 * 1024 * 1024) {
-    return { file: '', reason: 'This file is larger than 8 MB, so MAI cannot store it.' }
+  if (mediaTooLarge(buffer.length)) {
+    return { file: '', reason: mediaLimitReason() }
   }
   ensureDir(dir)
   fs.writeFileSync(full, buffer)
@@ -824,7 +829,15 @@ async function startSocketNow(id, expected) {
     syncFullHistory: shouldSyncFullHistory(entry.registered, historyIsComplete(dir)),
     markOnlineOnConnect: false,
     getMessage: async (key) => {
-      const found = key && entry.keys ? entry.keys[key.id] : null
+      const id = key && key.id ? String(key.id) : ''
+      let found = id && entry.keys ? entry.keys[id] : null
+      if (!found || !found.text) {
+        found = findStoredMessage(sessionDir(entry.id), id)
+        if (found) {
+          if (!entry.keys) entry.keys = {}
+          entry.keys[id] = found
+        }
+      }
       if (!found || !found.text) return undefined
       return { conversation: found.text }
     },
@@ -1282,8 +1295,8 @@ async function sendFile(id, to, payload) {
   const jid = await resolveSendJid(entry, to)
   if (!jid) return { success: false, error: 'That chat is not available.' }
   const data = Buffer.from(String(payload.data || ''), 'base64')
-  if (!data.length || data.length > 8 * 1024 * 1024) {
-    return { success: false, error: 'Send a file up to 8 MB.' }
+  if (!data.length || mediaTooLarge(data.length)) {
+    return { success: false, error: 'Send a file up to ' + Math.max(1, Math.round(mediaMaxBytes() / (1024 * 1024))) + ' MB.' }
   }
   const caption = String(payload.caption || '').slice(0, 1000)
   const kind = String(payload.kind || 'document')
@@ -1549,7 +1562,7 @@ const server = http.createServer((req, res) => {
       return
     }
     if (req.method === 'POST' && parts[2] === 'send-file') {
-      readBody(req, 12000000, (body) => {
+      readBody(req, Math.max(12000000, mediaMaxBytes() * 2), (body) => {
         if (!body) {
           send(res, 422, { success: false, error: 'invalid' })
           return

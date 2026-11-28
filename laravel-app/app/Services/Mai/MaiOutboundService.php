@@ -13,12 +13,16 @@ class MaiOutboundService
 {
     protected $link;
 
+    protected $apiKey;
+
+    protected $apiGate = false;
+
     public function __construct(MaiLinkClient $link)
     {
         $this->link = $link;
     }
 
-    public function sendTo(MaiSession $session, $to, $text, $idempotencyKey)
+    public function sendTo(MaiSession $session, $to, $text, $idempotencyKey, $apiKey = null)
     {
         if ($session->provider !== MaiProviderRouter::MAI || MaiBusinessLine::is($session->phone_number) || MaiBusinessLine::is($session->expected_phone)) {
             return ['success' => false, 'error' => 'This chat is not a Whats MAI session.'];
@@ -29,6 +33,17 @@ class MaiOutboundService
         if ($session->status !== 'CONNECTED') {
             return ['success' => false, 'error' => 'Approve WhatsApp on the phone before sending.'];
         }
+        $this->apiKey = $apiKey;
+        $queued = $this->queued($session, $idempotencyKey);
+        if (! $queued) {
+            $blocked = $this->blocked($session, $this->apiKey);
+            if ($blocked) {
+                return $blocked;
+            }
+            if ($this->overRate($session, $idempotencyKey)) {
+                return ['success' => false, 'status' => 'failed', 'error' => 'This session has reached its send limit for this minute.', 'rate_limited' => true];
+            }
+        }
         $digits = preg_replace('/\D+/', '', (string) $to);
         if (! preg_match('/^[1-9][0-9]{7,14}$/', $digits) || MaiBusinessLine::is($digits)) {
             return ['success' => false, 'error' => 'Enter the other phone number.'];
@@ -38,8 +53,13 @@ class MaiOutboundService
             return ['success' => false, 'error' => 'Write a text message.'];
         }
         $conversation = $this->conversation($session, $digits);
-
-        return $this->deliver($conversation, $text, $idempotencyKey, null);
+        $this->apiGate = true;
+        try {
+            return $this->deliver($conversation, $text, $idempotencyKey, null);
+        } finally {
+            $this->apiGate = false;
+            $this->apiKey = null;
+        }
     }
 
     public function deliver(WhatsAppConversation $conversation, $text, $idempotencyKey, WhatsAppMessage $existing = null, array $quote = null)
@@ -54,6 +74,15 @@ class MaiOutboundService
         }
         $held = MaiOutbound::where('mai_session_id', $session->id)->where('idempotency_key', $key)->first();
         if ($held) {
+            if ($held->status === 'pending' && $this->apiGate) {
+                $blocked = $this->blocked($session, $this->apiKey);
+                if ($blocked) {
+                    $held->status = 'failed';
+                    $held->last_error = substr((string) $blocked['error'], 0, 191);
+                    $held->save();
+                }
+            }
+
             return $this->shape($held);
         }
         $contact = $conversation->contact;
@@ -65,6 +94,14 @@ class MaiOutboundService
         $row->body = $text;
         $row->status = 'pending';
         $row->save();
+        $blocked = $this->apiGate ? $this->blocked($session, $this->apiKey) : null;
+        if ($blocked) {
+            $row->status = 'failed';
+            $row->last_error = substr((string) $blocked['error'], 0, 191);
+            $row->save();
+
+            return $this->shape($row);
+        }
         $payload = $this->link->send($session->worker_session_id, $to, $text, $quote);
         if (! empty($payload['timeout'])) {
             $row->status = 'uncertain';
@@ -154,6 +191,107 @@ class MaiOutboundService
         $conversation->last_incoming_at = \Carbon\Carbon::now();
         $conversation->unread_count = (int) $conversation->unread_count + 1;
         $conversation->save();
+    }
+
+    public function sendFile(MaiSession $session, $to, $kind, $name, $mime, $data, $idempotencyKey, $apiKey = null)
+    {
+        if (! in_array($kind, ['image', 'document'], true)) {
+            return ['success' => false, 'error' => 'Send text, an image, or a document.'];
+        }
+        $raw = base64_decode((string) $data, true);
+        if ($raw === false || MaiMediaLimit::tooLarge(strlen($raw))) {
+            return ['success' => false, 'error' => 'Send a file up to '.MaiMediaLimit::label().'.'];
+        }
+        if ($session->status !== 'CONNECTED') {
+            return ['success' => false, 'error' => 'Approve WhatsApp on the phone before sending.'];
+        }
+        $this->apiKey = $apiKey;
+        $blocked = $this->blocked($session, $this->apiKey);
+        if ($blocked) {
+            return $blocked;
+        }
+        $key = substr(preg_replace('/[^A-Za-z0-9_.:-]/', '', (string) $idempotencyKey), 0, 80);
+        if ($key === '') {
+            return ['success' => false, 'error' => 'A send key is required.'];
+        }
+        $held = MaiOutbound::where('mai_session_id', $session->id)->where('idempotency_key', $key)->first();
+        if ($held) {
+            return $this->shape($held);
+        }
+        if ($this->overRate($session, $key)) {
+            return ['success' => false, 'status' => 'failed', 'error' => 'This session has reached its send limit for this minute.', 'rate_limited' => true];
+        }
+        $digits = preg_replace('/\D+/', '', (string) $to);
+        $row = new MaiOutbound();
+        $row->mai_session_id = $session->id;
+        $row->idempotency_key = $key;
+        $row->to_phone = $digits;
+        $row->body = $kind.': '.substr((string) $name, 0, 160);
+        $row->status = 'pending';
+        $row->save();
+        $blocked = $this->blocked($session, $apiKey);
+        if ($blocked) {
+            $row->status = 'failed';
+            $row->last_error = substr((string) $blocked['error'], 0, 191);
+            $row->save();
+
+            return $this->shape($row);
+        }
+        $payload = $this->link->sendFile($session->worker_session_id, $digits, $kind, $name, $mime, $raw);
+        if (empty($payload['success'])) {
+            $row->status = 'failed';
+            $row->last_error = isset($payload['error']) ? substr((string) $payload['error'], 0, 191) : 'Send failed.';
+            $row->save();
+
+            return $this->shape($row);
+        }
+        $row->status = 'sent';
+        $row->provider_message_id = isset($payload['id']) ? substr((string) $payload['id'], 0, 128) : null;
+        $row->save();
+
+        return $this->shape($row);
+    }
+
+    protected function queued(MaiSession $session, $idempotencyKey)
+    {
+        $key = substr(preg_replace('/[^A-Za-z0-9_.:-]/', '', (string) $idempotencyKey), 0, 80);
+        if ($key === '') {
+            return null;
+        }
+
+        return MaiOutbound::where('mai_session_id', $session->id)->where('idempotency_key', $key)->where('status', 'pending')->first();
+    }
+
+    protected function blocked(MaiSession $session, $apiKey)
+    {
+        if ($apiKey && ! empty($apiKey->revoked_at)) {
+            return ['success' => false, 'status' => 'failed', 'error' => 'The API token was revoked before sending.'];
+        }
+        if (! MaiEntitlement::canSend($session)) {
+            return ['success' => false, 'status' => 'failed', 'error' => 'This subscription cannot send through the API.'];
+        }
+
+        return null;
+    }
+
+    protected function overRate(MaiSession $session, $idempotencyKey)
+    {
+        $key = substr(preg_replace('/[^A-Za-z0-9_.:-]/', '', (string) $idempotencyKey), 0, 80);
+        if ($key !== '' && MaiOutbound::where('mai_session_id', $session->id)->where('idempotency_key', $key)->exists()) {
+            return false;
+        }
+        $limit = (int) config('cloud.mai_customer.sends_per_minute', 60);
+        if ($limit < 1) {
+            return false;
+        }
+        $bucket = 'mai.send.'.(int) $session->id.'.'.date('YmdHi');
+        $count = (int) \Illuminate\Support\Facades\Cache::get($bucket, 0);
+        if ($count >= $limit) {
+            return true;
+        }
+        \Illuminate\Support\Facades\Cache::put($bucket, $count + 1, now()->addMinutes(2));
+
+        return false;
     }
 
     protected function shape(MaiOutbound $row)

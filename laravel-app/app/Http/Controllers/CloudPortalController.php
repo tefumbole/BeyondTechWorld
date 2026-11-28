@@ -235,6 +235,9 @@ class CloudPortalController extends Controller
         if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
             return response()->json(['status' => 'ERROR', 'error' => 'Use your personal WhatsApp number. The business line stays separate.']);
         }
+        if (! \App\Services\Mai\MaiPilot::allows($phone)) {
+            return response()->json(['status' => 'ERROR', 'error' => 'This WhatsApp is not in the current MAI pilot.']);
+        }
         session(['mai_pair_phone' => preg_replace('/\D/', '', (string) $phone)]);
         $state = app(\App\Services\Cloud\MaiWhatsAppEngine::class)->pairGuest($id, $phone, $request->boolean('fresh') || $request->input('fresh') === '1');
         $claimed = $this->claimMaiGuest($request, $state);

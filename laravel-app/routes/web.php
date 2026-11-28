@@ -904,6 +904,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/chats/{id}/ask', 'WhatsApp\WhatsAppHubController@askChat')->name('whatsapp.chats.askchat');
     Route::post('/admin/whatsapp/chats/speech', 'WhatsApp\WhatsAppHubController@speech')->middleware('throttle:30,1')->name('whatsapp.chats.speech');
     Route::post('/admin/whatsapp/chats/{id}/unmask', 'WhatsApp\WhatsAppHubController@unmaskContact')->middleware('throttle:20,1')->name('whatsapp.chats.unmask');
+    Route::get('/admin/whatsapp/mai', 'Mai\MaiDashboardController@index')->name('whatsapp.mai.dashboard');
+    Route::post('/admin/whatsapp/mai/tokens/{id}/revoke', 'Mai\MaiDashboardController@revoke')->name('whatsapp.mai.dashboard.revoke');
     Route::post('/admin/whatsapp/mai/app-link', 'WhatsApp\WhatsAppHubController@saveMaiAppLink')->middleware('throttle:10,1')->name('whatsapp.mai.app_link');
     Route::post('/admin/whatsapp/chats/{id}/messages/{message}/edit', 'WhatsApp\WhatsAppHubController@editChatMessage')->name('whatsapp.chats.edit');
     Route::post('/admin/whatsapp/chats/{id}/messages/{message}/delete', 'WhatsApp\WhatsAppHubController@deleteChatMessage')->name('whatsapp.chats.delete');

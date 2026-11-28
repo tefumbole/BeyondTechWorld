@@ -161,7 +161,11 @@ class PersonalHub
                 if (substr($chat['jid'], -5) === '@g.us' || (int) $chat['at'] <= 0) {
                     continue;
                 }
-                $store = $chat['phone'] !== '' ? $chat['phone'] : (isset($chat['lid']) ? $chat['lid'] : '');
+                $store = $chat['phone'] !== '' ? $chat['phone'] : '';
+                if ($store === '' && ! empty($chat['lid'])) {
+                    $alias = $identity->aliasPhone($session, $chat['lid'].'@lid');
+                    $store = $alias !== '' ? $alias : $chat['lid'];
+                }
                 if ($store === '' || strlen($store) < 8 || strlen($store) > 15) {
                     continue;
                 }

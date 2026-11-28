@@ -1071,6 +1071,19 @@
                                     <li id="whatsapp-assistant-menu"><a href="{{ route('whatsapp.assistant') }}">AI Assistant</a></li>
                                     <li id="whatsapp-brief-menu"><a href="{{ route('whatsapp.brief') }}">AI brief</a></li>
                                     <li id="whatsapp-people-menu"><a href="{{ route('whatsapp.people') }}">People I know</a></li>
+                                    @php
+                                        $maiDashboardAllowed = Auth::check() && in_array((int) Auth::user()->role_id, [1, 2], true);
+                                        if (! $maiDashboardAllowed && isset($role) && $role) {
+                                            try {
+                                                $maiDashboardAllowed = $role->hasPermissionTo('whatsapp.manage');
+                                            } catch (\Exception $e) {
+                                                $maiDashboardAllowed = false;
+                                            }
+                                        }
+                                    @endphp
+                                    @if($maiDashboardAllowed)
+                                        <li id="whatsapp-mai-dashboard-menu"><a href="{{ route('whatsapp.mai.dashboard') }}">Whats MAI</a></li>
+                                    @endif
                                 </ul>
                             </li>
                         @endif

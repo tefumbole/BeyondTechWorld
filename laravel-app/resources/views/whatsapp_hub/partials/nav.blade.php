@@ -8,4 +8,7 @@
     <a class="btn btn-sm {{ request()->routeIs('whatsapp.assistant*') ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.assistant') }}">AI Assistant</a>
     <a class="btn btn-sm {{ request()->routeIs('whatsapp.brief') ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.brief') }}">AI brief</a>
     <a class="btn btn-sm {{ request()->routeIs('whatsapp.people') ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.people') }}">People I know</a>
+    @if(\App\Http\Controllers\Mai\MaiDashboardController::allows(Auth::user()))
+        <a class="btn btn-sm {{ request()->routeIs('whatsapp.mai.dashboard') ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.mai.dashboard') }}">Whats MAI</a>
+    @endif
 </div>

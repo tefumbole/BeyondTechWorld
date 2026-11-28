@@ -1095,15 +1095,15 @@ class WhatsAppHubController extends Controller
         if ($voice) {
             $allowedVoice = ['webm', 'ogg', 'opus', 'mp3', 'm4a', 'mp4', 'wav', 'aac'];
             $ext = strtolower((string) $voice->getClientOriginalExtension());
-            if (! in_array($ext, $allowedVoice, true) || $voice->getSize() > 8 * 1024 * 1024) {
+            if (! in_array($ext, $allowedVoice, true) || $voice->getSize() > \App\Services\Mai\MaiMediaLimit::maxBytes()) {
                 if ($tokenKey !== '') {
                     \Illuminate\Support\Facades\Cache::forget($tokenKey);
                 }
                 if ($json) {
-                    return response()->json(['ok' => false, 'error' => 'Record a voice note up to 8 MB.'], 422);
+                    return response()->json(['ok' => false, 'error' => 'Record a voice note up to '.\App\Services\Mai\MaiMediaLimit::label().'.'], 422);
                 }
 
-                return redirect()->to($back)->with('not_permitted', 'Record a voice note up to 8 MB.');
+                return redirect()->to($back)->with('not_permitted', 'Record a voice note up to '.\App\Services\Mai\MaiMediaLimit::label().'.');
             }
             @set_time_limit(90);
             $result = $this->onStaffLine(function () use ($conversation, $voice) {
@@ -1120,15 +1120,15 @@ class WhatsAppHubController extends Controller
         if ($file) {
             $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'mp4', 'mov', 'ogg', 'mp3', 'm4a'];
             $ext = strtolower((string) $file->getClientOriginalExtension());
-            if (! in_array($ext, $allowed, true) || $file->getSize() > 8 * 1024 * 1024) {
+            if (! in_array($ext, $allowed, true) || $file->getSize() > \App\Services\Mai\MaiMediaLimit::maxBytes()) {
                 if ($tokenKey !== '') {
                     \Illuminate\Support\Facades\Cache::forget($tokenKey);
                 }
                 if ($json) {
-                    return response()->json(['ok' => false, 'error' => 'Send a photo or document up to 8 MB.'], 422);
+                    return response()->json(['ok' => false, 'error' => 'Send a photo or document up to '.\App\Services\Mai\MaiMediaLimit::label().'.'], 422);
                 }
 
-                return redirect()->to($back)->with('not_permitted', 'Send a photo or document up to 8 MB.');
+                return redirect()->to($back)->with('not_permitted', 'Send a photo or document up to '.\App\Services\Mai\MaiMediaLimit::label().'.');
             }
             $result = $this->onStaffLine(function () use ($conversation, $file, $request) {
                 return $this->conversations->replyFile(
@@ -1896,8 +1896,8 @@ class WhatsAppHubController extends Controller
         if ($file) {
             $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'mp4', 'mov', 'ogg', 'mp3', 'm4a'];
             $ext = strtolower((string) $file->getClientOriginalExtension());
-            if (! in_array($ext, $allowed, true) || $file->getSize() > 8 * 1024 * 1024) {
-                return redirect()->to($back)->with('not_permitted', 'Attach a photo or document up to 8 MB.');
+            if (! in_array($ext, $allowed, true) || $file->getSize() > \App\Services\Mai\MaiMediaLimit::maxBytes()) {
+                return redirect()->to($back)->with('not_permitted', 'Attach a photo or document up to '.\App\Services\Mai\MaiMediaLimit::label().'.');
             }
         }
         if ($letter === '' && ! $file) {
@@ -2071,12 +2071,12 @@ class WhatsAppHubController extends Controller
         if ($file && substr($jid, -5) === '@g.us') {
             $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'mp4', 'mov', 'ogg', 'mp3', 'm4a'];
             $ext = strtolower((string) $file->getClientOriginalExtension());
-            if (! in_array($ext, $allowed, true) || $file->getSize() > 8 * 1024 * 1024) {
+            if (! in_array($ext, $allowed, true) || $file->getSize() > \App\Services\Mai\MaiMediaLimit::maxBytes()) {
                 if ($json) {
-                    return response()->json(['ok' => false, 'error' => 'Send a photo or document up to 8 MB.'], 422);
+                    return response()->json(['ok' => false, 'error' => 'Send a photo or document up to '.\App\Services\Mai\MaiMediaLimit::label().'.'], 422);
                 }
 
-                return redirect()->to($back)->with('not_permitted', 'Send a photo or document up to 8 MB.');
+                return redirect()->to($back)->with('not_permitted', 'Send a photo or document up to '.\App\Services\Mai\MaiMediaLimit::label().'.');
             }
             $caption = $body !== '' ? $body : (string) $file->getClientOriginalName();
             $result = $this->provider->sendGroupDocument($jid, $file->getRealPath(), $file->getClientOriginalName(), $caption);

@@ -47,6 +47,9 @@ class MaiWhatsAppController extends Controller
         if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
             return response()->json(['status' => 'ERROR', 'error' => 'Use your personal WhatsApp number. The business line stays separate.']);
         }
+        if (! \App\Services\Mai\MaiPilot::allows($phone)) {
+            return response()->json(['status' => 'ERROR', 'error' => 'This WhatsApp is not in the current MAI pilot.']);
+        }
         $own = $this->accountPhone($user);
         if ($own !== '' && substr($own, -8) !== substr($phone, -8)) {
             return response()->json(['status' => 'ERROR', 'error' => 'This account already uses a different WhatsApp number.']);
@@ -121,6 +124,9 @@ class MaiWhatsAppController extends Controller
         }
         if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
             return response()->json(['status' => 'ERROR', 'error' => 'Use your personal WhatsApp number. The business line stays separate.']);
+        }
+        if (! \App\Services\Mai\MaiPilot::allows($phone)) {
+            return response()->json(['status' => 'ERROR', 'error' => 'This WhatsApp is not in the current MAI pilot.']);
         }
         $own = $this->accountPhone($user);
         if ($own !== '' && substr($own, -8) !== substr($phone, -8)) {
