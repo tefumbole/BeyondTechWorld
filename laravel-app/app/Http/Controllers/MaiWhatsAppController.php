@@ -18,14 +18,12 @@ class MaiWhatsAppController extends Controller
             return redirect()->to(url('/login?mai=1'));
         }
         $engine = app(MaiWhatsAppEngine::class);
-        $engine->open($user->phone);
-        $session = $engine->status($user->phone, true);
+        $session = $engine->open($user->phone);
         if (($session['status'] ?? '') === 'CONNECTED') {
             app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLinkOnce($user->phone);
 
             return redirect()->route('whatsapp.mai.inbox');
         }
-
         if (empty($session['qr'])) {
             $session = $engine->refreshQr($user->phone);
         }

@@ -32,6 +32,31 @@ const sessionRoot = path.join(root, 'sessions')
 const port = 3921
 const logger = pino({ level: 'silent' })
 const sessions = new Map()
+const starting = new Map()
+
+process.on('uncaughtException', (error) => {
+  const message = error && error.message ? String(error.message) : String(error)
+  if (message.indexOf('WebSocket was closed before the connection was established') !== -1) {
+    console.error('mai ignored ws close', message.slice(0, 120))
+    return
+  }
+  console.error('mai uncaught', message.slice(0, 240))
+})
+process.on('unhandledRejection', (error) => {
+  const message = error && error.message ? String(error.message) : String(error)
+  console.error('mai rejection', message.slice(0, 240))
+})
+
+function softEnd(sock) {
+  if (!sock) return
+  try {
+    if (sock.ws && typeof sock.ws.removeAllListeners === 'function') {
+      sock.ws.removeAllListeners('error')
+      sock.ws.on('error', () => {})
+    }
+    sock.end(undefined)
+  } catch (e) {}
+}
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true })
@@ -671,11 +696,32 @@ async function clientVersion() {
 }
 
 async function startSocket(id, expected) {
+  if (starting.has(id)) {
+    const pending = starting.get(id)
+    const entry = await pending
+    if (expected && entry) entry.expected = expected
+    return entry
+  }
+  const run = startSocketNow(id, expected)
+  starting.set(id, run)
+  try {
+    return await run
+  } finally {
+    if (starting.get(id) === run) starting.delete(id)
+  }
+}
+
+async function startSocketNow(id, expected) {
   const existing = sessions.get(id)
   if (expected) {
     if (existing) existing.expected = expected
   }
-  if (existing && existing.sock && (existing.status === 'CONNECTED' || (existing.qr && existing.status === 'AWAITING_QR'))) {
+  // Keep an in-flight QR or reconnect — do not tear it down for parallel open/status calls.
+  if (existing && existing.sock && (
+    existing.status === 'CONNECTED'
+    || existing.status === 'AWAITING_QR'
+    || existing.status === 'CONNECTING'
+  )) {
     return existing
   }
   if (existing && (existing.status === 'ERROR' || existing.status === 'DISCONNECTED' || existing.status === 'UNLINKED')) {
@@ -686,7 +732,7 @@ async function startSocket(id, expected) {
     existing.generation = (existing.generation || 0) + 1
     const previous = existing.sock
     existing.sock = null
-    try { previous.end(undefined) } catch (e) {}
+    softEnd(previous)
   }
   const dir = sessionDir(id)
   ensureDir(dir)
@@ -732,7 +778,7 @@ async function startSocket(id, expected) {
     auth: state,
     logger,
     printQRInTerminal: false,
-    browser: Browsers.macOS('Whats MAI'),
+    browser: Browsers.ubuntu('Chrome'),
     syncFullHistory: shouldSyncFullHistory(entry.registered, historyIsComplete(dir)),
     markOnlineOnConnect: false,
     getMessage: async (key) => {
@@ -744,6 +790,9 @@ async function startSocket(id, expected) {
   entry.sock = sock
   const generation = entry.generation
   const current = () => entry.generation === generation
+  if (sock.ws && typeof sock.ws.on === 'function') {
+    sock.ws.on('error', () => {})
+  }
   sock.ev.on('creds.update', persistCreds)
   sock.ev.on('messages.upsert', (packet) => {
     if (!current()) return
@@ -939,11 +988,19 @@ async function forceQr(id) {
   if (existing && existing.status === 'CONNECTED') {
     return publicState(existing, true)
   }
+  // Fresh QR already in flight — wait for it instead of wiping again.
+  if (existing && existing.sock && existing.status === 'AWAITING_QR' && !existing.registered) {
+    if (!existing.qr) await waitForQr(existing, 10000)
+    if (existing.qr) {
+      existing.qrAt = existing.qrAt || Date.now()
+      return publicState(existing, true)
+    }
+  }
   if (existing && existing.sock) {
     existing.generation = (existing.generation || 0) + 1
     const previous = existing.sock
     existing.sock = null
-    try { previous.end(undefined) } catch (e) {}
+    softEnd(previous)
   }
   const dir = sessionDir(id)
   unlinkKeepHistory(dir)
@@ -951,7 +1008,7 @@ async function forceQr(id) {
     existing.qr = null
     existing.pairing = null
     existing.registered = false
-    existing.status = 'AWAITING_QR'
+    existing.status = 'DISCONNECTED'
     existing.error = null
     existing.retries = 0
     existing.readAsked = false
@@ -1452,12 +1509,18 @@ const server = http.createServer((req, res) => {
 
 ensureDir(sessionRoot)
 server.listen(port, '127.0.0.1', () => {
-  fs.readdirSync(sessionRoot).forEach((id) => {
-    if (!sessionKey(id)) {
-      return
-    }
-    if (fs.existsSync(path.join(sessionDir(id), 'creds.json')) || fs.existsSync(path.join(sessionDir(id), 'creds.json.enc'))) {
-      startSocket(id).catch(() => {})
-    }
+  console.error('mai link listening on ' + port)
+  const ids = fs.readdirSync(sessionRoot).filter((id) => {
+    if (!sessionKey(id)) return false
+    return fs.existsSync(path.join(sessionDir(id), 'creds.json'))
+      || fs.existsSync(path.join(sessionDir(id), 'creds.json.enc'))
+  })
+  ids.forEach((id, index) => {
+    setTimeout(() => {
+      startSocket(id).catch((error) => {
+        const message = error && error.message ? String(error.message).slice(0, 140) : 'boot failed'
+        console.error('mai boot ' + id + ' ' + message)
+      })
+    }, index * 1500)
   })
 })

@@ -198,12 +198,26 @@
 
     var refreshBtn = document.getElementById('qr-refresh');
     if (refreshBtn) refreshBtn.onclick = refreshQr;
-    if (@json(empty($session['qr']))) {
-        refreshQr();
-    } else {
+    if (@json(!empty($session['qr']))) {
         paintTimer();
+    } else {
+        showWait('Preparing the QR code');
+        var tries = 0;
+        var boot = setInterval(function () {
+            tries += 1;
+            tickStatus();
+            var qr = document.getElementById('link-qr');
+            if (qr && !qr.classList.contains('is-off')) {
+                clearInterval(boot);
+                return;
+            }
+            if (tries >= 6) {
+                clearInterval(boot);
+                refreshQr();
+            }
+        }, 1500);
     }
-    pollTimer = setInterval(tickStatus, 2000);
+    pollTimer = setInterval(tickStatus, 2500);
     tickTimer = setInterval(paintTimer, 1000);
     tickStatus();
 })();

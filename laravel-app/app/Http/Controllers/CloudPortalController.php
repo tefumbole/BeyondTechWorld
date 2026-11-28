@@ -213,8 +213,7 @@ class CloudPortalController extends Controller
         $request->session()->regenerate();
         session(['mai_plan' => $request->input('mai_plan') === 'paid' ? 'paid' : 'trial']);
         $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
-        $engine->open($phone);
-        $state = $engine->status($phone, true);
+        $state = $engine->open($phone);
         if (($state['status'] ?? '') === 'CONNECTED') {
             app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLinkOnce($phone);
 
@@ -223,7 +222,7 @@ class CloudPortalController extends Controller
                 'redirect' => route('whatsapp.mai.inbox'),
             ]);
         }
-        if (empty($state['qr']) && ($state['status'] ?? '') !== 'CONNECTED') {
+        if (empty($state['qr'])) {
             $state = $engine->refreshQr($phone);
         }
 
