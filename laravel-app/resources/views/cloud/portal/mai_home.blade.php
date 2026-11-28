@@ -4,8 +4,7 @@
 @section('meta_description', 'Whats MAI is open for this phone.')
 
 @push('head')
-<link rel="manifest" href="{{ asset('whats-mai.webmanifest') }}">
-<meta name="theme-color" content="#072f6b">
+@include('cloud.portal.mai_install_head')
 <style>
     .mai-home { max-width: 460px; margin: 0 auto; background: linear-gradient(165deg, rgba(8,32,78,.96), rgba(4,16,42,.94)); color: #fff; border: 1px solid rgba(212,175,55,.65); border-radius: 28px; padding: 1.4rem 1.2rem 1.6rem; }
     .mai-home h1 { margin: 0.2rem 0 0.4rem; font-size: 1.8rem; color: #fff; }
@@ -68,5 +67,4 @@
     @endif
 })();
 </script>
-<script src="/public/js/mai-install.js?v={{ \App\Support\AppVersion::erp() }}" defer></script>
 @endpush

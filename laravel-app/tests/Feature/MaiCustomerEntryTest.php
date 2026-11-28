@@ -106,6 +106,7 @@ class MaiCustomerEntryTest extends TestCase
         $inbox->assertSee('AI Brief');
         $inbox->assertSee('Settings');
         $inbox->assertSee('Sign out');
+        $inbox->assertSee('data-mai-install');
         $inbox->assertSee('/whatsapp-mai/dashboard');
         $inbox->assertSee('/whatsapp-mai/inbox?pane=speech');
         $inbox->assertSee('/whatsapp-mai/inbox?pane=briefing');
@@ -202,7 +203,8 @@ class MaiCustomerEntryTest extends TestCase
 
         $this->getJson('/whatsapp-mai/link/status')
             ->assertOk()
-            ->assertJsonPath('status', 'CONNECTED');
+            ->assertJsonPath('status', 'CONNECTED')
+            ->assertJsonPath('redirect', url('/whatsapp-mai/inbox'));
         $sent = (string) session('mai_phone_link_sent');
         $this->assertNotSame('', $sent);
         $this->assertStringContainsString('670000505', $sent);
@@ -231,15 +233,29 @@ class MaiCustomerEntryTest extends TestCase
         $this->assertLessThan($continue, $download);
         $this->assertStringContainsString('data-mai-install', $html);
         $this->assertStringContainsString('/whatsapp-mai/manifest.webmanifest', $html);
+        $this->assertStringContainsString('beforeinstallprompt', $html);
+        $this->assertStringNotContainsString('whats-mai.webmanifest', $html);
 
         $manifest = $this->get('/whatsapp-mai/manifest.webmanifest');
         $manifest->assertOk();
         $this->assertStringContainsString('application/manifest+json', (string) $manifest->headers->get('content-type'));
         $manifest->assertSee('mai-icon-192.png');
         $manifest->assertSee('mai-icon-512.png');
+        $manifest->assertSee('"display":"standalone"', false);
+        $manifest->assertSee('"start_url":"/whatsapp-mai/open"', false);
+        $manifest->assertSee('"scope":"/whatsapp-mai/"', false);
+        $this->assertSame([192, 192], $this->pngSize(public_path('branding/mai-icon-192.png')));
+        $this->assertSame([512, 512], $this->pngSize(public_path('branding/mai-icon-512.png')));
         $worker = $this->get('/whatsapp-mai/sw.js');
         $worker->assertOk();
         $this->assertStringNotContainsString('respondWith', $worker->getContent());
+        $this->assertStringContainsString('caches.delete', $worker->getContent());
+        $installJs = file_get_contents(public_path('js/mai-install.js'));
+        $this->assertStringContainsString('beforeinstallprompt', $installJs);
+        $this->assertStringContainsString('.prompt()', $installJs);
+        $this->assertStringContainsString("showSheet('dismissed')", $installJs);
+        $this->assertStringContainsString('Install app', $installJs);
+        $this->assertStringContainsString('Open in Chrome', $installJs);
 
         $this->script(['status' => 'NOT_CONNECTED']);
         $this->actingAs($user);
@@ -267,7 +283,11 @@ class MaiCustomerEntryTest extends TestCase
     {
         $this->get('/whatsapp-mai/inbox')->assertRedirect('/whatsapp-mai/open');
         $this->get('/whatsapp-mai/link')->assertRedirect('/whatsapp-mai/open');
-        $this->get('/whatsapp-mai/open')->assertOk()->assertSee('Sign in to Whats MAI');
+        $open = $this->get('/whatsapp-mai/open');
+        $open->assertOk()->assertSee('Sign in to Whats MAI');
+        $open->assertSee('/whatsapp-mai/manifest.webmanifest');
+        $open->assertDontSee('whats-mai.webmanifest');
+        $this->getJson('/whatsapp-mai/link/status')->assertStatus(401)->assertJsonPath('signin', url('/whatsapp-mai/open'));
     }
 
     public function test_the_business_line_stays_on_the_staff_inbox()
@@ -277,6 +297,79 @@ class MaiCustomerEntryTest extends TestCase
         $this->actingAs($user);
         $this->get('/whatsapp-mai')->assertRedirect('/admin/whatsapp/chats');
         $this->assertSame([], $this->posted());
+    }
+
+    public function test_a_phone_code_stays_on_the_same_attempt_until_a_fresh_code_replaces_it()
+    {
+        $user = $this->person('Hana', '237670000508');
+        $this->script(['status' => 'AWAITING_QR', 'pairing_code' => 'WXYZ-1234', 'pairing_age_ms' => 1000]);
+        $this->actingAs($user);
+
+        session(['mai_link_phone' => '237670000508']);
+        $waiting = $this->get('/whatsapp-mai/link');
+        $waiting->assertOk()->assertSee('WXYZ-1234');
+        $this->assertStringContainsString('id="pair-status">Waiting for approval in WhatsApp.', $waiting->getContent());
+        $this->assertSame([], $this->posted());
+
+        $this->script(['status' => 'AWAITING_QR', 'pairing_code' => 'WXYZ-1234', 'pairing_age_ms' => 61000]);
+        $this->actingAs($user);
+        session(['mai_link_phone' => '237670000508']);
+        $expired = $this->get('/whatsapp-mai/link');
+        $expired->assertOk();
+        $this->assertStringContainsString('id="pair-status">This code expired. Create a new one.', $expired->getContent());
+        $this->assertSame([], $this->posted());
+
+        $this->script(['status' => 'ERROR', 'error' => 'The link failed.']);
+        $this->actingAs($user);
+        session(['mai_link_phone' => '237670000508']);
+        $failed = $this->get('/whatsapp-mai/link');
+        $failed->assertOk();
+        $this->assertStringContainsString('id="pair-status">The link failed.', $failed->getContent());
+        $this->assertSame([], $this->posted());
+
+        $this->script(['status' => 'AWAITING_QR', 'pairing_code' => 'NEW1-2345', 'pairing_age_ms' => 0]);
+        $this->actingAs($user);
+        $this->postJson('/whatsapp-mai/link/pair', ['phone' => '670000508', 'dial' => '237', 'fresh' => 1])
+            ->assertOk()
+            ->assertJsonPath('pairing_code', 'NEW1-2345');
+        $this->assertContains('POST /sessions/p237670000508/pair fresh', $this->posted());
+    }
+
+    public function test_a_code_for_another_account_is_rejected_and_a_qr_uses_the_same_redirect()
+    {
+        $owner = $this->person('Ivo', '237670000509');
+        $other = $this->person('Jae', '237670000510');
+        $session = new MaiSession();
+        $session->public_id = 'c510';
+        $session->user_id = $other->id;
+        $session->provider = 'mai';
+        $session->worker_session_id = 'p237670000510';
+        $session->phone_number = '237670000510';
+        $session->status = 'CONNECTED';
+        $session->save();
+        $this->script(['status' => 'CONNECTED', 'phone' => '237670000510', 'qr' => 'data:image/png;base64,abc']);
+        $this->actingAs($owner);
+
+        $this->postJson('/whatsapp-mai/link/pair', ['phone' => '670000510', 'dial' => '237'])
+            ->assertOk()
+            ->assertJsonPath('status', 'ERROR');
+        $this->assertSame([], $this->posted());
+        $owner->phone = '237670000510';
+        $owner->save();
+        $this->postJson('/whatsapp-mai/link/pair', ['phone' => '670000510', 'dial' => '237'])
+            ->assertOk()
+            ->assertJsonPath('error', 'That WhatsApp is already linked to another MAI account.');
+        $this->assertSame([], $this->posted());
+        $owner->phone = '237670000509';
+        $owner->save();
+
+        $this->script(['status' => 'CONNECTED', 'phone' => '237670000509', 'qr' => 'data:image/png;base64,abc']);
+        $this->actingAs($owner);
+        $qr = $this->postJson('/whatsapp-mai/link/qr', ['phone' => '670000509', 'dial' => '237']);
+        $qr->assertOk()->assertJsonPath('status', 'CONNECTED')->assertJsonPath('redirect', url('/whatsapp-mai/inbox'));
+        $posts = $this->posted();
+        $this->get('/whatsapp-mai/link')->assertRedirect('/whatsapp-mai/inbox');
+        $this->assertSame($posts, $this->posted());
     }
 
     protected function person($name, $phone)
@@ -296,8 +389,12 @@ class MaiCustomerEntryTest extends TestCase
     protected function script(array $state)
     {
         $this->calls = [];
-        config(['cloud.whatsapp.link_transport' => function ($method, $path) use ($state) {
-            $this->calls[] = $method.' '.$path;
+        config(['cloud.whatsapp.link_transport' => function ($method, $path, $body = null) use ($state) {
+            $line = $method.' '.$path;
+            if (is_array($body) && ! empty($body['fresh'])) {
+                $line .= ' fresh';
+            }
+            $this->calls[] = $line;
 
             return $state;
         }]);
@@ -313,5 +410,14 @@ class MaiCustomerEntryTest extends TestCase
         }
 
         return $posts;
+    }
+
+    protected function pngSize($path)
+    {
+        $raw = file_get_contents($path);
+        $this->assertNotFalse($raw);
+        $this->assertSame('PNG', substr($raw, 1, 3));
+
+        return [unpack('N', substr($raw, 16, 4))[1], unpack('N', substr($raw, 20, 4))[1]];
     }
 }

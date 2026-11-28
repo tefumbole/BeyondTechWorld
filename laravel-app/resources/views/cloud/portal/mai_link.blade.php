@@ -4,6 +4,7 @@
 @section('meta_description', 'Link WhatsApp to Whats MAI by scanning a QR code.')
 
 @push('head')
+@include('cloud.portal.mai_install_head')
 <style>
     .mai-link { max-width: 460px; margin: 0 auto; background: linear-gradient(165deg, rgba(8,32,78,.96), rgba(4,16,42,.94)); color: #fff; border: 1px solid rgba(212,175,55,.65); border-radius: 28px; padding: 1.2rem 1.2rem 1.6rem; }
     .mai-link h1 { margin: 0.2rem 0 0.35rem; font-size: 2rem; color: #fff; }
@@ -51,6 +52,14 @@
                 <a class="mai-signin" href="{{ route('whatsapp.mai.home') }}">Close</a>
             </div>
             <h1>Link WhatsApp</h1>
+            <button type="button" class="gold" data-mai-install>Install on Android</button>
+            @php
+                $pairCode = isset($session['pairing_code']) ? (string) $session['pairing_code'] : '';
+                $pairAge = isset($session['pairing_age_ms']) ? (int) $session['pairing_age_ms'] : 0;
+                $pairExpired = $pairCode !== '' && $pairAge >= 60000;
+                $pairWaiting = $pairCode !== '' && ! $pairExpired;
+                $pairFailed = ($session['status'] ?? '') === 'ERROR';
+            @endphp
             @if(!empty($codeOnly))
                 <p>Enter this phone’s WhatsApp number. Type the code in WhatsApp under Linked devices.</p>
             @else
@@ -77,10 +86,10 @@
                 <input id="link-phone" inputmode="tel" autocomplete="tel" value="{{ $phone }}" placeholder="670000000">
                 <button type="button" class="gold" id="pair-go">Get the code</button>
             </div>
-            <div class="qr-card is-off" id="pair-card">
-                <div id="pair-code" class="pair-code"></div>
+            <div class="qr-card {{ ($pairWaiting || $pairExpired || $pairFailed) ? '' : 'is-off' }}" id="pair-card">
+                <div id="pair-code" class="pair-code">{{ $pairCode }}</div>
                 <button type="button" class="ghost" id="pair-copy">Copy code</button>
-                <p id="pair-status">Waiting for approval in WhatsApp.</p>
+                <p id="pair-status">{{ $pairExpired ? 'This code expired. Create a new one.' : ($pairFailed ? ($session['error'] ?: 'The link failed.') : 'Waiting for approval in WhatsApp.') }}</p>
                 <div class="pair-help">
                     <strong>iPhone</strong>
                     <ol>
@@ -98,7 +107,7 @@
                     </ol>
                 </div>
                 <p id="qr-timer"></p>
-                <button type="button" class="ghost is-off" id="pair-fresh">Create a new code</button>
+                <button type="button" class="ghost {{ $pairExpired ? '' : 'is-off' }}" id="pair-fresh">Create a new code</button>
             </div>
             @if(empty($codeOnly))
             <div class="qr-card is-off" id="qr-card">
@@ -123,6 +132,9 @@
 (function () {
     var QR_LIFE = 60000;
     var shownAt = 0;
+    @if($pairCode !== '')
+    shownAt = Date.now() - {{ (int) $pairAge }};
+    @endif
     var mode = 'phone';
     var pollTimer = null;
     var tickTimer = null;
@@ -201,6 +213,16 @@
         err.textContent = text;
     }
 
+    function rememberAttempt(data) {
+        if (!data || !data.pairing_code) return;
+        try {
+            sessionStorage.setItem('mai-link-attempt', JSON.stringify({
+                code: data.pairing_code,
+                at: Date.now() - (data.pairing_age_ms || 0)
+            }));
+        } catch (e) {}
+    }
+
     function paintCode(data) {
         var card = document.getElementById('pair-card');
         var code = document.getElementById('pair-code');
@@ -210,36 +232,47 @@
         if (code && data && data.pairing_code) {
             code.textContent = data.pairing_code;
             shownAt = Date.now() - (data.pairing_age_ms || 0);
-        }
-        if (status) {
-            if (data && data.status === 'CONNECTING') status.textContent = 'Waiting for approval in WhatsApp.';
-            else if (data && data.status === 'ERROR') status.textContent = data.error || 'The link failed.';
-            else if (data && data.pairing_code) status.textContent = 'Waiting for approval in WhatsApp.';
-            else status.textContent = 'Creating the link code.';
+            rememberAttempt(data);
         }
         var left = shownAt ? Math.max(0, QR_LIFE - (Date.now() - shownAt)) : 0;
+        var expired = !!(data && data.pairing_code && left <= 0);
+        var failed = !!(data && data.status === 'ERROR');
+        if (status) {
+            if (failed) status.textContent = (data && data.error) || 'The link failed.';
+            else if (expired) status.textContent = 'This code expired. Create a new one.';
+            else if (data && data.status === 'CONNECTING' && !(data && data.pairing_code)) status.textContent = 'Creating the link code.';
+            else if (data && (data.pairing_code || data.status === 'CONNECTING')) status.textContent = 'Waiting for approval in WhatsApp.';
+            else status.textContent = 'Creating the link code.';
+        }
         var timer = document.getElementById('qr-timer');
         if (timer) {
             timer.textContent = left > 0
                 ? ('This code is valid for ' + Math.ceil(left / 1000) + 's')
                 : (shownAt ? 'This code expired. Create a new one.' : '');
         }
-        if (fresh) fresh.classList.toggle('is-off', left > 0);
+        if (fresh) fresh.classList.toggle('is-off', left > 0 && !failed);
         if (data && data.error && !(data.pairing_code)) showError(data.error);
         else showError('');
     }
 
+    function finish(data) {
+        if (data && data.signin) {
+            window.location = data.signin;
+            return true;
+        }
+        if (data && data.redirect) {
+            try { sessionStorage.removeItem('mai-link-attempt'); } catch (e) {}
+            window.location = data.redirect;
+            return true;
+        }
+        return false;
+    }
+
     function paint(data) {
         var ready = document.getElementById('link-ready');
-        var open = document.getElementById('open-mai');
-        if (data && data.redirect) {
-            window.location = data.redirect;
-            return;
-        }
+        if (finish(data)) return;
         if (data && data.status === 'CONNECTED') {
             if (ready) ready.classList.remove('is-off');
-            if (open) open.href = @json(route('whatsapp.mai.inbox'));
-            window.location = @json(route('whatsapp.mai.inbox'));
             return;
         }
         if (mode === 'phone') {
@@ -350,6 +383,12 @@
         mode = 'phone';
         var qrCard = document.getElementById('qr-card');
         if (qrCard) qrCard.classList.add('is-off');
+        if (fresh) {
+            shownAt = 0;
+            var oldCode = document.getElementById('pair-code');
+            if (oldCode) oldCode.textContent = '';
+            try { sessionStorage.removeItem('mai-link-attempt'); } catch (e) {}
+        }
         paintCode({ status: 'CONNECTING' });
         var entered = fields();
         postJson(pairUrl, { phone: entered.phone, dial: entered.dial, fresh: fresh ? 1 : 0 }).then(function (data) {
@@ -361,13 +400,28 @@
         });
     }
 
+    function restoreAttempt() {
+        var existing = document.getElementById('pair-code');
+        if (existing && existing.textContent.replace(/\s+/g, '') !== '') return;
+        var saved = null;
+        try { saved = JSON.parse(sessionStorage.getItem('mai-link-attempt') || 'null'); } catch (e) { saved = null; }
+        if (!saved || !saved.code) return;
+        paintCode({ pairing_code: saved.code, pairing_age_ms: Date.now() - (saved.at || Date.now()), status: 'AWAITING_QR' });
+    }
+
     function tickStatus() {
         var url = statusUrl + (mode === 'qr' ? '?qr=1' : '');
         fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
-            .then(function (response) { return response.json(); })
+            .then(function (response) {
+                return response.json().then(function (data) {
+                    data = data || {};
+                    if (response.status === 401 && !data.signin) data.signin = @json(route('whatsapp.mai.open'));
+                    return data;
+                });
+            })
             .then(function (data) {
                 paint(data);
-                if (mode === 'qr' && shownAt && Date.now() - shownAt >= QR_LIFE && !(data && (data.status === 'CONNECTED' || data.redirect))) {
+                if (mode === 'qr' && shownAt && Date.now() - shownAt >= QR_LIFE && !(data && (data.status === 'CONNECTED' || data.redirect || data.signin))) {
                     refreshQr();
                 }
             })
@@ -396,7 +450,9 @@
     document.addEventListener('visibilitychange', function () {
         if (!document.hidden) tickStatus();
     });
+    window.addEventListener('focus', function () { tickStatus(); });
     window.addEventListener('pageshow', function () { tickStatus(); });
+    restoreAttempt();
     pollTimer = setInterval(tickStatus, 1000);
     tickTimer = setInterval(paintTimer, 1000);
 })();

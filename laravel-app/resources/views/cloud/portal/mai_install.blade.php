@@ -3,11 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#072f6b">
     <meta name="mobile-web-app-capable" content="yes">
     <title>Whats MAI</title>
-    <link rel="manifest" href="{{ route('whatsapp.mai.manifest') }}">
-    <link rel="icon" type="image/png" href="/public/branding/mai-icon-192.png">
+    @include('cloud.portal.mai_install_head')
     <style>
         body { margin: 0; background: #041833; font-family: system-ui, sans-serif; }
         .mai-install { max-width: 460px; margin: 0 auto; color: #fff; padding: 1.4rem 1.2rem 1.6rem; }
@@ -31,6 +29,5 @@
             window.location = @json($next);
         }
     </script>
-    <script src="/public/js/mai-install.js?v={{ \App\Support\AppVersion::erp() }}"></script>
 </body>
 </html>

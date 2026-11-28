@@ -4,6 +4,7 @@
 @section('meta_description', 'Choose a 3-day trial or a Whats MAI subscription.')
 
 @push('head')
+@include('cloud.portal.mai_install_head')
 <style>
     .mai-plan { max-width: 460px; margin: 0 auto; background: linear-gradient(165deg, rgba(8,32,78,.96), rgba(4,16,42,.94)); color: #fff; border: 1px solid rgba(212,175,55,.65); border-radius: 28px; padding: 1.4rem 1.2rem 1.6rem; }
     .mai-plan h1 { margin: 0.2rem 0 0.4rem; font-size: 1.7rem; color: #fff; }
@@ -105,6 +106,5 @@
     paintPlan();
 })();
 </script>
-<script src="/public/js/mai-install.js?v={{ \App\Support\AppVersion::erp() }}" defer></script>
 @endpush
 

@@ -438,6 +438,9 @@ try {
                 <a href="{{ route($hubRoute, ['pane' => 'speech']) }}">Translation</a>
                 <a href="{{ route($hubRoute, ['pane' => 'briefing']) }}">AI Brief</a>
                 <button type="button" class="js-hub-settings">Settings</button>
+                @if(!empty($personalHub))
+                    <button type="button" data-mai-install>Install</button>
+                @endif
                 <form method="POST" action="{{ url('/logout') }}">
                     @csrf
                     <button type="submit">Sign out</button>
@@ -1057,6 +1060,9 @@ try {
                         <a href="{{ route($hubRoute, ['pane' => 'speech']) }}">Translation</a>
                         <a href="{{ route($hubRoute, ['pane' => 'briefing']) }}">AI Brief</a>
                         <button type="button" class="js-hub-settings">Settings</button>
+                        @if(!empty($personalHub))
+                            <button type="button" data-mai-install>Install</button>
+                        @endif
                         <form method="POST" action="{{ url('/logout') }}">
                             @csrf
                             <button type="submit">Sign out</button>
@@ -2432,21 +2438,6 @@ window.addEventListener('pageshow', function (event) {
         });
     }
     if (liveReady()) setInterval(poll, /android|iphone|ipad|mobile/i.test(navigator.userAgent || '') ? 5000 : 2000);
-    var installBtn = document.getElementById('hubInstall');
-    var deferredInstall = null;
-    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches && installBtn) installBtn.hidden = true;
-    window.addEventListener('beforeinstallprompt', function (event) {
-        event.preventDefault();
-        deferredInstall = event;
-        if (installBtn) installBtn.hidden = false;
-    });
-    if (installBtn) installBtn.addEventListener('click', function () {
-        if (deferredInstall) { deferredInstall.prompt(); return; }
-        var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-        window.alert(ios
-            ? 'On iPhone, tap Share, then Add to Home Screen. The icon is Whats MAI.'
-            : 'On a Mac, Chrome shows Install in the address bar. Safari: File, then Add to Dock. No App Store.');
-    });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
     var retry = document.getElementById('chatRetry');
     if (retry) retry.addEventListener('click', function () { misses = 0; poll(); });

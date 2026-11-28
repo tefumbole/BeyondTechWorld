@@ -171,6 +171,7 @@ class CloudPortalController extends Controller
             'display' => 'standalone',
             'background_color' => '#072f6b',
             'theme_color' => '#072f6b',
+            'prefer_related_applications' => false,
             'icons' => [
                 ['src' => '/public/branding/mai-icon-192.png', 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
                 ['src' => '/public/branding/mai-icon-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
@@ -187,7 +188,7 @@ class CloudPortalController extends Controller
     public function whatsappMaiWorker()
     {
         $js = "self.addEventListener('install',function(){self.skipWaiting();});"
-            ."self.addEventListener('activate',function(event){event.waitUntil(self.clients.claim());});"
+            ."self.addEventListener('activate',function(event){event.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(function(keys){return Promise.all(keys.map(function(key){return caches.delete(key);}));})]));});"
             ."self.addEventListener('fetch',function(){});";
 
         return response($js, 200, [

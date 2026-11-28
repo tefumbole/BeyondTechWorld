@@ -333,8 +333,7 @@
 
 @if(($selected ?? '') === 'MESSAGING')
 @push('head')
-<link rel="manifest" href="{{ asset('whats-mai.webmanifest') }}">
-<meta name="theme-color" content="#072f6b">
+@include('cloud.portal.mai_install_head')
 @endpush
 @endif
 
@@ -1379,11 +1378,6 @@
                     featureText.textContent = '';
                 });
             }
-        }
-        if (form && form.getAttribute('data-mai') === '1' && !document.querySelector('script[src*="mai-install.js"]')) {
-            var installScript = document.createElement('script');
-            installScript.src = '/public/js/mai-install.js?v={{ \App\Support\AppVersion::erp() }}';
-            document.body.appendChild(installScript);
         }
     })();
 </script>

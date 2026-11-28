@@ -41,7 +41,7 @@ class MaiWhatsAppController extends Controller
     {
         $user = $this->person();
         if (! $user) {
-            return response()->json(['status' => 'NOT_CONNECTED'], 401);
+            return $this->signedOut();
         }
         $typed = preg_replace('/\D/', '', (string) app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial')));
         $phone = preg_match('/^[1-9][0-9]{7,14}$/', $typed) ? $typed : $this->requestedPhone($user);
@@ -87,7 +87,7 @@ class MaiWhatsAppController extends Controller
     {
         $user = $this->person();
         if (! $user) {
-            return response()->json(['status' => 'NOT_CONNECTED'], 401);
+            return $this->signedOut();
         }
         $phone = $this->requestedPhone($user);
         if ($phone === '') {
@@ -142,7 +142,7 @@ class MaiWhatsAppController extends Controller
     {
         $user = $this->person();
         if (! $user) {
-            return response()->json(['status' => 'NOT_CONNECTED'], 401);
+            return $this->signedOut();
         }
         $phone = preg_replace('/\D/', '', (string) app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial')));
         if (! preg_match('/^[1-9][0-9]{7,14}$/', $phone)) {
@@ -211,6 +211,14 @@ class MaiWhatsAppController extends Controller
         }
 
         return $backTo()->with('message', 'Sent from your WhatsApp.');
+    }
+
+    protected function signedOut()
+    {
+        return response()->json([
+            'status' => 'NOT_CONNECTED',
+            'signin' => route('whatsapp.mai.open'),
+        ], 401);
     }
 
     protected function person()

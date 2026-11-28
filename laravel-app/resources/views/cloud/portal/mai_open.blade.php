@@ -4,8 +4,7 @@
 @section('meta_description', 'Add Whats MAI to your phone and sign in with your number and name.')
 
 @push('head')
-<link rel="manifest" href="{{ asset('whats-mai.webmanifest') }}">
-<meta name="theme-color" content="#072f6b">
+@include('cloud.portal.mai_install_head')
 <style>
     .mai-open { max-width: 520px; margin: 0 auto; background: rgba(7, 47, 107, .92); color: #fff; border: 1px solid rgba(212,175,55,.55); border-radius: 24px; padding: 1.4rem; }
     .mai-open h1 { margin: 0.4rem 0; font-size: 1.8rem; }
@@ -67,11 +66,6 @@
 @push('scripts')
 <script>
 (function () {
-    if (!document.querySelector('script[src*="mai-install.js"]')) {
-        var installScript = document.createElement('script');
-        installScript.src = '/public/js/mai-install.js?v={{ \App\Support\AppVersion::erp() }}';
-        document.body.appendChild(installScript);
-    }
     var form = document.getElementById('mai-join');
     if (!form) return;
     var token = document.querySelector('meta[name="csrf-token"]');
