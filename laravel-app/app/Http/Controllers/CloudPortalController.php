@@ -181,7 +181,7 @@ class CloudPortalController extends Controller
 
         return response($body, 200, [
             'Content-Type' => 'application/manifest+json',
-            'Cache-Control' => 'public, max-age=3600',
+            'Cache-Control' => 'no-cache',
         ]);
     }
 
@@ -255,6 +255,9 @@ class CloudPortalController extends Controller
         $phone = \App\Support\CountryDialCodes::whatsappDigits($request->input('phone'), $request->input('dial'));
         if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
             return response()->json(['status' => 'ERROR', 'error' => 'Use your personal WhatsApp number. The business line stays separate.']);
+        }
+        if (! preg_match('/^[1-9][0-9]{7,14}$/', $phone)) {
+            return response()->json(['status' => 'ERROR', 'error' => 'Enter the WhatsApp number with the country code.']);
         }
         if (! \App\Services\Mai\MaiPilot::allows($phone)) {
             return response()->json(['status' => 'ERROR', 'error' => 'This WhatsApp is not in the current MAI pilot.']);
@@ -360,8 +363,9 @@ class CloudPortalController extends Controller
         $this->limitScannedLogin($user);
         $account = $user->fresh() ?: $user;
         app(\App\Services\Mai\PersonalHub::class)->ensure($account);
-        app()->terminating(function () use ($account, $phone) {
-            app(\App\Services\Cloud\CloudSignupOtp::class)->sendLoginLink($account, $phone);
+        $stamp = time();
+        app()->terminating(function () use ($account, $phone, $stamp) {
+            app(\App\Services\Cloud\CloudSignupOtp::class)->sendLoginLink($account, $phone, $stamp);
         });
 
         return response()->json([

@@ -79,15 +79,22 @@
             </div>
             @endif
             <div class="pair-form" id="pair-form">
-                <label for="link-dial">Country code</label>
+                @php
+                    $enteredPhone = preg_replace('/\D/', '', (string) $phone);
+                    $selectedDial = '237';
+                    if (strlen($enteredPhone) >= 8) {
+                        $selectedDial = preg_replace('/\D/', '', \App\Support\CountryDialCodes::split('+'.$enteredPhone)[0]);
+                    }
+                @endphp
+                <label for="link-dial">Country</label>
                 <select id="link-dial">
                     @foreach(\App\Support\CountryDialCodes::all() as $label)
                         @php $dialCode = preg_replace('/\D+/', '', $label); @endphp
-                        <option value="{{ $dialCode }}" {{ $dialCode === '237' ? 'selected' : '' }}>{{ $label }}</option>
+                        <option value="{{ $dialCode }}" {{ $dialCode === $selectedDial ? 'selected' : '' }}>{{ $label }}</option>
                     @endforeach
                 </select>
                 <label for="link-phone">WhatsApp number</label>
-                <input id="link-phone" inputmode="tel" autocomplete="tel" value="{{ $phone }}" placeholder="670000000">
+                <input id="link-phone" inputmode="tel" autocomplete="tel" value="{{ $phone }}" placeholder="612345678">
                 <button type="button" class="gold" id="pair-go">Get the code</button>
             </div>
             <div class="qr-card {{ ($pairWaiting || $pairExpired || $pairFailed) ? '' : 'is-off' }}" id="pair-card">
@@ -201,10 +208,14 @@
     function fields() {
         var phone = document.getElementById('link-phone');
         var dial = document.getElementById('link-dial');
-        var raw = phone ? String(phone.value || '').replace(/\D+/g, '') : '';
+        var raw = phone ? String(phone.value || '').trim() : '';
+        var digits = raw.replace(/\D+/g, '');
+        var selected = dial ? String(dial.value || '') : '';
+        var international = raw.charAt(0) === '+' || digits.indexOf('00') === 0;
+        var already = selected !== '' && digits.indexOf(selected) === 0 && digits.length >= selected.length + 6;
         return {
-            phone: phone ? phone.value : '',
-            dial: raw.length >= 11 ? '' : (dial ? dial.value : '')
+            phone: raw,
+            dial: (international || already) ? '' : selected
         };
     }
 

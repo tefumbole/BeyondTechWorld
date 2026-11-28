@@ -290,16 +290,15 @@ class MaiWhatsAppController extends Controller
         $session = app(\App\Services\Mai\PersonalHub::class)->ensure($account);
         if ($session && $session->status !== 'CONNECTED') {
             $session->status = 'CONNECTED';
-            if (! $session->connected_at) {
-                $session->connected_at = \Carbon\Carbon::now();
-            }
+            $session->connected_at = \Carbon\Carbon::now();
             $session->save();
         }
         app(\App\Services\WhatsApp\WhatsAppChatAccess::class)->grant($account);
         app(\App\Services\WhatsApp\WhatsAppChatAccess::class)->rememberSession();
         $linkedPhone = $phone;
-        app()->terminating(function () use ($account, $linkedPhone) {
-            app(\App\Services\Cloud\CloudSignupOtp::class)->sendLoginLink($account, $linkedPhone);
+        $stamp = $session && $session->connected_at ? $session->connected_at->getTimestamp() : time();
+        app()->terminating(function () use ($account, $linkedPhone, $stamp) {
+            app(\App\Services\Cloud\CloudSignupOtp::class)->sendLoginLink($account, $linkedPhone, $stamp);
         });
 
         return true;

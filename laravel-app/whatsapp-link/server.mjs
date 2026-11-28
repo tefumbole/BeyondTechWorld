@@ -797,6 +797,13 @@ async function startSocketNow(id, expected) {
   const entry = existing || { status: 'AWAITING_QR', phone: null, qr: null, sock: null, retries: 0, inbox: [], chats: {} }
   entry.id = id
   loadSavedChats(entry)
+  if (entry.justLinked) {
+    try { fs.unlinkSync(path.join(dir, 'history.ready')) } catch (e) {}
+    try { fs.unlinkSync(path.join(dir, 'address-book.v5')) } catch (e) {}
+    entry.bookAsked = false
+    entry.historyAsked = false
+    entry.syncNoted = false
+  }
   entry.historyReady = historyIsComplete(dir)
   entry.events = []
   entry.generation = (entry.generation || 0) + 1
@@ -854,6 +861,10 @@ async function startSocketNow(id, expected) {
     },
   })
   entry.sock = sock
+  if (entry.justLinked && registered) {
+    entry.scanned = true
+    entry.justLinked = false
+  }
   const generation = entry.generation
   const current = () => entry.generation === generation
   if (sock.ws && typeof sock.ws.on === 'function') {
@@ -967,12 +978,12 @@ async function startSocketNow(id, expected) {
   sock.ev.on('connection.update', async (update) => {
     if (!current()) return
     if (update.isNewLogin) {
-      entry.scanned = true
+      entry.justLinked = true
       entry.status = 'CONNECTING'
       entry.qr = null
       entry.error = null
     }
-    if (update.qr && !entry.scanned) {
+    if (update.qr && !entry.scanned && !entry.justLinked) {
       entry.pairReady = true
       if (entry.wantPair) return
       const held = entry.qr && entry.qrAt && (Date.now() - entry.qrAt) < 60000 && !entry.replaceQr
@@ -1032,7 +1043,7 @@ async function startSocketNow(id, expected) {
         : 0
       entry.sock = null
       console.error('mai link closed ' + code)
-      if (code === DisconnectReason.loggedOut && entry.wantPair && !entry.registered && !entry.scanned) {
+      if (code === DisconnectReason.loggedOut && entry.wantPair && !entry.registered && !entry.scanned && !entry.justLinked) {
         entry.pairing = null
         entry.pairAsked = false
         entry.pairReady = false
@@ -1062,7 +1073,7 @@ async function startSocketNow(id, expected) {
         return
       }
       const restart = code === DisconnectReason.restartRequired || code === 515
-      if (entry.scanned || entry.registered) {
+      if (entry.justLinked || entry.scanned || entry.registered) {
         entry.status = 'CONNECTING'
         entry.qr = null
         entry.retries = 0

@@ -2658,7 +2658,8 @@ window.addEventListener('pageshow', function (event) {
         fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
             .then(function (response) { if (!response.ok) throw new Error('poll'); return response.json(); })
             .then(function (data) {
-                if (data && data.app && String(data.app) !== String(window.maiApp || '')) {
+                var installing = window.__maiInstall && window.__maiInstall.busy;
+                if (!installing && data && data.app && String(data.app) !== String(window.maiApp || '')) {
                     var seenApp = '';
                     try { seenApp = sessionStorage.getItem('mai-app-reload') || ''; } catch (e) {}
                     if (seenApp !== String(data.app)) {

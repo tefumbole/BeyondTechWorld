@@ -8,7 +8,7 @@
     }
     if ('serviceWorker' in navigator) {
         var scope = (location.hostname || '').indexOf('mai.') === 0 ? '/' : '/whatsapp-mai/';
-        navigator.serviceWorker.register('/whatsapp-mai/sw.js', { scope: scope }).catch(function () {});
+        navigator.serviceWorker.register('/whatsapp-mai/sw.js', { scope: scope, updateViaCache: 'none' }).catch(function () {});
     }
     window.addEventListener('beforeinstallprompt', function (event) {
         event.preventDefault();
@@ -51,6 +51,7 @@
         return 'Open this page in Chrome, then use the menu and tap Install app or Add to Home screen. ' + page;
     }
     function showSheet(kind) {
+        if (window.__maiInstall) window.__maiInstall.busy = true;
         var sheet = document.getElementById('mai-install-sheet');
         if (!sheet) {
             if (!document.getElementById('mai-install-style')) {
@@ -83,17 +84,22 @@
         var close = document.createElement('button');
         close.type = 'button';
         close.textContent = 'Close';
-        close.addEventListener('click', function () { sheet.hidden = true; });
+        close.addEventListener('click', function () {
+            sheet.hidden = true;
+            if (window.__maiInstall) window.__maiInstall.busy = false;
+        });
         sheet.appendChild(close);
     }
     function afterPrompt(waiting, button) {
         var choice = waiting.userChoice;
         if (!choice || !choice.then) return;
         choice.then(function (result) {
+            if (window.__maiInstall) window.__maiInstall.busy = false;
             if (window.__maiInstall.installed) return;
             if (!result || result.outcome !== 'accepted') showSheet('dismissed');
             if (button) button.disabled = false;
         }).catch(function () {
+            if (window.__maiInstall) window.__maiInstall.busy = false;
             showSheet(inAppBrowser() ? 'inapp' : 'help');
         });
     }
@@ -126,6 +132,7 @@
         if (!button || button.disabled) return;
         event.preventDefault();
         if (window.__maiInstall.installed || standalone) return;
+        window.__maiInstall.busy = true;
         if (offer(button)) return;
         var settled = false;
         var timer = setTimeout(finish, 1500);

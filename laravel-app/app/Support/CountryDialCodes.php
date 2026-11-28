@@ -118,10 +118,46 @@ class CountryDialCodes
         return '+'.$codeDigits.$digits;
     }
 
-    /** Digits WhatsApp can pair. An old 8-digit Cameroon mobile gains the leading 6. */
+    /**
+     * Digits WhatsApp can pair, for any country.
+     * The selected dial code is kept. A number typed with + or 00 is already international.
+     * Cameroon is the only local rewrite: an old 8-digit mobile gains the leading 6.
+     */
     public static function whatsappDigits($phone, $dial = null)
     {
-        $digits = preg_replace('/\D/', '', (new \App\Services\Cloud\CloudMbolePrice())->e164($phone, $dial));
+        $raw = trim((string) $phone);
+        $dialDigits = preg_replace('/\D/', '', (string) $dial);
+        $digits = preg_replace('/\D/', '', $raw);
+        if ($digits === '') {
+            return '';
+        }
+        $explicit = ($raw !== '' && $raw[0] === '+') || strpos($digits, '00') === 0;
+        if (strpos($digits, '00') === 0) {
+            $digits = substr($digits, 2);
+            $explicit = true;
+        }
+        if ($explicit) {
+            $dialDigits = '';
+        }
+        if ($dialDigits !== '') {
+            $national = $digits;
+            if ($national !== '' && $national[0] === '0') {
+                $national = ltrim($national, '0');
+            }
+            if ($national !== '' && strpos($national, $dialDigits) === 0) {
+                $rest = substr($national, strlen($dialDigits));
+                if (strlen($rest) >= 6) {
+                    $national = $rest;
+                }
+            }
+            if ($dialDigits !== '237' && strpos($national, '237') === 0) {
+                $rest = substr($national, 3);
+                if (strlen($rest) >= 7 && strlen($rest) <= 10) {
+                    $national = $rest;
+                }
+            }
+            $digits = $dialDigits.$national;
+        }
         if (strpos($digits, '237') === 0 && strlen($digits) === 11) {
             $digits = '2376'.substr($digits, 3);
         }
