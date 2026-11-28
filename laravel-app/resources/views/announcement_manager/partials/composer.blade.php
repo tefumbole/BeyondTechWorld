@@ -159,7 +159,7 @@
                         <label class="an-label">Message Body</label>
                         <div class="mb-2" style="font-size:12px;color:#9ca3af;">
                             Insert:
-                            @foreach(['{name}','{Parent}','{Student}','{Class}','{email}','{phone}','{address}','{date}','{institution_name}','{reference}'] as $tok)
+                            @foreach((!empty($clientBook) ? ['{name}','{phone}','{date}'] : ['{name}','{Parent}','{Student}','{Class}','{email}','{phone}','{address}','{date}','{institution_name}','{reference}']) as $tok)
                                 <span class="an-ph" data-token="{{ $tok }}">{{ $tok }}</span>
                             @endforeach
                         </div>
@@ -183,7 +183,7 @@
                         </div>
                         <div id="an-group-box" class="mb-3" style="display:none;">
                             <label class="an-label">Groups</label>
-                            <input type="search" id="an-group-search" class="an-field mb-2" placeholder="Search a group, for example NBC Praise Team">
+                            <input type="search" id="an-group-search" class="an-field mb-2" placeholder="{{ !empty($clientBook) ? 'Search groups on this WhatsApp number' : 'Search a group' }}">
                             <div class="d-flex mb-2" style="gap:8px;">
                                 <button type="button" class="an-btn-outline" id="an-group-visible">Add shown</button>
                                 <button type="button" class="an-btn-outline" id="an-group-clear">Clear</button>
@@ -207,7 +207,7 @@
                                         </span>
                                     </label>
                                 @empty
-                                    <div class="p-3 text-muted small">No WhatsApp groups were returned for this account.</div>
+                                    <div class="p-3 text-muted small">{{ !empty($clientBook) ? 'No WhatsApp groups were found for this number.' : 'No WhatsApp groups were returned for this account.' }}</div>
                                 @endforelse
                             </div>
                             <div class="an-info" id="an-group-info">Search a group and tick it. Broadcast sends the same message to each member separately, without a name. Personalize greets each member by name.</div>
@@ -263,7 +263,7 @@
                             <button type="button" class="an-pill an-rf" data-role="all">All</button>
                         </div>
                         <div class="d-flex mb-2 flex-wrap" style="gap:8px;">
-                            <input type="search" class="an-field an-rsearch" placeholder="Search name, email, phone…" style="flex:1;min-width:180px;">
+                            <input type="search" class="an-field an-rsearch" placeholder="{{ !empty($clientBook) ? 'Search a contact or WhatsApp number' : 'Search name, email, phone…' }}" style="flex:1;min-width:180px;">
                             <button type="button" class="an-btn-outline an-rselect-all" style="white-space:nowrap;">Select all</button>
                             <button type="button" class="an-btn-outline an-rdeselect-all" style="white-space:nowrap;">Deselect all</button>
                         </div>
@@ -281,7 +281,7 @@
                             <button type="button" class="an-pill an-cf" data-role="applicants">Applicants</button>
                         </div>
                         <div class="d-flex mb-2 flex-wrap" style="gap:8px;">
-                            <input type="search" class="an-field an-csearch" placeholder="Search CC…" style="flex:1;min-width:180px;">
+                            <input type="search" class="an-field an-csearch" placeholder="{{ !empty($clientBook) ? 'Search a contact or WhatsApp number' : 'Search CC…' }}" style="flex:1;min-width:180px;">
                             <button type="button" class="an-btn-outline an-cselect-all" style="white-space:nowrap;">Select all</button>
                             <button type="button" class="an-btn-outline an-cdeselect-all" style="white-space:nowrap;">Deselect all</button>
                         </div>
@@ -294,7 +294,7 @@
                     <div class="form-group mt-3">
                         <label class="an-label">Footer (optional)</label>
                         <input type="text" name="footer" id="an-footer" class="an-field" value="{{ old('footer', $clone['footer'] ?? '') }}" data-system="{{ \App\Support\WhatsAppMessage::companyName() }}" placeholder="For example Nkwen Praise Team">
-                        <p class="text-muted small mb-0">If you type a footer, that is the only sign-off. Leave it blank to use {{ \App\Support\WhatsAppMessage::companyName() }}.</p>
+                        <p class="text-muted small mb-0">{{ !empty($clientBook) ? 'If you type a footer, that is the only sign-off.' : 'If you type a footer, that is the only sign-off. Leave it blank to use '.\App\Support\WhatsAppMessage::companyName().'.' }}</p>
                     </div>
 
                     <div class="an-drop">
@@ -327,12 +327,14 @@
                             <div id="an-reminders"></div>
                             <button type="button" class="an-btn-outline mt-1" id="an-add-reminder">+ Add reminder</button>
                         </div>
+                        @if(empty($clientBook))
                         <div class="mt-3">
                             <label class="d-flex align-items-center" style="gap:8px;">
                                 <input type="checkbox" name="save_as_template" value="1"> Save as template
                             </label>
                             <input type="text" name="template_name" class="an-field mt-1" placeholder="Template name (optional)">
                         </div>
+                        @endif
                         <div class="mt-3 d-flex flex-column" style="gap:8px;">
                             <button type="submit" class="an-btn-primary" style="justify-content:center;padding:12px;"><i class="dripicons-rocket"></i> Send Now</button>
                         </div>
@@ -363,6 +365,7 @@
 
 <script>
 window.AN_MAI = !!document.querySelector('.an-compose.is-mai');
+window.AN_CLIENT = !!window.AN_MAI;
 window.AN_USERS = @json($users);
 window.AN_USERS_SEARCH = @json(route('announcements.users.search'));
 window.AN_QUICK_RECIPIENT = @json(route('announcements.quick_recipient'));
@@ -448,7 +451,7 @@ window.AN_PRESELECT = @json([
             }
             return '<button type="button" class="an-user-item'+sel+'" data-id="'+esc(u.id)+'">'
                 + '<div class="font-weight-bold">'+esc(u.name||'Untitled')+'</div>'
-                + '<div class="meta">'+esc(u.email||'')+' · '+esc(u.phone||'')+'</div>'
+                + '<div class="meta">'+(window.AN_CLIENT ? esc(u.phone||'') : (esc(u.email||'')+' · '+esc(u.phone||'')))+'</div>'
                 + extra
                 + '</button>';
         }).join('') || '<div class="p-3 text-muted small text-center">No people found.</div>';

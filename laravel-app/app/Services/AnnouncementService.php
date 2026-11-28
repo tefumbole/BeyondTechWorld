@@ -189,6 +189,13 @@ class AnnouncementService
         return $people;
     }
 
+    public function forSession($id)
+    {
+        $this->sessionId = (int) $id;
+
+        return $this;
+    }
+
     public function categories()
     {
         return WaAnnouncementCategory::orderBy('name')->get();
@@ -228,7 +235,7 @@ class AnnouncementService
 
     public function create(array $data, $adminId = null)
     {
-        $this->sessionId = isset($data['mai_session_id']) ? (int) $data['mai_session_id'] : 0;
+        $this->forSession(isset($data['mai_session_id']) ? (int) $data['mai_session_id'] : 0);
         $settings = $this->settings();
         $audience = isset($data['audience']) ? (string) $data['audience'] : 'people';
         $school = SchoolMerge::isSchool(
@@ -623,7 +630,11 @@ class AnnouncementService
             return [];
         }
 
-        return app(\App\Services\Cloud\MaiWhatsAppEngine::class)->groups($phone);
+        $session = \App\Mai\MaiSession::find($this->sessionId);
+
+        return $session
+            ? app(\App\Services\Mai\PersonalHub::class)->groups($session)
+            : app(\App\Services\Cloud\MaiWhatsAppEngine::class)->groups($phone);
     }
 
     protected function sessionGroupRows($jid)

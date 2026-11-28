@@ -28,6 +28,7 @@
     .more-menu { display: flex; flex-direction: column; padding: 6px; }
     .more-menu button, .more-menu form, .more-menu a { margin: 0; }
     .more-menu button, .more-menu a { display: block; width: 100%; min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: #111b21; text-align: left; padding: 10px 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
+    #announceMoreMenu { top: 48px; right: 0; width: 220px; }
     .more-menu button:hover, .more-menu a:hover { background: #f4f7fb; color: #111b21; }
     .new-chat { left: 10px; right: 10px; width: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
     .new-chat label { margin: 0; font-size: 12px; font-weight: 800; color: #667781; }
@@ -435,6 +436,13 @@ try {
                 <a href="{{ route('whatsapp.chats') }}">Chats</a>
                 <a href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
                 <a href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.index') }}">Announcements</a>
+                @if(\App\Http\Controllers\Mai\MaiDashboardController::allows(Auth::user()))
+                    <a href="{{ route('whatsapp.mai.dashboard') }}">Clients dashboard</a>
+                @endif
+                <a href="{{ route('whatsapp.index') }}">Dashboard</a>
+                <a href="{{ route('whatsapp.chats', ['pane' => 'speech']) }}">Translation</a>
+                <a href="{{ route('whatsapp.chats', ['pane' => 'briefing']) }}">AI Brief</a>
+                <a href="{{ route('whatsapp.groups') }}">Groups</a>
                 <button type="button" id="hubInstall">App</button>
                 <button type="button" class="js-hub-settings">Settings</button>
                 <form method="POST" action="{{ url('/logout') }}">
@@ -1040,10 +1048,27 @@ try {
         @elseif($pane === 'announcements' && !empty($personalHub) && !empty($announce))
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats') }}" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
+                    <a class="chat-back" href="{{ route('whatsapp.chats') }}" aria-label="Back to chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
                     <div>
                         <h2>Announcements</h2>
                         <p>Write a message, choose people or a group, then send</p>
+                    </div>
+                </div>
+                <div class="mode-switch" style="position:relative;">
+                    <a class="call-btn" href="{{ route('whatsapp.chats') }}">Back to chat</a>
+                    <button type="button" class="inbox-icon" id="announceMore" aria-label="More" aria-expanded="false">
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18" cy="12" r="1.7"/></svg>
+                    </button>
+                    <div class="more-menu" id="announceMoreMenu" hidden>
+                        <a href="{{ route('whatsapp.chats') }}">Back to chat</a>
+                        @if(\App\Http\Controllers\Mai\MaiDashboardController::allows(Auth::user()))
+                            <a href="{{ route('whatsapp.mai.dashboard') }}">Clients dashboard</a>
+                        @endif
+                        <a href="{{ route('whatsapp.index') }}">Dashboard</a>
+                        <a href="{{ route('whatsapp.chats', ['pane' => 'speech']) }}">Translation</a>
+                        <a href="{{ route('whatsapp.chats', ['pane' => 'briefing']) }}">AI Brief</a>
+                        <a href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
+                        <button type="button" class="js-hub-settings">Settings</button>
                     </div>
                 </div>
             </header>
@@ -1055,7 +1080,7 @@ try {
         @elseif($pane === 'announcements')
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
+                    <a class="chat-back" href="{{ route('whatsapp.chats') }}" aria-label="Back to chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
                     <div>
                         <h2>Announcements</h2>
                         <p>Send a letter to one group or one person</p>
@@ -3280,6 +3305,13 @@ window.addEventListener('pageshow', function (event) {
         if (moreMenu && except !== moreMenu) { moreMenu.hidden = true; if (moreOpen) moreOpen.setAttribute('aria-expanded', 'false'); }
         if (newChat && except !== newChat) newChat.hidden = true;
     }
+    var announceMore = document.getElementById('announceMore');
+    var announceMoreMenu = document.getElementById('announceMoreMenu');
+    if (announceMore && announceMoreMenu) announceMore.addEventListener('click', function (event) {
+        event.stopPropagation();
+        announceMoreMenu.hidden = !announceMoreMenu.hidden;
+        announceMore.setAttribute('aria-expanded', announceMoreMenu.hidden ? 'false' : 'true');
+    });
     if (moreOpen && moreMenu) moreOpen.addEventListener('click', function (event) {
         event.stopPropagation();
         var open = moreMenu.hidden;
@@ -3314,8 +3346,9 @@ window.addEventListener('pageshow', function (event) {
         }
     });
     document.addEventListener('click', function (event) {
-        if (event.target.closest && event.target.closest('#moreOpen, #newChatOpen, #newChat')) return;
+        if (event.target.closest && event.target.closest('#moreOpen, #newChatOpen, #newChat, #announceMore, #announceMoreMenu')) return;
         closeInboxPopovers(null);
+        if (announceMoreMenu) announceMoreMenu.hidden = true;
     });
     function fitInbox() {
         var app = document.getElementById('chatsApp');

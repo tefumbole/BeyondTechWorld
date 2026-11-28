@@ -96,20 +96,41 @@ class AnnouncementManagerController extends Controller
         }
         $term = strtolower(trim((string) $search));
         $out = [];
-        foreach (app(\App\Services\Cloud\MaiWhatsAppEngine::class)->contacts($owner) as $row) {
-            $name = $row['name'] !== '' ? $row['name'] : $row['phone'];
-            if ($term !== '' && strpos(strtolower($name.' '.$row['phone']), $term) === false) {
-                continue;
+        $seen = [];
+        $add = function ($phone, $name) use (&$out, &$seen, $term) {
+            $digits = preg_replace('/\D/', '', (string) $phone);
+            if (! preg_match('/^[1-9][0-9]{7,14}$/', $digits) || isset($seen[$digits])) {
+                return;
             }
+            $name = trim((string) $name);
+            if ($name === '' || preg_match('/^\+?[\d\s\-()]+$/', $name)) {
+                $name = '+'.$digits;
+            }
+            if ($term !== '' && strpos(strtolower($name.' '.$digits), $term) === false) {
+                return;
+            }
+            $seen[$digits] = true;
             $out[] = [
-                'id' => 'wa:'.$row['phone'],
+                'id' => 'wa:'.$digits,
                 'name' => $name,
                 'email' => '',
-                'phone' => $row['phone'],
+                'phone' => $digits,
                 'address' => '',
-                'role' => 'customer',
+                'role' => 'contact',
                 'source' => 'WhatsApp',
             ];
+        };
+        if ($session && \Illuminate\Support\Facades\Schema::hasTable('mai_peers')) {
+            foreach (\App\Mai\MaiPeer::where('mai_session_id', $session->id)->get() as $peer) {
+                if (substr((string) $peer->remote_jid, -15) !== '@s.whatsapp.net') {
+                    continue;
+                }
+                $saved = trim((string) $peer->saved_name);
+                $add($peer->phone_digits, $saved !== '' ? $saved : $peer->phone_digits);
+            }
+        }
+        foreach (app(\App\Services\Cloud\MaiWhatsAppEngine::class)->contacts($owner) as $row) {
+            $add($row['phone'], $row['name'] !== '' ? $row['name'] : $row['phone']);
         }
 
         return $out;
@@ -170,13 +191,13 @@ class AnnouncementManagerController extends Controller
         @set_time_limit(90);
         $users = $this->usersJson();
         $categories = $this->announcements->categories();
-        $templates = $this->announcements->templates();
         $settings = $this->announcements->settings();
         $sessionId = $this->personalSessionId();
+        $clientBook = (bool) $sessionId;
+        $templates = $clientBook ? collect() : $this->announcements->templates();
         if ($sessionId) {
             $session = \App\Mai\MaiSession::find($sessionId);
-            $phone = $session ? ($session->phone_number ?: $session->expected_phone) : '';
-            $waGroups = $phone !== '' ? app(\App\Services\Cloud\MaiWhatsAppEngine::class)->groups($phone) : [];
+            $waGroups = $session ? app(\App\Services\Mai\PersonalHub::class)->groups($session) : [];
         } else {
             $waGroups = app(\App\Services\WhatsApp\GroupContactExportService::class)->announcementGroups();
             app(\App\Services\WhatsApp\GroupContactExportService::class)->scheduleResolve();
@@ -200,7 +221,7 @@ class AnnouncementManagerController extends Controller
             }
         }
 
-        return compact('users', 'categories', 'templates', 'settings', 'clone', 'waGroups');
+        return compact('users', 'categories', 'templates', 'settings', 'clone', 'waGroups', 'clientBook');
     }
 
     public function compose(Request $request)
@@ -228,12 +249,17 @@ class AnnouncementManagerController extends Controller
     {
         $this->authorizeAnnouncements('announcements.create');
         @set_time_limit(90);
+        if ($sessionId = $this->personalSessionId()) {
+            $this->announcements->forSession($sessionId);
+        }
         $audience = (string) $request->input('audience', 'people');
         try {
             $people = $audience === 'group'
                 ? $this->announcements->previewGroupPeople((array) $request->input('group_jids', []))
                 : $this->announcements->resolvePeople((array) $request->input('recipient_ids', []));
-            $people = $this->announcements->withSchoolRoster($people);
+            if (! $this->personalSessionId()) {
+                $people = $this->announcements->withSchoolRoster($people);
+            }
         } catch (\InvalidArgumentException $e) {
             return response()->json(['people' => [], 'error' => $e->getMessage()], 422);
         }
@@ -277,6 +303,18 @@ class AnnouncementManagerController extends Controller
             $file->move($dir, $name);
             $attachmentPath = 'images/announcements/' . $name;
             $attachmentName = $file->getClientOriginalName();
+        }
+
+        if ($this->personalSessionId()) {
+            $onlyContacts = function ($ids) {
+                return array_values(array_filter((array) $ids, function ($id) {
+                    return strpos((string) $id, 'wa:') === 0;
+                }));
+            };
+            $request->merge([
+                'recipient_ids' => $onlyContacts($request->input('recipient_ids', [])),
+                'cc_ids' => $onlyContacts($request->input('cc_ids', [])),
+            ]);
         }
 
         if (! $request->has('send_whatsapp') && ! $request->has('send_sms')) {
