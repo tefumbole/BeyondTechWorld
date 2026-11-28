@@ -67,17 +67,20 @@ class MaiWhatsAppEngine
         return $this->shape($this->request('GET', $path, null, $withQr ? 12 : 8));
     }
 
-    public function pair($phone)
+    public function pair($phone, $fresh = false)
     {
         $id = $this->id($phone);
         if ($id === '') {
             return $this->blank('ERROR');
         }
 
-        return $this->shape($this->request('POST', '/sessions/'.$id.'/pair', ['phone' => $this->digits($phone)], 25));
+        return $this->shape($this->request('POST', '/sessions/'.$id.'/pair', [
+            'phone' => $this->digits($phone),
+            'fresh' => $fresh ? 1 : 0,
+        ], 25));
     }
 
-    public function pairGuest($sessionId, $phone)
+    public function pairGuest($sessionId, $phone, $fresh = false)
     {
         if ($this->guestId($sessionId) === '') {
             return $this->blank('ERROR');
@@ -87,7 +90,10 @@ class MaiWhatsAppEngine
             return $this->blank('ERROR');
         }
 
-        return $this->shape($this->request('POST', '/sessions/'.$sessionId.'/pair', ['phone' => $digits], 25));
+        return $this->shape($this->request('POST', '/sessions/'.$sessionId.'/pair', [
+            'phone' => $digits,
+            'fresh' => $fresh ? 1 : 0,
+        ], 25));
     }
 
     public function refreshQr($phone)
@@ -208,6 +214,9 @@ class MaiWhatsAppEngine
                 'receipt' => isset($row['receipt']) ? (int) $row['receipt'] : 0,
                 'type' => $type,
                 'file' => isset($row['file']) ? (string) $row['file'] : '',
+                'unavailable' => ! empty($row['unavailable']),
+                'reason' => isset($row['reason']) ? (string) $row['reason'] : '',
+                'file_name' => isset($row['file_name']) ? (string) $row['file_name'] : '',
             ];
         }
 
@@ -461,6 +470,7 @@ class MaiWhatsAppEngine
             'qr' => null,
             'qr_age_ms' => 0,
             'pairing_code' => null,
+            'pairing_age_ms' => 0,
             'error' => null,
         ];
     }
@@ -481,6 +491,7 @@ class MaiWhatsAppEngine
             'qr' => $qr !== '' ? $qr : null,
             'qr_age_ms' => isset($payload['qr_age_ms']) ? (int) $payload['qr_age_ms'] : 0,
             'pairing_code' => isset($payload['pairing_code']) && $payload['pairing_code'] !== '' ? (string) $payload['pairing_code'] : null,
+            'pairing_age_ms' => isset($payload['pairing_age_ms']) ? (int) $payload['pairing_age_ms'] : 0,
             'error' => isset($payload['error']) && $payload['error'] !== '' ? (string) $payload['error'] : null,
         ];
     }

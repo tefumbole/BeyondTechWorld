@@ -43,8 +43,8 @@
         <a class="chat-file" href="{{ $mediaUrl }}" download="{{ $fileLabel }}">Download {{ $fileLabel }}</a>
     @elseif($mediaUrl !== '' && in_array($type, ['DOCUMENT', 'LOCATION'], true))
         <a class="chat-file" href="{{ $mediaUrl }}" download="{{ $fileLabel }}" target="_blank" rel="noopener">Download {{ $fileLabel }}</a>
-    @elseif(in_array($type, ['IMAGE', 'STICKER', 'AUDIO', 'VIDEO', 'DOCUMENT', 'LOCATION'], true) && $text === '')
-        <span class="aside">{{ $fileLabel }}</span>
+    @elseif(in_array($type, ['IMAGE', 'STICKER', 'AUDIO', 'VIDEO', 'DOCUMENT', 'LOCATION'], true))
+        <span class="aside">{{ !empty($mediaReason) ? $mediaReason : $fileLabel }}</span>
     @endif
     @if($text !== '')<span class="body">{!! $linkify($text) !!}</span>@endif
     @if(!empty($aside))<span class="aside">{!! $linkify($aside) !!}</span>@endif

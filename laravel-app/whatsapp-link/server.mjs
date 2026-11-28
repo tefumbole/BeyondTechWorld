@@ -105,15 +105,23 @@ function samePhone(expected, reported) {
 }
 
 function publicState(entry, withQr) {
-  const qr = withQr && entry.status !== 'CONNECTED' ? (entry.qr || null) : null
+  const qr = withQr && entry.status !== 'CONNECTED' && !entry.pairing ? (entry.qr || null) : null
   const age = qr && entry.qrAt ? Math.max(0, Date.now() - entry.qrAt) : 0
+  let code = entry.pairing || null
+  let pairAge = code && entry.pairingAt ? Math.max(0, Date.now() - entry.pairingAt) : 0
+  let error = entry.error || null
+  if (code && pairAge >= 60000 && entry.status !== 'CONNECTED') {
+    code = null
+    error = error || 'This code expired. Create a new one.'
+  }
   return {
     status: entry.status,
     phone: entry.phone || null,
     qr,
     qr_age_ms: age,
-    pairing_code: entry.pairing || null,
-    error: entry.error || null,
+    pairing_code: code,
+    pairing_age_ms: code ? pairAge : 0,
+    error,
   }
 }
 
@@ -429,7 +437,7 @@ function rememberMessage(entry, msg, live) {
     type: kind || 'TEXT',
     quote,
   })
-  const write = (file) => {
+  const write = (file, reason) => {
     const id = String(msg.key.id || '')
     ;(entry.inbox || []).forEach((row) => {
       if (row.id === id) row.file = file || ''
@@ -451,10 +459,12 @@ function rememberMessage(entry, msg, live) {
       saved_name: chat && chat.saved_name ? chat.saved_name : '',
       profile_name: !msg.key.fromMe && msg.pushName ? String(msg.pushName).slice(0, 80) : '',
       file,
+      file_name: mediaFileName(msg.message),
       unavailable: !!kind && !file,
+      reason: reason || '',
     })
   }
-  if (entry.inbox.length > 200) entry.inbox.splice(0, entry.inbox.length - 200)
+  if (entry.inbox.length > 500) entry.inbox.splice(0, entry.inbox.length - 500)
   scheduleSave(entry)
   if (kind) {
     queueMedia(entry, msg, kind, write)
@@ -494,8 +504,8 @@ function queueMedia(entry, msg, kind, done) {
       const job = entry.mediaJobs.shift()
       entry.mediaBusy += 1
       saveMedia(entry, job.msg, job.kind)
-        .then((file) => job.done(file || ''))
-        .catch(() => job.done(''))
+        .then((saved) => job.done(saved && saved.file ? saved.file : '', saved && saved.reason ? saved.reason : ''))
+        .catch(() => job.done('', 'WhatsApp did not send this file to MAI.'))
         .then(() => {
           entry.mediaBusy = Math.max(0, entry.mediaBusy - 1)
           run()
@@ -503,26 +513,49 @@ function queueMedia(entry, msg, kind, done) {
     }
   }
   entry.mediaJobs.push({ msg, kind, done })
-  if (entry.mediaJobs.length > 80) entry.mediaJobs.splice(0, entry.mediaJobs.length - 80)
+  while (entry.mediaJobs.length > 200) {
+    const dropped = entry.mediaJobs.pop()
+    if (dropped && dropped.done) dropped.done('', 'MAI was still saving other files, so this one was not downloaded.')
+  }
   run()
 }
 
+function mediaFileName(message) {
+  const raw = unwrapMessage(message)
+  if (raw && raw.documentMessage && raw.documentMessage.fileName) {
+    return String(raw.documentMessage.fileName).slice(0, 180)
+  }
+  return ''
+}
+
 async function saveMedia(entry, msg, kind) {
-  if (!entry || !kind || typeof downloadMediaMessage !== 'function') return ''
+  if (!entry || !kind || typeof downloadMediaMessage !== 'function') {
+    return { file: '', reason: 'This engine cannot download that file.' }
+  }
   const name = String(msg.key && msg.key.id ? msg.key.id : Date.now()).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80) + '.' + mediaExt(kind, unwrapMessage(msg.message))
   const dir = path.join(sessionDir(entry.id), 'media')
   const full = path.join(dir, name)
   if (fs.existsSync(full) && fs.statSync(full).size > 0) {
-    return 'sessions/' + entry.id + '/media/' + name
+    return { file: 'sessions/' + entry.id + '/media/' + name, reason: '' }
   }
-  const buffer = await downloadMediaMessage(msg, 'buffer', {}, {
-    logger,
-    reuploadRequest: entry.sock && entry.sock.updateMediaMessage ? entry.sock.updateMediaMessage.bind(entry.sock) : undefined,
-  })
-  if (!buffer || !buffer.length || buffer.length > 8 * 1024 * 1024) return ''
+  let buffer = null
+  try {
+    buffer = await downloadMediaMessage(msg, 'buffer', {}, {
+      logger,
+      reuploadRequest: entry.sock && entry.sock.updateMediaMessage ? entry.sock.updateMediaMessage.bind(entry.sock) : undefined,
+    })
+  } catch (e) {
+    return { file: '', reason: 'WhatsApp did not send this file to MAI. It is still on the phone.' }
+  }
+  if (!buffer || !buffer.length) {
+    return { file: '', reason: 'WhatsApp did not send this file to MAI. It is still on the phone.' }
+  }
+  if (buffer.length > 8 * 1024 * 1024) {
+    return { file: '', reason: 'This file is larger than 8 MB, so MAI cannot store it.' }
+  }
   ensureDir(dir)
   fs.writeFileSync(full, buffer)
-  return 'sessions/' + entry.id + '/media/' + name
+  return { file: 'sessions/' + entry.id + '/media/' + name, reason: '' }
 }
 
 function mediaKind(message) {
@@ -571,7 +604,7 @@ function readEvents(entry, after) {
       if (row && row.seq > after && row.generation === (entry.generation || 1)) events.push(row)
     } catch (e) {}
   })
-  return events.slice(0, 80)
+  return events.slice(0, 200)
 }
 
 async function attachLids(entry) {
@@ -1063,31 +1096,61 @@ async function forceQr(id) {
   return publicState(entry, true)
 }
 
-async function pairingFor(id, phone) {
-  const entry = await startSocket(id, id.indexOf('p') === 0 ? id.slice(1) : '')
-  const given = String(phone || '').replace(/\D/g, '')
-  if (given.length >= 8) entry.expected = given
-  if (!entry.sock || entry.status === 'CONNECTED') {
+function retirePairing(entry) {
+  if (!entry || entry.status === 'CONNECTED') return
+  entry.pairing = null
+  entry.pairingAt = 0
+  entry.qr = null
+  entry.status = 'DISCONNECTED'
+  entry.closing = false
+  if (entry.sock) {
+    const previous = entry.sock
+    entry.sock = null
+    entry.generation = (entry.generation || 0) + 1
+    softEnd(previous)
+  }
+}
+
+async function pairingFor(id, phone, fresh) {
+  let given = String(phone || '').replace(/\D/g, '')
+  const prior = sessions.get(id)
+  if (given.length < 8 && prior && prior.expected) given = String(prior.expected).replace(/\D/g, '')
+  if (given.length < 8 && id.indexOf('p') === 0) given = id.slice(1)
+  if (isProtectedPhone(given)) {
+    return { status: 'ERROR', phone: null, qr: null, pairing_code: null, pairing_age_ms: 0, error: 'Use your personal WhatsApp number. The business line stays separate.' }
+  }
+  if (given.length < 8) {
+    return { status: 'ERROR', phone: null, qr: null, pairing_code: null, pairing_age_ms: 0, error: 'Enter the WhatsApp number for the link code.' }
+  }
+  const expired = prior && prior.pairingAt && (Date.now() - prior.pairingAt) >= 60000
+  const other = prior && prior.expected && !samePhone(prior.expected, given)
+  if (prior && (fresh || expired || other)) retirePairing(prior)
+  const entry = await startSocket(id, given)
+  entry.expected = given
+  if (entry.status === 'CONNECTED') {
+    if (entry.phone && !samePhone(given, entry.phone)) {
+      entry.status = 'ERROR'
+      entry.error = 'This WhatsApp is a different number.'
+      entry.pairing = null
+    }
     return publicState(entry, false)
   }
-  if (entry.pairing) {
-    return publicState(entry, false)
-  }
-  if (typeof entry.sock.requestPairingCode !== 'function') {
+  const still = entry.pairing && entry.pairingAt && (Date.now() - entry.pairingAt) < 60000 && samePhone(entry.expected, given)
+  if (!fresh && !expired && still) return publicState(entry, false)
+  if (!entry.sock || typeof entry.sock.requestPairingCode !== 'function') {
     entry.error = 'The link code is not available on this engine.'
     return publicState(entry, false)
   }
   await waitForQr(entry, 8000)
-  const linkPhone = String(entry.expected || (id.indexOf('p') === 0 ? id.slice(1) : '')).replace(/\D/g, '')
-  if (linkPhone.length < 8) {
-    entry.error = 'Enter the WhatsApp number for the link code.'
+  if (!entry.sock || typeof entry.sock.requestPairingCode !== 'function') {
+    entry.error = 'The link code is not available on this engine.'
     return publicState(entry, false)
   }
-  const code = await entry.sock.requestPairingCode(linkPhone)
+  const code = await entry.sock.requestPairingCode(given)
   entry.pairing = String(code || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 17)
-  if (!entry.pairing) {
-    entry.error = 'The link code could not be created.'
-  }
+  entry.pairingAt = Date.now()
+  entry.qr = null
+  entry.error = entry.pairing ? null : 'The link code could not be created.'
   return publicState(entry, false)
 }
 
@@ -1377,7 +1440,8 @@ const server = http.createServer((req, res) => {
     if (req.method === 'POST' && parts[2] === 'pair') {
       readBody(req, 2000, (body) => {
         const linkPhone = body && body.phone ? body.phone : ''
-        pairingFor(id, linkPhone).then((payload) => send(res, 200, payload)).catch((error) => {
+        const fresh = !!(body && (body.fresh === 1 || body.fresh === true || body.fresh === '1'))
+        pairingFor(id, linkPhone, fresh).then((payload) => send(res, 200, payload)).catch((error) => {
           const message = error && error.message ? String(error.message).slice(0, 180) : 'The link code could not be created.'
           console.error('pairing code failed', message)
           send(res, 200, { status: 'ERROR', phone: null, qr: null, pairing_code: null, error: message })

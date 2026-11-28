@@ -452,20 +452,21 @@
             @if(($selected ?? '') === 'MESSAGING')
             <section class="step" data-step="8">
                 <button type="button" class="back-step" data-back="1">Back</button>
-                <h2 class="text-xl font-bold">Scan to link WhatsApp</h2>
-                <p class="hint mt-1">On your phone open WhatsApp → Linked devices → Link a device, then scan this code. After it links, Whats MAI opens on this computer and a link is sent to that WhatsApp so you can open it on the phone too. The code lasts 60 seconds.</p>
+                <h2 class="text-xl font-bold">Link WhatsApp</h2>
+                <p class="hint mt-1">On this phone, link with the number. Use Scan QR code only when another screen can show the code. The code lasts 60 seconds. Switch to WhatsApp, enter it, then come back here.</p>
                 <div class="flex flex-col gap-3 mt-4">
-                    <button type="button" id="mai-use-qr" class="subscribe-choice bg-brand-gold text-brand-blue">Scan QR code</button>
-                    <button type="button" id="mai-use-code" class="subscribe-choice bg-white/15 border border-brand-gold text-brand-gold">Use a link code</button>
+                    <button type="button" id="mai-use-code" class="subscribe-choice bg-brand-gold text-brand-blue">Link with phone number</button>
+                    <button type="button" id="mai-use-qr" class="subscribe-choice bg-white/15 border border-brand-gold text-brand-gold">Scan QR code</button>
                 </div>
                 <div id="mai-code-box" hidden>
-                    <p class="hint mt-3">On this phone, open WhatsApp, then Linked devices, then Link with phone number, and enter the code below.</p>
+                    <p class="hint mt-3">iPhone: WhatsApp → Settings → Linked Devices → Link a Device → Link with phone number instead. Android: WhatsApp → menu → Linked devices → Link a device → Link with phone number instead. Then return to this page.</p>
                     <div class="field-row">
                         <label for="mai-link-phone">WhatsApp number</label>
                         <input class="px-4 py-2" id="mai-link-phone" inputmode="tel" autocomplete="tel" placeholder="2376xxxxxxxx or full number">
                     </div>
                     <button type="button" id="mai-code-go" class="mt-3 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Create link code</button>
                     <p class="known-name" id="mai-pair" hidden></p>
+                    <button type="button" id="mai-copy" class="mt-2 bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5" hidden>Copy code</button>
                 </div>
                 <img id="mai-qr" class="mai-qr" alt="WhatsApp QR code" hidden>
                 <p class="hint" id="mai-qr-wait">Preparing the QR code.</p>
@@ -872,6 +873,8 @@
             if (pair && json && json.pairing_code) {
                 pair.hidden = false;
                 pair.textContent = json.pairing_code;
+                var copy = document.getElementById('mai-copy');
+                if (copy) copy.hidden = false;
                 if (image) image.hidden = true;
                 if (wait) { wait.hidden = false; wait.textContent = 'Enter this code in WhatsApp under Linked devices, then Link with phone number.'; }
             }
@@ -899,14 +902,18 @@
                 }
             }
         }
-        function beginMaiLink() {
+        function beginMaiLink(forceQr) {
             show(8);
             var mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
             var codeBox = document.getElementById('mai-code-box');
-            if (mobile && codeBox) codeBox.hidden = false;
+            var wait = document.getElementById('mai-qr-wait');
+            if (mobile && codeBox && !forceQr) {
+                codeBox.hidden = false;
+                if (wait) { wait.hidden = false; wait.textContent = 'Enter the WhatsApp number, then create a link code.'; }
+                return;
+            }
             var plan = document.getElementById('mai-plan');
             var error = document.getElementById('mai-qr-error');
-            var wait = document.getElementById('mai-qr-wait');
             if (wait) { wait.hidden = false; wait.textContent = 'Preparing the QR code…'; }
             post('{{ route('whatsapp.mai.begin') }}', {
                 mai_plan: plan ? plan.value : 'trial'
@@ -943,7 +950,7 @@
         if (useQr) useQr.onclick = function () {
             var box = document.getElementById('mai-code-box');
             if (box) box.hidden = true;
-            beginMaiLink();
+            beginMaiLink(true);
         };
         if (useCode) useCode.onclick = function () {
             var box = document.getElementById('mai-code-box');
@@ -954,9 +961,11 @@
             var phone = document.getElementById('mai-link-phone');
             var dial = document.getElementById('dial');
             var raw = phone ? String(phone.value || '').replace(/\D+/g, '') : '';
+            var existing = document.getElementById('mai-pair');
             post('{{ route('whatsapp.mai.begin.pair') }}', {
                 phone: phone ? phone.value : '',
-                dial: raw.length >= 11 ? '' : (dial ? String(dial.value || '').replace(/\D+/g, '') : '')
+                dial: raw.length >= 11 ? '' : (dial ? String(dial.value || '').replace(/\D+/g, '') : ''),
+                fresh: existing && !existing.hidden ? 1 : 0
             }, function (ok, json) {
                 var error = document.getElementById('mai-qr-error');
                 if (!ok) {
@@ -977,6 +986,30 @@
             if (err) err.hidden = true;
             beginMaiLink();
         };
+        var maiCopy = document.getElementById('mai-copy');
+        if (maiCopy) maiCopy.onclick = function () {
+            var node = document.getElementById('mai-pair');
+            var code = node ? String(node.textContent || '').replace(/\s+/g, '') : '';
+            if (!code) return;
+            var done = function () { maiCopy.textContent = 'Copied'; };
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done).catch(done);
+            else done();
+        };
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden && maiLinkTimer) {
+                fetch('{{ route('whatsapp.mai.begin.status') }}', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                    .then(function (response) { return response.json(); })
+                    .then(paintMaiQr)
+                    .catch(function () {});
+            }
+        });
+        window.addEventListener('pageshow', function () {
+            if (!maiLinkTimer) return;
+            fetch('{{ route('whatsapp.mai.begin.status') }}', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                .then(function (response) { return response.json(); })
+                .then(paintMaiQr)
+                .catch(function () {});
+        });
         var maiRefresh = document.getElementById('mai-qr-refresh');
         if (maiRefresh) maiRefresh.onclick = function () {
             maiRefresh.disabled = true;

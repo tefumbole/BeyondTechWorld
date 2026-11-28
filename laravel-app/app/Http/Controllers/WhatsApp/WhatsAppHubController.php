@@ -1007,6 +1007,7 @@ class WhatsAppHubController extends Controller
                 && trim((string) (isset($message->translationMeta()['english']) ? $message->translationMeta()['english'] : '')) === '',
             'quote' => $message->quoteText(),
             'unavailable' => ! empty($media['unavailable']) && ! $message->chatMediaUrl(),
+            'reason' => $message->mediaReason(),
             'starred' => $message->isStarred(),
             'edited' => $message->wasEdited(),
             'deleted' => $message->wasDeleted(),

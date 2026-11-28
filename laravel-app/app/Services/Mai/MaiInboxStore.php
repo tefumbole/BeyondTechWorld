@@ -92,6 +92,7 @@ class MaiInboxStore
                     if (empty($media['stored'])) {
                         $media['stored'] = $stored;
                         unset($media['unavailable']);
+                        unset($media['reason']);
                         $existing->media_json = json_encode($media);
                         if (empty($existing->type) || strtoupper((string) $existing->type) === 'TEXT') {
                             $kind = isset($event['type']) ? strtoupper(substr((string) $event['type'], 0, 24)) : '';
@@ -99,6 +100,19 @@ class MaiInboxStore
                                 $existing->type = $kind;
                             }
                         }
+                        $existing->save();
+                    }
+                } elseif (! empty($event['unavailable'])) {
+                    $media = $existing->media();
+                    if (empty($media['stored'])) {
+                        $media['unavailable'] = true;
+                        if (! empty($event['reason'])) {
+                            $media['reason'] = substr((string) $event['reason'], 0, 180);
+                        }
+                        if (! empty($event['file_name'])) {
+                            $media['file_name'] = substr((string) $event['file_name'], 0, 180);
+                        }
+                        $existing->media_json = json_encode($media);
                         $existing->save();
                     }
                 }
@@ -128,6 +142,12 @@ class MaiInboxStore
                 $media['stored'] = $stored;
             } elseif (! empty($event['unavailable']) || ($type !== 'TEXT' && empty($event['file']))) {
                 $media['unavailable'] = true;
+                if (! empty($event['reason'])) {
+                    $media['reason'] = substr((string) $event['reason'], 0, 180);
+                }
+            }
+            if (! empty($event['file_name'])) {
+                $media['file_name'] = substr((string) $event['file_name'], 0, 180);
             }
             if (! empty($event['id'])) {
                 $media['key'] = [

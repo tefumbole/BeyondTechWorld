@@ -235,7 +235,8 @@ class CloudPortalController extends Controller
         if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
             return response()->json(['status' => 'ERROR', 'error' => 'Use your personal WhatsApp number. The business line stays separate.']);
         }
-        $state = app(\App\Services\Cloud\MaiWhatsAppEngine::class)->pairGuest($id, $phone);
+        session(['mai_pair_phone' => preg_replace('/\D/', '', (string) $phone)]);
+        $state = app(\App\Services\Cloud\MaiWhatsAppEngine::class)->pairGuest($id, $phone, $request->boolean('fresh') || $request->input('fresh') === '1');
         $claimed = $this->claimMaiGuest($request, $state);
         if ($claimed) {
             return $claimed;
@@ -281,6 +282,7 @@ class CloudPortalController extends Controller
             'qr' => isset($state['qr']) ? $state['qr'] : null,
             'qr_age_ms' => isset($state['qr_age_ms']) ? (int) $state['qr_age_ms'] : 0,
             'pairing_code' => isset($state['pairing_code']) ? $state['pairing_code'] : null,
+            'pairing_age_ms' => isset($state['pairing_age_ms']) ? (int) $state['pairing_age_ms'] : 0,
             'error' => isset($state['error']) ? $state['error'] : null,
         ]);
     }
@@ -308,6 +310,15 @@ class CloudPortalController extends Controller
                 'status' => 'ERROR',
                 'qr' => null,
                 'error' => 'Use your personal WhatsApp number. The business line stays separate.',
+            ]);
+        }
+        $expected = preg_replace('/\D/', '', (string) session('mai_pair_phone'));
+        if ($expected !== '' && substr($expected, -8) !== substr($phone, -8)) {
+            return response()->json([
+                'status' => 'ERROR',
+                'qr' => null,
+                'pairing_code' => null,
+                'error' => 'This WhatsApp is a different number.',
             ]);
         }
         $sendLink = Cache::add('mai-guest-claim:'.$phone, 1, now()->addMinutes(10));

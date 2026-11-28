@@ -322,6 +322,58 @@ class MaiCustomerSessionTest extends TestCase
             ->assertJsonPath('capabilities.read_receipts.accepted', false);
     }
 
+    public function test_signed_in_pairing_rejects_the_business_line_and_a_different_number()
+    {
+        $user = new \App\User();
+        $user->name = 'Ada';
+        $user->email = 'ada-link@example.test';
+        $user->password = bcrypt('portal-secret');
+        $user->phone = '237670000111';
+        $user->role_id = 5;
+        $user->is_active = 1;
+        $user->save();
+        $this->actingAs($user);
+        $seen = [];
+        config(['cloud.whatsapp.link_transport' => function ($method, $path, $body) use (&$seen) {
+            $seen[] = ['method' => $method, 'path' => $path, 'body' => $body];
+            if (substr($path, -5) === '/pair') {
+                return ['status' => 'AWAITING_QR', 'pairing_code' => 'ABCD-EFGH', 'pairing_age_ms' => 0];
+            }
+            if (isset($body['match']) && $body['match'] === 'wrong') {
+                return ['status' => 'CONNECTED', 'phone' => '237699999999'];
+            }
+
+            return ['status' => 'AWAITING_QR', 'phone' => null, 'qr' => null];
+        }]);
+
+        $this->postJson('/whatsapp-mai/link/pair', ['phone' => '675321739', 'dial' => '237'])
+            ->assertOk()
+            ->assertJsonPath('status', 'ERROR');
+        $this->assertCount(0, $seen);
+
+        $paired = $this->postJson('/whatsapp-mai/link/pair', ['phone' => '670000111', 'dial' => '237', 'fresh' => 1]);
+        $paired->assertOk()->assertJsonPath('pairing_code', 'ABCD-EFGH');
+        $this->assertSame(1, $seen[0]['body']['fresh']);
+        $this->assertSame('237670000111', $seen[0]['body']['phone']);
+        $this->assertStringNotContainsString('ABCD-EFGH', json_encode($seen));
+
+        config(['cloud.whatsapp.link_transport' => function () {
+            return ['status' => 'CONNECTED', 'phone' => '237699999999'];
+        }]);
+        $this->getJson('/whatsapp-mai/link/status')
+            ->assertOk()
+            ->assertJsonPath('status', 'ERROR')
+            ->assertJsonPath('redirect', null);
+
+        config(['cloud.whatsapp.link_transport' => function () {
+            return ['status' => 'CONNECTED', 'phone' => '237670000111'];
+        }]);
+        $this->getJson('/whatsapp-mai/link/status')
+            ->assertOk()
+            ->assertJsonPath('status', 'CONNECTED')
+            ->assertJsonPath('redirect', url('/whatsapp-mai/inbox'));
+    }
+
     protected function account($email)
     {
         $this->post('/mai/logout');

@@ -122,11 +122,21 @@ class PersonalHub
                 $message->provider_message_id = $providerId !== '' ? $providerId : $key;
                 $message->body = $row['text'];
                 $stored = $this->historyFile($session, $row);
+                $media = [];
                 if ($stored !== '') {
-                    $message->media_json = json_encode([
-                        'stored' => $stored,
-                        'name' => $row['text'] !== '' ? $row['text'] : $message->type,
-                    ]);
+                    $media['stored'] = $stored;
+                    $media['name'] = $row['text'] !== '' ? $row['text'] : $message->type;
+                } elseif ($message->type !== 'TEXT') {
+                    $media['unavailable'] = true;
+                    $media['reason'] = ! empty($row['reason'])
+                        ? substr((string) $row['reason'], 0, 180)
+                        : 'WhatsApp did not send this file to MAI. It is still on the phone.';
+                }
+                if (! empty($row['file_name'])) {
+                    $media['file_name'] = substr((string) $row['file_name'], 0, 180);
+                }
+                if ($media) {
+                    $message->media_json = json_encode($media);
                 }
                 $message->status = $status;
                 $message->sender_type = ! empty($row['from_me']) ? 'ECHO' : 'CONTACT';
@@ -337,6 +347,17 @@ class PersonalHub
             if (empty($media['stored'])) {
                 $media['stored'] = $stored;
                 $media['name'] = isset($row['text']) && $row['text'] !== '' ? $row['text'] : $type;
+                unset($media['unavailable'], $media['reason']);
+                $message->media_json = json_encode($media);
+                $changed = true;
+            }
+        } elseif ($type !== 'TEXT') {
+            $media = $message->media();
+            if (empty($media['stored']) && empty($media['unavailable'])) {
+                $media['unavailable'] = true;
+                $media['reason'] = ! empty($row['reason'])
+                    ? substr((string) $row['reason'], 0, 180)
+                    : 'WhatsApp did not send this file to MAI. It is still on the phone.';
                 $message->media_json = json_encode($media);
                 $changed = true;
             }

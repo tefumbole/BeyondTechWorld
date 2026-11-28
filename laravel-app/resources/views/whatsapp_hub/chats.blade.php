@@ -676,6 +676,7 @@ try {
                         'type' => $message->type,
                         'mediaUrl' => $message->chatMediaUrl(),
                         'mediaName' => $message->chatMediaName(),
+                        'mediaReason' => $message->mediaReason(),
                         'who' => null,
                         'choices' => app(\App\Services\Event\EventOptionPresentation::class)->displayChoices($message->body, $message->media_json),
                         'voicePending' => $message->direction === \App\WhatsApp\WhatsAppMessage::DIR_IN && strtoupper((string) $message->type) === 'AUDIO' && trim((string) (isset($message->translationMeta()['english']) ? $message->translationMeta()['english'] : '')) === '',
@@ -793,6 +794,7 @@ try {
                         'type' => isset($media['type']) ? $media['type'] : 'TEXT',
                         'mediaUrl' => $mediaUrl,
                         'mediaName' => isset($media['file_name']) ? $media['file_name'] : '',
+                        'mediaReason' => isset($media['reason']) ? $media['reason'] : '',
                         'who' => empty($media['outgoing']) ? ($message->participant_name ?: 'Member') : null,
                     ])
                 @empty
@@ -1648,8 +1650,8 @@ window.addEventListener('pageshow', function (event) {
             media = '<video controls preload="none" src="' + esc(message.media) + '"></video>';
         } else if (message.media && (message.type === 'DOCUMENT' || message.type === 'LOCATION')) {
             media = '<a class="chat-file" target="_blank" rel="noopener" href="' + esc(message.media) + '">' + esc(message.name || 'Document') + '</a>';
-        } else if (message.unavailable) {
-            media = '<span class="aside">This attachment is no longer available.</span>';
+        } else if (message.unavailable || message.reason) {
+            media = '<span class="aside">' + esc(message.reason || 'WhatsApp did not send this file to MAI. It is still on the phone.') + '</span>';
         } else if (photo) {
             media = '<span class="aside">Photo</span>';
         } else if (message.type === 'VIDEO') {
@@ -2228,10 +2230,10 @@ window.addEventListener('pageshow', function (event) {
                                 poll('&before=' + button.getAttribute('data-before'));
                             }, 2000);
                         } else if (data.history === 'failed') {
-                            button.textContent = 'Older messages could not be loaded';
+                            button.textContent = 'WhatsApp did not return older messages. Try again.';
                             button.disabled = false;
                         } else if (data.history === 'unavailable') {
-                            button.textContent = 'Older history is not available';
+                            button.textContent = 'WhatsApp did not send older messages for this chat. They stay on the phone and in WhatsApp Web.';
                             button.disabled = true;
                         } else if (data.has_earlier && data.earlier && data.earlier.length) button.setAttribute('data-before', data.earlier[0].id);
                         else button.remove();

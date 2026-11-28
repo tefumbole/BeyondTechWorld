@@ -17,7 +17,7 @@ class MaiLinkClient
 
     public function pair($workerId)
     {
-        return $this->call('POST', '/sessions/'.$workerId.'/pair', []);
+        return $this->call('POST', '/sessions/'.$workerId.'/pair', ['fresh' => 1]);
     }
 
     public function status($workerId)

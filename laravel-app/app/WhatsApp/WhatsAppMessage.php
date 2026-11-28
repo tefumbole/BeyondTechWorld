@@ -168,6 +168,19 @@ class WhatsAppMessage extends Model
         return '';
     }
 
+    public function mediaReason()
+    {
+        $media = $this->media();
+        if (! empty($media['reason'])) {
+            return (string) $media['reason'];
+        }
+        if (! empty($media['unavailable']) && $this->chatMediaUrl() === '') {
+            return 'WhatsApp did not send this file to MAI. It is still on the phone.';
+        }
+
+        return '';
+    }
+
     public function chatMediaName()
     {
         $media = $this->media();
