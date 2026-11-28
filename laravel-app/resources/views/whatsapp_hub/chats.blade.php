@@ -5,6 +5,7 @@
     #content { display: block !important; height: auto !important; max-height: none !important; overflow: visible !important; padding: 0 !important; background: var(--beyond-bg); }
     #content > .container-fluid { flex: none; }
     .main-footer { display: none !important; }
+    .chats-app, .chats-app * { box-sizing: border-box; }
     .chats-app {
         --wa-green: #25d366; --wa-teal: #128c7e; --wa-ink: #0f1f3d; --wa-muted: #6b7a99; --wa-line: #e6ebf5;
         --wa-grad: linear-gradient(135deg, #0b3d91 0%, #1565c0 45%, #12a4a4 100%);
@@ -13,11 +14,25 @@
         font-feature-settings: "tnum" 1;
     }
     .chat-rail { display: none; }
-    .hub-screens { display: flex; gap: 8px; padding: 10px 12px 0; background: #fff; flex: none; }
-    .hub-screens a { flex: 1; text-align: center; text-decoration: none; border-radius: 999px; padding: 9px 8px; font-size: 14px; font-weight: 700; color: #3b4a6b; background: #f4f7fb; border: 1px solid #e7edf5; }
-    .hub-screens a.is-on { color: #fff; background: var(--wa-grad); border-color: transparent; }
-    .hub-screens form.hub-signout { flex: 1; margin: 0; display: flex; }
-    .hub-screens form.hub-signout button { flex: 1; width: 100%; text-align: center; border-radius: 999px; padding: 9px 8px; font-size: 14px; font-weight: 700; color: #3b4a6b; background: #f4f7fb; border: 1px solid #e7edf5; cursor: pointer; min-height: 40px; }
+    .inbox-bar { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 12px 2px; background: #fff; flex: none; }
+    .inbox-brand { min-width: 0; }
+    .inbox-brand h1 { margin: 0; font-size: 28px; line-height: 1.05; font-weight: 800; letter-spacing: -.03em; color: #111b21; }
+    .inbox-status { display: flex; align-items: center; gap: 6px; margin: 3px 0 0; color: #667781; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .inbox-status i { width: 8px; height: 8px; border-radius: 50%; background: #25d366; flex: none; }
+    .inbox-status.is-off i { background: #e5484d; }
+    .inbox-tools { display: flex; gap: 2px; flex: none; }
+    .inbox-icon { width: 44px; height: 44px; border: 1.5px solid #d7e0ea; border-radius: 50%; background: #fff; color: #3b4a68; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+    .inbox-icon svg { width: 20px; height: 20px; }
+    .more-menu, .new-chat { position: absolute; z-index: 40; top: 62px; right: 10px; width: min(240px, calc(100% - 20px)); background: #fff; border: 1px solid #e6ebf5; border-radius: 14px; box-shadow: 0 12px 32px rgba(15, 31, 61, .16); }
+    .more-menu[hidden], .new-chat[hidden] { display: none !important; }
+    .more-menu { display: flex; flex-direction: column; padding: 6px; }
+    .more-menu button, .more-menu form { margin: 0; }
+    .more-menu button { width: 100%; min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: #111b21; text-align: left; padding: 0 12px; font-weight: 700; cursor: pointer; }
+    .more-menu button:hover { background: #f4f7fb; }
+    .new-chat { left: 10px; right: 10px; width: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .new-chat label { margin: 0; font-size: 12px; font-weight: 800; color: #667781; }
+    .new-chat input { width: 100%; min-height: 44px; border: 1px solid #d7e0ea; border-radius: 12px; padding: 0 12px; font-size: 16px; }
+    .new-chat button { min-height: 44px; border: 0; border-radius: 12px; background: #2f6bff; color: #fff; font-weight: 800; cursor: pointer; }
     .hub-gear, .chat-gear { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #e7edf5; background: #fff; color: #1565c0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(15,31,61,.08); }
     .hub-install { width: auto; min-width: 52px; padding: 0 12px; border-radius: 999px; font-weight: 800; font-size: 13px; }
     .hub-gear svg, .chat-gear svg { width: 18px; height: 18px; }
@@ -44,6 +59,7 @@
     .theme-swatch { width: 18px; height: 18px; border-radius: 50%; margin-right: 10px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
     .chats-app.theme-black { --wa-ink: #e9edef; --wa-muted: #8696a0; --wa-line: #2a3942; background: #111b21; color: #e9edef; }
     .chats-app.theme-black .chats-side,
+    .chats-app.theme-black .inbox-bar,
     .chats-app.theme-black .hub-screens,
     .chats-app.theme-black .chats-search,
     .chats-app.theme-black .chat-filters,
@@ -61,9 +77,14 @@
     .chats-app.theme-black .chats-search input,
     .chats-app.theme-black .chats-compose textarea { background: #202c33; color: #e9edef; }
     .chats-app.theme-black .chat-name,
+    .chats-app.theme-black .inbox-brand h1,
     .chats-app.theme-black .chats-head h2 { color: #e9edef; }
+    .chats-app.theme-black .inbox-icon,
+    .chats-app.theme-black .more-menu,
+    .chats-app.theme-black .new-chat { background: #202c33; color: #e9edef; border-color: #2a3942; }
     .chats-app.theme-navy { --wa-ink: #e8eefc; --wa-muted: #b7c4e0; --wa-line: #243864; background: #0b1b3a; color: #e8eefc; }
     .chats-app.theme-navy .chats-side,
+    .chats-app.theme-navy .inbox-bar,
     .chats-app.theme-navy .hub-screens,
     .chats-app.theme-navy .chats-search,
     .chats-app.theme-navy .chat-filters,
@@ -81,31 +102,31 @@
     .chats-app.theme-navy .chats-search input,
     .chats-app.theme-navy .chats-compose textarea { background: #13284f; color: #e8eefc; }
     .chats-app.theme-navy .chat-name,
+    .chats-app.theme-navy .inbox-brand h1,
     .chats-app.theme-navy .chats-head h2 { color: #e8eefc; }
+    .chats-app.theme-navy .inbox-icon,
+    .chats-app.theme-navy .more-menu,
+    .chats-app.theme-navy .new-chat { background: #13284f; color: #e8eefc; border-color: #243864; }
     @media (min-width: 801px) {
         .lang-sheet { align-items: center; padding: 24px; }
         .lang-card { border-radius: 24px; }
     }
     .hub-label { padding: 14px 16px 4px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--wa-muted); }
-    .chats-side { position: relative; z-index: 1; width: 360px; max-width: 40vw; flex: 0 0 360px; display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden; border-right: 1px solid var(--wa-line); background: #fff; }
+    .chats-side { position: relative; z-index: 1; width: 400px; max-width: 42vw; flex: 0 0 400px; display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; border-right: 1px solid var(--wa-line); background: #fff; }
     .call-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; min-height: 34px; padding: 0 14px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff !important; text-decoration: none; font-weight: 700; box-shadow: 0 4px 12px rgba(18, 140, 126, .3); }
-    .chats-search { flex: none; padding: 14px 14px 8px; background: #fff; }
-    .chats-search input { width: 100%; border: 1px solid transparent; border-radius: 999px; background: #f1f4fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7a99' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 14px center; color: var(--wa-ink); min-height: 40px; padding: 0 14px 0 40px; transition: border-color .18s, box-shadow .18s, background-color .18s; }
+    .chats-search { flex: none; width: 100%; padding: 10px 12px 8px; background: #fff; }
+    .chats-search input { width: 100%; max-width: 100%; min-width: 0; border: 1px solid transparent; border-radius: 999px; background: #f1f4fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7a99' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 14px center; color: var(--wa-ink); min-height: 40px; padding: 0 14px 0 40px; transition: border-color .18s, box-shadow .18s, background-color .18s; }
     .chats-search input:focus { outline: none; background-color: #fff; border-color: #9cc2ff; box-shadow: 0 0 0 4px rgba(21, 101, 192, .12); }
     .chats-search input::placeholder { color: var(--wa-muted); }
-    .chat-filters { flex: none; display: flex; gap: 8px; overflow-x: auto; padding: 4px 14px 12px; background: #fff; border-bottom: 1px solid var(--wa-line); scrollbar-width: none; }
-    .chat-filters::-webkit-scrollbar { display: none; }
-    .chat-filters button { border: 0; background: #eef2f9; color: #3b4a68; border-radius: 999px; min-height: 32px; padding: 0 14px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background .18s, color .18s, box-shadow .18s; }
-    .chat-filters button:hover { background: #e2e9f6; }
-    .chat-filters button span { margin-left: 6px; display: inline-flex; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; align-items: center; justify-content: center; background: rgba(15,31,61,.08); font-size: 11px; }
-    .chat-filters button.is-on { background: var(--wa-grad); color: #fff; box-shadow: 0 6px 16px rgba(21, 101, 192, .28); }
-    .chat-filters button.is-on span { background: rgba(255,255,255,.25); }
-    .chat-filters button[data-filter="unread"]:not(.is-on) span { background: var(--wa-green); color: #fff; }
-    .chats-list { overflow-x: hidden; overflow-y: auto; flex: 1 1 auto; min-height: 0; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 6px 8px 12px; }
+    .chat-filters { flex: none; display: flex; gap: 6px; width: 100%; overflow: hidden; padding: 4px 12px 10px; background: #fff; border-bottom: 1px solid var(--wa-line); }
+    .chat-filters button { flex: 1 1 0; min-width: 0; border: 0; background: #eef2f7; color: #3b4a68; border-radius: 999px; min-height: 34px; padding: 0 4px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; text-align: center; }
+    .chat-filters button span { display: none; }
+    .chat-filters button.is-on { background: #2f6bff; color: #fff; box-shadow: none; }
+    .chats-list { overflow-x: hidden; overflow-y: auto; flex: 1 1 auto; min-height: 0; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 0 0 calc(28px + env(safe-area-inset-bottom)); scroll-padding-bottom: calc(28px + env(safe-area-inset-bottom)); }
     .chats-list::-webkit-scrollbar, .chats-stream::-webkit-scrollbar { width: 8px; }
     .chats-list::-webkit-scrollbar-thumb, .chats-stream::-webkit-scrollbar-thumb { background: rgba(15,31,61,.14); border-radius: 8px; }
     .chat-none { display: none; padding: 36px 16px; text-align: center; color: var(--wa-muted); }
-    .chat-row { position: relative; display: flex; gap: 12px; align-items: center; padding: 10px 12px; margin: 2px 0; color: var(--wa-ink); text-decoration: none; border-radius: 14px; transition: background .15s, transform .15s; }
+    .chat-row { position: relative; display: flex; gap: 12px; align-items: center; width: 100%; min-width: 0; padding: 10px 14px; margin: 0; color: var(--wa-ink); text-decoration: none; border-radius: 0; border-bottom: 1px solid #f0f2f5; overflow: hidden; }
     .chat-row:hover { background: #f4f7fc; color: var(--wa-ink); text-decoration: none; }
     .chat-row.is-on { background: linear-gradient(90deg, rgba(21,101,192,.12), rgba(18,164,164,.08)); }
     .chat-row.is-on::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: 4px; background: var(--wa-grad); }
@@ -120,11 +141,12 @@
     .chat-avatar[data-tone="7"] { background: linear-gradient(135deg, #8e9eab, #4b5d7a); }
     .chat-avatar.is-group { background: linear-gradient(135deg, #ffd166, #f4a261); color: #3b2300; }
     .chat-main { min-width: 0; flex: 1; }
-    .chat-top, .chat-bottom { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .chat-bottom { margin-top: 3px; }
-    .chat-name { font-weight: 600; font-size: 15px; color: var(--wa-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
-    .chat-time { color: var(--wa-muted); font-size: 12px; flex: none; }
-    .chat-preview { color: var(--wa-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-top, .chat-bottom { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-width: 0; }
+    .chat-bottom { margin-top: 2px; }
+    .chat-name { font-weight: 700; font-size: 16px; color: #111b21; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+    .chat-time { color: #8696a0; font-size: 12px; flex: none; margin-left: auto; }
+    .chat-preview { color: #667781; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+    .chat-state { display: none; }
     .chat-state { flex: none; border-radius: 999px; background: #18a957; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; }
     .chats-side.is-personal .chat-state,
     .chats-side.is-personal .chat-badge,
@@ -144,8 +166,9 @@
         background-image: radial-gradient(circle at 12px 12px, rgba(21,101,192,.07) 2px, transparent 2.5px), radial-gradient(circle at 36px 36px, rgba(18,164,164,.07) 2px, transparent 2.5px), linear-gradient(180deg, #f4f8ff 0%, #e9f1fb 100%);
         background-size: 48px 48px, 48px 48px, 100% 100%; }
     .chats-head { min-height: 66px; background: rgba(255,255,255,.92); backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--wa-line); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 18px; }
-    .chat-back { display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 76px; height: 40px; padding: 0 14px 0 10px; border-radius: 999px; background: var(--wa-grad); color: #fff !important; font-size: 15px; font-weight: 800; text-decoration: none; flex: none; line-height: 1; box-shadow: 0 6px 16px rgba(21, 101, 192, .35); }
-    .chat-back:hover { color: #fff; text-decoration: none; }
+    .chat-back { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-width: 44px; padding: 0; border-radius: 50%; background: transparent; color: #111b21 !important; text-decoration: none; flex: none; line-height: 1; box-shadow: none; }
+    .chat-back svg { width: 22px; height: 22px; }
+    .chat-back:hover { color: #111b21; text-decoration: none; background: #f4f7fb; }
     .chats-head-person { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .chats-head-person .chat-avatar { width: 42px; height: 42px; font-size: 15px; }
     .chats-head-person h2, .chats-head-person p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -272,8 +295,8 @@
     .file-clear { width: 22px; height: 22px; border: 0; border-radius: 50%; background: #9b1c1c; color: #fff; font-size: 14px; font-weight: 800; line-height: 1; cursor: pointer; flex: none; }
     .bubble { position: relative; }
     .bubble-more { position: absolute; top: 4px; right: 4px; z-index: 2; width: 26px; height: 26px; border: 0; border-radius: 8px; background: rgba(255,255,255,.9); color: #16315c; font-size: 18px; font-weight: 900; line-height: 1; cursor: pointer; box-shadow: 0 1px 3px rgba(15,31,61,.15); }
-    .chats-compose { display: flex; align-items: flex-end; flex-wrap: nowrap; gap: 8px; padding: 10px 12px; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); position: relative; }
-    .chats-compose textarea { flex: 1 1 auto; order: 0; border: 1px solid transparent; border-radius: 18px; background: #f1f4fa; color: var(--wa-ink); min-height: 44px; max-height: 120px; padding: 12px 14px; resize: none; font-size: 16px; line-height: 1.4; transition: border-color .18s, box-shadow .18s, background-color .18s; }
+    .chats-compose { display: flex; align-items: flex-end; flex-wrap: nowrap; gap: 8px; width: 100%; max-width: 100%; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); position: relative; }
+    .chats-compose textarea { flex: 1 1 auto; min-width: 0; order: 0; border: 1px solid transparent; border-radius: 18px; background: #f1f4fa; color: var(--wa-ink); min-height: 44px; max-height: 120px; padding: 12px 14px; resize: none; font-size: 16px; line-height: 1.4; transition: border-color .18s, box-shadow .18s, background-color .18s; }
     .chats-compose textarea:focus { outline: none; background: #fff; border-color: #9cc2ff; box-shadow: 0 0 0 4px rgba(21, 101, 192, .12); }
     .chats-compose button[type="submit"] { border: 0; border-radius: 50%; width: 46px; height: 46px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; flex: none; box-shadow: 0 6px 16px rgba(18, 140, 126, .35); transition: transform .15s, box-shadow .15s; }
     .chats-compose button[type="submit"]:hover { transform: scale(1.06); box-shadow: 0 8px 20px rgba(18, 140, 126, .45); }
@@ -304,29 +327,27 @@
     .group-card h2 { margin: 8px 0; color: var(--wa-ink); }
     .chat-note { background: linear-gradient(90deg, #fff4d6, #ffe7b3); color: #7a5b10; padding: 9px 16px; font-size: 13px; font-weight: 600; }
     @media (max-width: 800px) {
-        .chats-app { height: calc(100vh - 180px); min-height: 520px; margin: 0; border-radius: 0; box-shadow: none; }
-        .chats-side { width: 100%; max-width: none; }
+        .chats-app { width: 100%; max-width: 100%; height: 100dvh; min-height: 0; margin: 0; border-radius: 0; box-shadow: none; overflow: hidden; }
+        .chats-side, .chats-thread { width: 100%; max-width: 100%; flex: 1 1 auto; }
         .chats-thread { display: none; }
         .chats-app.has-open .chat-rail, .chats-app.has-open .chats-side { display: none; }
         .chats-app.has-open .chats-thread { display: flex; }
         .chat-back { display: inline-flex; }
         .chats-stream { padding: 8px 12px 12px; }
         .bubble { max-width: 90%; }
-        .chats-compose { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
-        .chats-compose { flex-wrap: wrap; }
-        .chats-compose textarea { flex: 1 1 160px; min-height: 44px; max-height: 96px; }
-        .chats-head { padding: 8px 10px; flex-direction: column; align-items: stretch; gap: 8px; }
+        .chats-compose { flex-wrap: nowrap; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+        .chats-compose textarea { flex: 1 1 auto; min-width: 0; min-height: 44px; max-height: 96px; }
+        .chats-head { padding: 8px 10px; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; }
         .chats-head-person { width: 100%; flex: none; }
         .chats-head-person h2, .chats-head-person p { white-space: normal; }
-        .mode-switch { width: 100%; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; overflow: visible; justify-content: stretch; }
+        .mode-switch { width: 100%; max-width: 100%; display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; }
         .mode-switch > .call-btn { grid-column: span 2; }
         .mode-switch > .chat-gear { grid-column: span 1; }
         .mode-switch > #threadTranslate { grid-column: span 3; }
         .mode-switch > #threadAi, .mode-switch > #threadHuman { grid-column: span 3; }
         .mode-switch > .announce-btn { grid-column: 1 / -1; }
-        .mode-switch form { display: flex; min-width: 0; }
-        .mode-switch button, .announce-btn, .call-btn { width: 100%; justify-content: center; padding: 0 8px; white-space: nowrap; }
-        .mode-switch button, .announce-btn, .call-btn { min-height: 36px; }
+        .mode-switch form { display: flex; flex: none; }
+        .mode-switch button, .announce-btn, .call-btn { width: auto; flex: none; justify-content: center; padding: 0 10px; white-space: nowrap; min-height: 36px; }
         .chats-search input, .chats-compose textarea { font-size: 16px; }
         .hub-install { flex: none; }
         .beyond-module-tabs { margin-bottom: 0; }
@@ -343,6 +364,7 @@
         .letter-row { flex-direction: column; }
         .chats-head-person h2 { font-size: 16px; }
     }
+    body.whatsapp-hub-app { margin: 0; overflow-x: hidden; }
     body.whatsapp-hub-app .header,
     body.whatsapp-hub-app nav.side-navbar,
     body.whatsapp-hub-app .sidebar-backdrop,
@@ -373,37 +395,63 @@ try {
 } catch (e) {}
 </script>
     <aside class="chats-side {{ !empty($personalHub) ? 'is-personal' : '' }}">
-        <nav class="hub-screens">
-            <a class="{{ $screen === 'chats' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}">Chats</a>
-            @if(empty($personalHub))
-            <a class="{{ $screen === 'calls' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
-            @endif
-            <a class="{{ $screen === 'more' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}">More</a>
-            <button type="button" class="hub-gear hub-install" id="hubInstall">App</button>
-            <form method="POST" action="{{ url('/logout') }}" class="hub-signout">
+        @php
+            $statusDigits = preg_replace('/\D/', '', (string) $sessionPhone);
+            $statusPhone = $sessionPhone;
+            if (strlen($statusDigits) > 9) {
+                $statusRest = substr($statusDigits, -9);
+                $statusPhone = '+'.substr($statusDigits, 0, -9).' '.substr($statusRest, 0, 3).' '.substr($statusRest, 3, 3).' '.substr($statusRest, 6, 3);
+            } elseif ($statusDigits !== '') {
+                $statusPhone = '+'.$statusDigits;
+            }
+            $statusOn = empty($phoneLink['disconnected']);
+        @endphp
+        <header class="inbox-bar">
+            <div class="inbox-brand">
+                <h1>Whats MAI</h1>
+                <p class="inbox-status {{ $statusOn ? 'is-on' : 'is-off' }}"><i></i> {{ $statusOn ? 'Connected' : 'Not linked' }} · {{ $statusPhone }}</p>
+            </div>
+            <div class="inbox-tools">
+                <button type="button" class="inbox-icon" id="newChatOpen" aria-label="New chat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z"/></svg>
+                </button>
+                <button type="button" class="inbox-icon" id="moreOpen" aria-label="More" aria-expanded="false" aria-controls="moreMenu">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18" cy="12" r="1.7"/></svg>
+                </button>
+            </div>
+            <div class="more-menu" id="moreMenu" hidden>
+                <button type="button" id="hubInstall">App</button>
+                <button type="button" class="js-hub-settings">Settings</button>
+                <form method="POST" action="{{ url('/logout') }}">
+                    @csrf
+                    <button type="submit">Sign out</button>
+                </form>
+            </div>
+            <form class="new-chat" id="newChat" method="POST" action="{{ route('whatsapp.chats.start') }}" hidden>
                 @csrf
-                <button type="submit">Sign out</button>
+                <label for="newChatPhone">WhatsApp number</label>
+                <input id="newChatPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="250794006160" required>
+                <button type="submit">Open chat</button>
             </form>
-            <button type="button" class="hub-gear js-hub-settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
-        </nav>
-        <div class="hub-label">WhatsApp {{ $sessionPhone }}</div>
+        </header>
+        @if(session('not_permitted') && ! $open)
+            <div class="chat-note">{{ session('not_permitted') }}</div>
+        @endif
         @if(!empty($phoneLink['disconnected']))
             <div class="chat-note">WhatsApp on the phone is not linked{{ !empty($phoneLink['at']) ? ' since '.$phoneLink['at'] : '' }}. Reconnect that number in Wasender. New chats will then stay up to date here.</div>
         @endif
         @php
             $openId = $open ? (int) $open->id : 0;
-            $unreadChats = $conversations->filter(function ($row) use ($openId) { return (int) $row->id !== $openId && (int) $row->unread_count > 0; })->count();
-            $readChats = $conversations->count() - $unreadChats;
         @endphp
         <div class="chats-search">
-            <input type="search" id="chatSearch" placeholder="{{ $pane === 'chats' ? 'Search a name' : 'Search this list' }}" autocomplete="off">
+            <input type="search" id="chatSearch" placeholder="{{ $pane === 'chats' ? 'Search chats' : 'Search this list' }}" autocomplete="off">
         </div>
         @if($pane === 'chats')
         <div class="chat-filters" id="chatFilters">
             <button type="button" class="is-on" data-filter="all">All</button>
-            <button type="button" data-filter="unread">Unread <span>{{ $unreadChats }}</span></button>
-            <button type="button" data-filter="read">Read <span>{{ $readChats }}</span></button>
-            <button type="button" data-filter="groups">Groups <span>{{ count($groups) }}</span></button>
+            <button type="button" data-filter="unread">Unread</button>
+            <button type="button" data-filter="read">Read</button>
+            <button type="button" data-filter="groups">Groups</button>
         </div>
         @endif
         <div class="chats-list" id="chatList">
@@ -622,7 +670,7 @@ try {
             @endphp
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats', array_filter(['filter' => $listFilter !== 'all' ? $listFilter : null])) }}" aria-label="Back to chats">‹ Back</a>
+                    <a class="chat-back" href="{{ route('whatsapp.chats', array_filter(['filter' => $listFilter !== 'all' ? $listFilter : null])) }}" aria-label="Back to chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
                     <span class="chat-avatar" id="threadAvatar" data-tone="{{ sprintf('%u', crc32(strtolower($title))) % 8 }}">{{ mb_strtoupper(mb_substr($title, 0, 1)) }}</span>
                     <div>
                         <h2 id="threadName">{{ $title }}</h2>
@@ -764,7 +812,7 @@ try {
         @elseif($group)
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}" aria-label="Back to chats">‹ Back</a>
+                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}" aria-label="Back to chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
                     <div>
                         <h2>{{ $group['name'] }}</h2>
                         <p>{{ $group['members'] === null ? 'WhatsApp group' : number_format($group['members']).' contacts' }}</p>
@@ -839,7 +887,7 @@ try {
         @elseif($pane === 'briefing')
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back">‹ Back</a>
+                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
                     <div>
                         <h2>AI briefing</h2>
                         <p>Updates AI uses when a chat is on AI mode</p>
@@ -882,7 +930,7 @@ try {
         @elseif($pane === 'apps')
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back">‹ Back</a>
+                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
                     <div>
                         <h2>Linked apps</h2>
                         <p>AI can read data from your application</p>
@@ -903,7 +951,7 @@ try {
         @elseif($pane === 'speech')
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back">‹ Back</a>
+                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
                     <div>
                         <h2>Speech translation</h2>
                         <p>Call, then translate what is said</p>
@@ -966,7 +1014,7 @@ try {
         @elseif($pane === 'announcements' && !empty($personalHub) && !empty($announce))
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats') }}" aria-label="Back">‹ Back</a>
+                    <a class="chat-back" href="{{ route('whatsapp.chats') }}" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
                     <div>
                         <h2>Announcements</h2>
                         <p>Write a message, choose people or a group, then send</p>
@@ -981,7 +1029,7 @@ try {
         @elseif($pane === 'announcements')
             <header class="chats-head">
                 <div class="chats-head-person">
-                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back">‹ Back</a>
+                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'more']) }}" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
                     <div>
                         <h2>Announcements</h2>
                         <p>Send a letter to one group or one person</p>
@@ -1038,7 +1086,7 @@ try {
 <template id="hubThreadShell">
     <header class="chats-head">
         <div class="chats-head-person">
-            <a class="chat-back" href="{{ route('whatsapp.chats') }}" aria-label="Back to chats">‹ Back</a>
+            <a class="chat-back" href="{{ route('whatsapp.chats') }}" aria-label="Back to chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></a>
             <span class="chat-avatar" id="threadAvatar" data-tone="0">W</span>
             <div>
                 <h2 id="threadName">WhatsApp</h2>
@@ -1272,6 +1320,7 @@ window.addEventListener('pageshow', function (event) {
     var filters = document.getElementById('chatFilters');
     var none = document.getElementById('chatNone');
     var filter = @json($pane === 'chats' ? $listFilter : 'all');
+    var savedListScroll = 0;
     var openId = {{ $openId }};
     var listPage = @json(route('whatsapp.chats'));
     function applyList() {
@@ -1322,7 +1371,7 @@ window.addEventListener('pageshow', function (event) {
             var url = new URL(row.href, window.location.href);
             if (filter !== 'all') url.searchParams.set('filter', filter);
             else url.searchParams.delete('filter');
-            try { sessionStorage.setItem('chatListScroll', String(list.scrollTop)); } catch (e) {}
+            rememberList();
             var chatId = row.getAttribute('data-id') || url.searchParams.get('chat');
             if (row.getAttribute('data-kind') === 'group' || url.searchParams.get('group') || !chatId) {
                 window.location.href = url.toString();
@@ -1332,17 +1381,8 @@ window.addEventListener('pageshow', function (event) {
             openChatInPlace(chatId);
         });
     }
-    if (search) search.addEventListener('input', applyList);
-    applyList();
-    if (list) {
-        try {
-            var kept = sessionStorage.getItem('chatListScroll');
-            if (kept !== null) {
-                list.scrollTop = parseInt(kept, 10) || 0;
-                sessionStorage.removeItem('chatListScroll');
-            }
-        } catch (e) {}
-    }
+    if (search) search.addEventListener('input', function () { rememberList(); applyList(); });
+    restoreList();
     var stream = document.getElementById('chatStream');
     if (stream) stream.scrollTop = stream.scrollHeight;
     var enterSends = @json(!empty($enterSends));
@@ -2084,15 +2124,38 @@ window.addEventListener('pageshow', function (event) {
         }
         applyList();
     }
+    function rememberList() {
+        if (!list) return;
+        savedListScroll = list.scrollTop;
+        try {
+            sessionStorage.setItem('chatListScroll', String(list.scrollTop));
+            sessionStorage.setItem('chatListQuery', search ? search.value : '');
+            sessionStorage.setItem('chatListFilter', filter || 'all');
+        } catch (e) {}
+    }
+    function restoreList() {
+        try {
+            var keptQuery = sessionStorage.getItem('chatListQuery');
+            var keptScroll = sessionStorage.getItem('chatListScroll');
+            if (search && keptQuery !== null) search.value = keptQuery;
+            if (keptScroll !== null) savedListScroll = parseInt(keptScroll, 10) || 0;
+        } catch (e) {}
+        applyList();
+        if (list) list.scrollTop = savedListScroll;
+    }
     function showChatList(fromHistory) {
         var app = document.querySelector('.chats-app');
         if (app) app.classList.remove('has-open');
         openChat = 0;
         openGroup = '';
         if (list) list.querySelectorAll('.chat-row.is-on').forEach(function (row) { row.classList.remove('is-on'); });
+        restoreList();
         if (!fromHistory && window.history && history.pushState) {
             var url = new URL(chatPage, window.location.href);
+            url.searchParams.delete('chat');
+            url.searchParams.delete('group');
             if (filter && filter !== 'all') url.searchParams.set('filter', filter);
+            else url.searchParams.delete('filter');
             history.pushState({ chat: 0 }, '', url.pathname + url.search);
         }
     }
@@ -3165,6 +3228,57 @@ window.addEventListener('pageshow', function (event) {
         else showChatList(true);
     });
     if (window.applyLocalHubTimes) window.applyLocalHubTimes();
+    var moreOpen = document.getElementById('moreOpen');
+    var moreMenu = document.getElementById('moreMenu');
+    var newChatOpen = document.getElementById('newChatOpen');
+    var newChat = document.getElementById('newChat');
+    function closeInboxPopovers(except) {
+        if (moreMenu && except !== moreMenu) { moreMenu.hidden = true; if (moreOpen) moreOpen.setAttribute('aria-expanded', 'false'); }
+        if (newChat && except !== newChat) newChat.hidden = true;
+    }
+    if (moreOpen && moreMenu) moreOpen.addEventListener('click', function (event) {
+        event.stopPropagation();
+        var open = moreMenu.hidden;
+        closeInboxPopovers(open ? moreMenu : null);
+        moreMenu.hidden = !open;
+        moreOpen.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    if (newChatOpen && newChat) newChatOpen.addEventListener('click', function (event) {
+        event.stopPropagation();
+        var open = newChat.hidden;
+        closeInboxPopovers(open ? newChat : null);
+        newChat.hidden = !open;
+        if (open) {
+            var field = document.getElementById('newChatPhone');
+            if (field) field.focus();
+        }
+    });
+    document.addEventListener('click', function (event) {
+        if (event.target.closest && event.target.closest('#moreOpen, #newChatOpen, #newChat')) return;
+        closeInboxPopovers(null);
+    });
+    function fitInbox() {
+        var app = document.getElementById('chatsApp');
+        if (!app || !window.visualViewport || !window.matchMedia('(max-width: 800px)').matches) {
+            if (app) { app.style.height = ''; app.style.transform = ''; }
+            return;
+        }
+        app.style.height = Math.round(window.visualViewport.height) + 'px';
+        app.style.transform = 'translateY(' + Math.round(window.visualViewport.offsetTop) + 'px)';
+    }
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', fitInbox);
+        window.visualViewport.addEventListener('scroll', fitInbox);
+        fitInbox();
+    }
+    var composeField = document.getElementById('chatBody');
+    if (composeField) composeField.addEventListener('focus', function () {
+        setTimeout(function () {
+            fitInbox();
+            var stream = document.getElementById('chatStream');
+            if (stream) stream.scrollTop = stream.scrollHeight;
+        }, 60);
+    });
     applyLocalMarks();
     drainVoice();
     poll();

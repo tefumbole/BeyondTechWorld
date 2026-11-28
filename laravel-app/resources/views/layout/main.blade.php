@@ -14,7 +14,7 @@
               <title>Customer Name: {{ $customer_name }}</title>
           @endif
         <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
         <meta name="robots" content="all,follow">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         @if(Route::is('whatsapp.chats'))

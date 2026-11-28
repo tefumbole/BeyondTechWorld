@@ -226,6 +226,32 @@ class WhatsAppHubController extends Controller
         return redirect()->to($back)->with('message', 'Sent from +'.$phone.'.');
     }
 
+    public function startChat(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.view', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $digits = preg_replace('/\D/', '', (string) $request->input('phone'));
+        if (! preg_match('/^[1-9][0-9]{7,14}$/', $digits)) {
+            return redirect()->route('whatsapp.chats')->with('not_permitted', 'Enter a WhatsApp number.');
+        }
+        if ($personal = $this->personalHub()) {
+            if (\App\Services\Mai\MaiBusinessLine::is($digits)) {
+                return redirect()->route('whatsapp.chats')->with('not_permitted', 'That number stays on the business WhatsApp line.');
+            }
+            $conversation = app(\App\Services\Mai\MaiOutboundService::class)->conversation($personal, $digits);
+
+            return redirect()->route('whatsapp.chats', ['chat' => $conversation->id]);
+        }
+        $contact = app(\App\Services\WhatsApp\WhatsAppConversationService::class)->findOrCreateContact($digits);
+        if (! $contact) {
+            return redirect()->route('whatsapp.chats')->with('not_permitted', 'Enter a WhatsApp number.');
+        }
+        $conversation = app(\App\Services\WhatsApp\WhatsAppConversationService::class)->openConversation($contact);
+
+        return redirect()->route('whatsapp.chats', ['chat' => $conversation->id]);
+    }
+
     protected function linkedMaiPhone()
     {
         return '250794006160';
