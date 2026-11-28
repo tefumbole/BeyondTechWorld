@@ -1,6 +1,10 @@
 <link rel="manifest" href="{{ route('whatsapp.mai.manifest') }}">
 <meta name="theme-color" content="#072f6b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Whats MAI">
 <link rel="icon" type="image/png" href="/public/branding/mai-icon-192.png">
+<link rel="apple-touch-icon" href="/public/branding/mai-icon-192.png">
 <script>
 if (!window.__maiInstallEarly) {
     window.__maiInstallEarly = true;

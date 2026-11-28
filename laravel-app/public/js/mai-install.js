@@ -7,7 +7,8 @@
         document.querySelectorAll('[data-mai-install]').forEach(function (button) { button.hidden = true; });
     }
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/whatsapp-mai/sw.js', { scope: '/whatsapp-mai/' }).catch(function () {});
+        var scope = (location.hostname || '').indexOf('mai.') === 0 ? '/' : '/whatsapp-mai/';
+        navigator.serviceWorker.register('/whatsapp-mai/sw.js', { scope: scope }).catch(function () {});
     }
     window.addEventListener('beforeinstallprompt', function (event) {
         event.preventDefault();
@@ -96,23 +97,20 @@
             showSheet(inAppBrowser() ? 'inapp' : 'help');
         });
     }
-    document.addEventListener('click', function (event) {
-        var button = event.target && event.target.closest ? event.target.closest('[data-mai-install]') : null;
-        if (!button || button.disabled) return;
-        event.preventDefault();
-        if (window.__maiInstall.installed || standalone) return;
+    function offer(button) {
         var waiting = window.__maiInstall.event;
+        if (!waiting || typeof waiting.prompt !== 'function') return false;
         window.__maiInstall.event = null;
-        if (waiting && typeof waiting.prompt === 'function') {
-            try {
-                var pending = waiting.prompt();
-                if (pending && pending.catch) pending.catch(function () { showSheet(inAppBrowser() ? 'inapp' : 'help'); });
-                afterPrompt(waiting, button);
-            } catch (error) {
-                showSheet(inAppBrowser() ? 'inapp' : 'help');
-            }
-            return;
+        try {
+            var pending = waiting.prompt();
+            if (pending && pending.catch) pending.catch(function () { showSheet(inAppBrowser() ? 'inapp' : 'help'); });
+            afterPrompt(waiting, button);
+        } catch (error) {
+            showSheet(inAppBrowser() ? 'inapp' : 'help');
         }
+        return true;
+    }
+    function explain() {
         if (inAppBrowser()) {
             showSheet('inapp');
             return;
@@ -122,5 +120,21 @@
             return;
         }
         showSheet('help');
+    }
+    document.addEventListener('click', function (event) {
+        var button = event.target && event.target.closest ? event.target.closest('[data-mai-install]') : null;
+        if (!button || button.disabled) return;
+        event.preventDefault();
+        if (window.__maiInstall.installed || standalone) return;
+        if (offer(button)) return;
+        var settled = false;
+        var timer = setTimeout(finish, 1500);
+        function finish() {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            if (!offer(button)) explain();
+        }
+        window.addEventListener('beforeinstallprompt', finish, { once: true });
     });
 })();

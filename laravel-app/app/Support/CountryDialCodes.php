@@ -118,6 +118,17 @@ class CountryDialCodes
         return '+'.$codeDigits.$digits;
     }
 
+    /** Digits WhatsApp can pair. An old 8-digit Cameroon mobile gains the leading 6. */
+    public static function whatsappDigits($phone, $dial = null)
+    {
+        $digits = preg_replace('/\D/', '', (new \App\Services\Cloud\CloudMbolePrice())->e164($phone, $dial));
+        if (strpos($digits, '237') === 0 && strlen($digits) === 11) {
+            $digits = '2376'.substr($digits, 3);
+        }
+
+        return $digits;
+    }
+
     /**
      * Split an E.164-ish number into [dial code, national digits].
      *

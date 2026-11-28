@@ -167,7 +167,7 @@ class MaiWhatsAppController extends Controller
         if (! $user) {
             return $this->signedOut();
         }
-        $phone = preg_replace('/\D/', '', (string) app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial')));
+        $phone = \App\Support\CountryDialCodes::whatsappDigits($request->input('phone'), $request->input('dial'));
         if (! preg_match('/^[1-9][0-9]{7,14}$/', $phone)) {
             return response()->json(['status' => 'ERROR', 'error' => 'Enter the WhatsApp number with the country code.']);
         }

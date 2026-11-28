@@ -240,6 +240,10 @@
             code.textContent = data.pairing_code;
             shownAt = Date.now() - (data.pairing_age_ms || 0);
             rememberAttempt(data);
+        } else if (code && data && !data.pairing_code && (data.status === 'ERROR' || data.status === 'CONNECTING' || data.status === 'UNLINKED')) {
+            code.textContent = '';
+            shownAt = 0;
+            try { sessionStorage.removeItem('mai-link-attempt'); } catch (e) {}
         }
         var left = shownAt ? Math.max(0, QR_LIFE - (Date.now() - shownAt)) : 0;
         var expired = !!(data && data.pairing_code && left <= 0);

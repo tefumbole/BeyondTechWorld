@@ -974,19 +974,6 @@ async function startSocketNow(id, expected) {
     }
     if (update.qr && !entry.scanned) {
       entry.pairReady = true
-      if (entry.wantPair && !entry.pairing && !entry.pairAsked && typeof sock.requestPairingCode === 'function') {
-        entry.pairAsked = true
-        const pairPhone = String(entry.wantPair)
-        sock.requestPairingCode(pairPhone).then((code) => {
-          if (!current()) return
-          entry.pairing = String(code || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 17)
-          entry.pairingAt = Date.now()
-          entry.qr = null
-          entry.error = entry.pairing ? null : 'The link code could not be created.'
-        }).catch(() => {
-          entry.pairAsked = false
-        })
-      }
       if (entry.wantPair) return
       const held = entry.qr && entry.qrAt && (Date.now() - entry.qrAt) < 60000 && !entry.replaceQr
       if (!held) {
@@ -1045,6 +1032,27 @@ async function startSocketNow(id, expected) {
         : 0
       entry.sock = null
       console.error('mai link closed ' + code)
+      if (code === DisconnectReason.loggedOut && entry.wantPair && !entry.registered && !entry.scanned) {
+        entry.pairing = null
+        entry.pairAsked = false
+        entry.pairReady = false
+        entry.qr = null
+        entry.retries = (entry.retries || 0) + 1
+        unlinkKeepHistory(dir)
+        if (entry.retries > 2) {
+          entry.status = 'ERROR'
+          entry.error = 'WhatsApp rejected the link. Create a new code.'
+          return
+        }
+        entry.status = 'CONNECTING'
+        setTimeout(() => {
+          startSocket(id, entry.expected).catch(() => {
+            entry.status = 'ERROR'
+            entry.error = 'The link code could not be created. Create a new code.'
+          })
+        }, 400)
+        return
+      }
       if (entry.closing || code === DisconnectReason.loggedOut) {
         entry.status = code === DisconnectReason.loggedOut ? 'UNLINKED' : 'DISCONNECTED'
         entry.qr = null
@@ -1088,6 +1096,21 @@ async function startSocketNow(id, expected) {
     }
   })
   return entry
+}
+
+function waitForReady(entry, ms) {
+  if (!entry || entry.pairReady || entry.pairing || entry.status === 'CONNECTED' || entry.status === 'ERROR') {
+    return Promise.resolve()
+  }
+  return new Promise((resolve) => {
+    const started = Date.now()
+    const timer = setInterval(() => {
+      if (entry.pairReady || entry.pairing || entry.status === 'CONNECTED' || entry.status === 'ERROR' || Date.now() - started >= ms) {
+        clearInterval(timer)
+        resolve()
+      }
+    }, 100)
+  })
 }
 
 function waitForPair(entry, ms) {
@@ -1210,20 +1233,25 @@ async function pairingFor(id, phone, fresh) {
   }
   await waitForPair(entry, 1200)
   if (entry.pairing || entry.status === 'CONNECTED') return publicState(entry, false)
-  if (entry.pairAsked) {
-    await waitForPair(entry, 600)
-    if (entry.pairing || entry.status === 'CONNECTED') return publicState(entry, false)
-  }
-  if (!entry.sock || typeof entry.sock.requestPairingCode !== 'function') {
-    entry.error = 'The link code is not available on this engine.'
+  await waitForReady(entry, 7000)
+  if (entry.pairing || entry.status === 'CONNECTED') return publicState(entry, false)
+  if (!entry.sock || !entry.pairReady || typeof entry.sock.requestPairingCode !== 'function') {
+    entry.error = 'WhatsApp did not open the link. Create a new code.'
     return publicState(entry, false)
   }
   entry.pairAsked = true
-  const code = await entry.sock.requestPairingCode(given)
-  entry.pairing = String(code || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 17)
-  entry.pairingAt = Date.now()
-  entry.qr = null
-  entry.error = entry.pairing ? null : 'The link code could not be created.'
+  try {
+    const code = await entry.sock.requestPairingCode(given)
+    entry.pairing = String(code || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 17)
+    entry.pairingAt = Date.now()
+    entry.qr = null
+    entry.retries = 0
+    entry.error = entry.pairing ? null : 'The link code could not be created.'
+  } catch (error) {
+    entry.pairAsked = false
+    entry.pairing = null
+    entry.error = 'The link code could not be created. Create a new code.'
+  }
   return publicState(entry, false)
 }
 

@@ -167,7 +167,7 @@ class CloudPortalController extends Controller
             'name' => 'Whats MAI',
             'short_name' => 'Whats MAI',
             'start_url' => '/whatsapp-mai/open',
-            'scope' => '/whatsapp-mai/',
+            'scope' => \App\Support\MaiHost::is() ? '/' : '/whatsapp-mai/',
             'display' => 'standalone',
             'background_color' => '#072f6b',
             'theme_color' => '#072f6b',
@@ -194,7 +194,7 @@ class CloudPortalController extends Controller
         return response($js, 200, [
             'Content-Type' => 'application/javascript; charset=UTF-8',
             'Cache-Control' => 'no-cache',
-            'Service-Worker-Allowed' => '/whatsapp-mai/',
+            'Service-Worker-Allowed' => '/',
         ]);
     }
 
@@ -252,7 +252,7 @@ class CloudPortalController extends Controller
     public function whatsappMaiBeginPair(Request $request)
     {
         $id = $this->maiGuestId(true);
-        $phone = app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial'));
+        $phone = \App\Support\CountryDialCodes::whatsappDigits($request->input('phone'), $request->input('dial'));
         if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
             return response()->json(['status' => 'ERROR', 'error' => 'Use your personal WhatsApp number. The business line stays separate.']);
         }
