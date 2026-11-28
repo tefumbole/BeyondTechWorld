@@ -926,6 +926,10 @@ async function startSocketNow(id, expected) {
       entry.retries = 0
       const raw = sock.user && sock.user.id ? String(sock.user.id) : ''
       entry.phone = raw.split(':')[0].split('@')[0]
+      const alias = phoneKey(entry.phone)
+      if (alias && alias !== id) {
+        sessions.set(alias, entry)
+      }
       pullAddressBook(entry, sock, dir)
       keepAddressBookFresh(entry, sock, dir)
       pullReadState(entry, sock, dir)

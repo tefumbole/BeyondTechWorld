@@ -373,8 +373,7 @@
             <ol class="stage-rail {{ ($selected ?? '') === 'MESSAGING' ? 'is-track' : '' }}" id="stage-rail">
                 @if(($selected ?? '') === 'MESSAGING')
                     <li data-stage="1" data-n="1" class="on">Subscribe</li>
-                    <li data-stage="2" data-n="2">Phone</li>
-                    <li data-stage="8" data-n="3">Link</li>
+                    <li data-stage="8" data-n="2">Link</li>
                 @else
                     <li data-stage="1" class="on">Type</li>
                     <li data-stage="2">Phone</li>
@@ -452,9 +451,9 @@
             </section>
             @if(($selected ?? '') === 'MESSAGING')
             <section class="step" data-step="8">
-                <button type="button" class="back-step" data-back="2">Back</button>
+                <button type="button" class="back-step" data-back="1">Back</button>
                 <h2 class="text-xl font-bold">Scan to link WhatsApp</h2>
-                <p class="hint mt-1">On your phone open WhatsApp → Linked devices → Link a device, then scan this code. The code lasts 60 seconds.</p>
+                <p class="hint mt-1">On your phone open WhatsApp → Linked devices → Link a device, then scan this code. After it links, Whats MAI opens on this computer and a link is sent to that WhatsApp so you can open it on the phone too. The code lasts 60 seconds.</p>
                 <img id="mai-qr" class="mai-qr" alt="WhatsApp QR code" hidden>
                 <p class="hint" id="mai-qr-wait">Preparing the QR code.</p>
                 <p class="hint" id="mai-qr-timer"></p>
@@ -791,9 +790,11 @@
             kind.value = 'personal';
             var plan = document.getElementById('mai-plan');
             if (plan) plan.value = 'trial';
-            if (form.getAttribute('data-mai') !== '1') {
-                document.getElementById('name-title').textContent = 'Your name';
+            if (form.getAttribute('data-mai') === '1') {
+                beginMaiLink();
+                return;
             }
+            document.getElementById('name-title').textContent = 'Your name';
             show(2);
         };
         document.getElementById('pick-company').onclick = function () {
@@ -801,7 +802,7 @@
                 kind.value = 'personal';
                 var paid = document.getElementById('mai-plan');
                 if (paid) paid.value = 'paid';
-                show(2);
+                beginMaiLink();
                 return;
             }
             kind.value = 'company';
@@ -880,22 +881,11 @@
         }
         function beginMaiLink() {
             show(8);
-            var fields = phoneFields();
             var plan = document.getElementById('mai-plan');
             var error = document.getElementById('mai-qr-error');
             var wait = document.getElementById('mai-qr-wait');
-            if (!fields.phone) {
-                if (error) {
-                    error.hidden = false;
-                    error.textContent = 'Enter your phone number first.';
-                }
-                show(2);
-                return;
-            }
             if (wait) { wait.hidden = false; wait.textContent = 'Preparing the QR code…'; }
             post('{{ route('whatsapp.mai.begin') }}', {
-                phone: fields.phone,
-                dial: fields.dial,
                 mai_plan: plan ? plan.value : 'trial'
             }, function (ok, json) {
                 if (!ok) {
@@ -911,7 +901,7 @@
                 if (maiLinkTimer) clearInterval(maiLinkTimer);
                 if (maiQrClock) clearInterval(maiQrClock);
                 maiLinkTimer = setInterval(function () {
-                    fetch('{{ route('whatsapp.mai.link.status') }}', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                    fetch('{{ route('whatsapp.mai.begin.status') }}', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
                         .then(function (response) { return response.json(); })
                         .then(function (json) {
                             paintMaiQr(json);
@@ -940,7 +930,7 @@
         if (maiRefresh) maiRefresh.onclick = function () {
             maiRefresh.disabled = true;
             maiRefresh.textContent = 'Refreshing…';
-            fetch('{{ route('whatsapp.mai.link.qr') }}', {
+            fetch('{{ route('whatsapp.mai.begin.qr') }}', {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {

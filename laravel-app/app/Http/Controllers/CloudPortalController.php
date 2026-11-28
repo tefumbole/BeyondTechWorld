@@ -198,40 +198,168 @@ class CloudPortalController extends Controller
 
     public function whatsappMaiBegin(Request $request)
     {
-        $phone = app(\App\Services\Cloud\CloudMbolePrice::class)->e164($request->input('phone'), $request->input('dial'));
-        $digits = preg_replace('/\D/', '', (string) $phone);
-        if (! preg_match('/^[1-9][0-9]{7,14}$/', $digits)) {
-            return response()->json(['message' => 'Enter a valid phone number.'], 422);
-        }
-        // A website OTP cannot open WhatsApp. Linking the phone (QR or link code) proves ownership.
-        if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
-            return response()->json(['message' => 'Use your personal WhatsApp number. The business line stays separate.'], 422);
-        }
-        $name = trim((string) $request->input('full_name'));
-        $user = app(CloudOnboardingService::class)->ensurePerson($phone, $name !== '' ? $name : null);
-        Auth::login($user);
-        $request->session()->regenerate();
         session(['mai_plan' => $request->input('mai_plan') === 'paid' ? 'paid' : 'trial']);
+        $id = $this->maiGuestId(true);
         $engine = app(\App\Services\Cloud\MaiWhatsAppEngine::class);
-        $state = $engine->open($phone);
-        if (($state['status'] ?? '') === 'CONNECTED') {
-            app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLinkOnce($phone);
-
-            return response()->json([
-                'status' => 'CONNECTED',
-                'redirect' => route('whatsapp.mai.inbox'),
-            ]);
+        $state = $engine->openGuest($id);
+        if (empty($state['qr']) && ($state['status'] ?? '') !== 'CONNECTED') {
+            $state = $engine->refreshGuest($id);
         }
-        if (empty($state['qr'])) {
-            $state = $engine->refreshQr($phone);
+        $claimed = $this->claimMaiGuest($request, $state);
+        if ($claimed) {
+            return $claimed;
         }
 
+        return $this->maiGuestJson($state);
+    }
+
+    public function whatsappMaiBeginStatus(Request $request)
+    {
+        $id = $this->maiGuestId(false);
+        if ($id === '') {
+            return response()->json(['status' => 'NOT_CONNECTED', 'qr' => null], 404);
+        }
+        $state = app(\App\Services\Cloud\MaiWhatsAppEngine::class)->statusGuest($id, true);
+        $claimed = $this->claimMaiGuest($request, $state);
+        if ($claimed) {
+            return $claimed;
+        }
+
+        return $this->maiGuestJson($state);
+    }
+
+    public function whatsappMaiBeginQr(Request $request)
+    {
+        $id = $this->maiGuestId(false);
+        if ($id === '') {
+            return response()->json(['status' => 'NOT_CONNECTED', 'qr' => null], 404);
+        }
+        $state = app(\App\Services\Cloud\MaiWhatsAppEngine::class)->refreshGuest($id);
+        $claimed = $this->claimMaiGuest($request, $state);
+        if ($claimed) {
+            return $claimed;
+        }
+
+        return $this->maiGuestJson($state);
+    }
+
+    protected function maiGuestId($create)
+    {
+        $id = strtolower((string) session('mai_guest_link'));
+        if (preg_match('/^s[a-f0-9]{32}$/', $id)) {
+            return $id;
+        }
+        if (! $create) {
+            return '';
+        }
+        $id = 's'.bin2hex(random_bytes(16));
+        session(['mai_guest_link' => $id]);
+
+        return $id;
+    }
+
+    protected function maiGuestJson($state)
+    {
         return response()->json([
             'status' => isset($state['status']) ? $state['status'] : 'NOT_CONNECTED',
             'qr' => isset($state['qr']) ? $state['qr'] : null,
             'qr_age_ms' => isset($state['qr_age_ms']) ? (int) $state['qr_age_ms'] : 0,
             'error' => isset($state['error']) ? $state['error'] : null,
         ]);
+    }
+
+    /**
+     * The scanned WhatsApp is the account. No number is typed first.
+     */
+    protected function claimMaiGuest(Request $request, $state)
+    {
+        if (session('mai_guest_claimed')) {
+            return response()->json([
+                'status' => 'CONNECTED',
+                'redirect' => route('whatsapp.mai.inbox'),
+            ]);
+        }
+        if (($state['status'] ?? '') !== 'CONNECTED') {
+            return null;
+        }
+        $phone = preg_replace('/\D/', '', (string) (isset($state['phone']) ? $state['phone'] : ''));
+        if (! preg_match('/^[1-9][0-9]{7,14}$/', $phone)) {
+            return null;
+        }
+        if (\App\Services\Mai\MaiBusinessLine::is($phone)) {
+            return response()->json([
+                'status' => 'ERROR',
+                'qr' => null,
+                'error' => 'Use your personal WhatsApp number. The business line stays separate.',
+            ]);
+        }
+        $sendLink = Cache::add('mai-guest-claim:'.$phone, 1, now()->addMinutes(10));
+        $plan = session('mai_plan') === 'paid' ? 'paid' : 'trial';
+        $user = app(CloudOnboardingService::class)->ensurePerson($phone);
+        Auth::login($user);
+        $request->session()->regenerate();
+        session([
+            'mai_plan' => $plan,
+            'mai_guest_claimed' => 1,
+        ]);
+        if ($plan === 'trial') {
+            $this->grantMaiTrial($user);
+        }
+        if ($sendLink) {
+            app(\App\Services\Cloud\CloudSignupOtp::class)->sendAppLink($user->phone ?: $phone);
+        }
+
+        return response()->json([
+            'status' => 'CONNECTED',
+            'redirect' => route('whatsapp.mai.inbox'),
+        ]);
+    }
+
+    protected function grantMaiTrial($user)
+    {
+        try {
+            $tenant = $this->maiCustomerTenant($user);
+            if (! $tenant) {
+                if (! session('cloud_onboard_token')) {
+                    session(['cloud_onboard_token' => Str::random(40)]);
+                }
+                $name = trim((string) $user->name);
+                if ($name === '' || $name === 'Whats MAI') {
+                    $name = 'Whats MAI';
+                }
+                list($user, $tenant) = app(CloudOnboardingService::class)->addCompany($user, [
+                    'company_name' => $name,
+                    'first_name' => $name,
+                    'last_name' => $name,
+                    'phone' => $user->phone,
+                    'modules' => ['MESSAGING'],
+                    'onboard_token' => (string) session('cloud_onboard_token'),
+                    'account_kind' => 'personal',
+                    'start_mode' => 'trial',
+                    'mai_days' => 3,
+                ]);
+            }
+            session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
+            $plan = \App\Cloud\CloudPlan::whereHas('module', function ($query) {
+                $query->where('code', \App\Cloud\CloudModuleCode::MESSAGING);
+            })->where('active', true)->first();
+            $subscription = CloudSubscription::where('cloud_tenant_id', $tenant->id)->orderBy('id', 'desc')->first();
+            if (! $subscription && $plan) {
+                $subscription = app(\App\Services\Cloud\CloudSubscriptionService::class)->startTrial($tenant, $plan, $user->id);
+            }
+            if ($subscription) {
+                $end = now()->addDays(3);
+                $subscription->status = \App\Cloud\CloudSubscriptionStatus::TRIALING;
+                if (! $subscription->trial_started_at) {
+                    $subscription->trial_started_at = now();
+                }
+                $subscription->trial_ends_at = $end;
+                $subscription->current_period_start = now();
+                $subscription->current_period_end = $end;
+                $subscription->save();
+            }
+        } catch (\Exception $e) {
+        }
     }
 
     public function whatsappMaiPlan()

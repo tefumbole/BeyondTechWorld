@@ -20,6 +20,39 @@ class MaiWhatsAppEngine
         return $this->shape($payload);
     }
 
+    public function openGuest($sessionId)
+    {
+        if ($this->guestId($sessionId) === '') {
+            return $this->blank('ERROR');
+        }
+        $payload = $this->request('POST', '/sessions', ['session_id' => $sessionId], 25);
+
+        return $this->shape($payload);
+    }
+
+    public function statusGuest($sessionId, $withQr = false)
+    {
+        if ($this->guestId($sessionId) === '') {
+            return $this->blank('ERROR');
+        }
+        $path = '/sessions/'.$sessionId;
+        if ($withQr) {
+            $path .= '?qr=1';
+        }
+
+        return $this->shape($this->request('GET', $path, null, $withQr ? 12 : 8));
+    }
+
+    public function refreshGuest($sessionId)
+    {
+        if ($this->guestId($sessionId) === '') {
+            return $this->blank('ERROR');
+        }
+        $payload = $this->request('POST', '/sessions/'.$sessionId.'/qr', [], 30);
+
+        return $this->shape($payload);
+    }
+
     public function status($phone, $withQr = false)
     {
         $id = $this->id($phone);
@@ -398,6 +431,13 @@ class MaiWhatsAppEngine
         $digits = $this->digits($phone);
 
         return $digits === '' ? '' : 'p'.$digits;
+    }
+
+    protected function guestId($sessionId)
+    {
+        $id = strtolower((string) $sessionId);
+
+        return preg_match('/^s[a-f0-9]{32}$/', $id) ? $id : '';
     }
 
     protected function blank($status)
