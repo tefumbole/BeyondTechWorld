@@ -635,6 +635,52 @@ class MaiCustomerSessionTest extends TestCase
         $session->save();
     }
 
+    public function test_a_message_to_another_mai_number_is_already_in_that_inbox()
+    {
+        $user = \DB::table('users')->insertGetId([
+            'name' => 'Ada',
+            'email' => 'fast-mai@example.test',
+            'password' => 'x',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $from = new MaiSession();
+        $from->public_id = 'fast-a';
+        $from->user_id = $user;
+        $from->provider = 'mai';
+        $from->worker_session_id = 'p237670009111';
+        $from->phone_number = '237670009111';
+        $from->status = 'CONNECTED';
+        $from->save();
+        $to = new MaiSession();
+        $to->public_id = 'fast-b';
+        $to->user_id = $user;
+        $to->provider = 'mai';
+        $to->worker_session_id = 'p237670009222';
+        $to->phone_number = '+237 670 009 222';
+        $to->status = 'CONNECTED';
+        $to->save();
+        $contact = new \App\WhatsApp\WhatsAppContact();
+        $contact->normalized_phone = '237670009222';
+        $contact->display_phone = '+237670009222';
+        $contact->save();
+        $chat = new WhatsAppConversation();
+        $chat->contact_id = $contact->id;
+        $chat->mai_session_id = $from->id;
+        $chat->mode = 'HUMAN';
+        $chat->status = 'OPEN';
+        $chat->channel = 'whatsapp';
+        $chat->save();
+
+        $result = app(\App\Services\Mai\MaiOutboundService::class)->deliver($chat, 'On its way', 'fast-1', null);
+
+        $this->assertTrue(! empty($result['success']));
+        $inbox = WhatsAppConversation::where('mai_session_id', $to->id)->first();
+        $this->assertNotNull($inbox);
+        $this->assertSame('On its way', WhatsAppMessage::where('conversation_id', $inbox->id)->value('body'));
+        $this->assertSame(WhatsAppMessage::DIR_IN, WhatsAppMessage::where('conversation_id', $inbox->id)->value('direction'));
+    }
+
     protected function account($email)
     {
         $this->post('/mai/logout');

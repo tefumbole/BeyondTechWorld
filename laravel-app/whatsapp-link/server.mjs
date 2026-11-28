@@ -177,6 +177,10 @@ function loadSavedChats(entry) {
     entry.chats = saved && saved.chats ? saved.chats : {}
     entry.inbox = saved && Array.isArray(saved.inbox) ? saved.inbox : []
     entry.lids = saved && saved.lids ? saved.lids : {}
+    entry.phoneLids = {}
+    Object.keys(entry.lids).forEach((lid) => {
+      if (entry.lids[lid]) entry.phoneLids[entry.lids[lid]] = lid
+    })
     entry.book = saved && saved.book ? saved.book : {}
     entry.generation = saved && saved.generation ? Number(saved.generation) : 0
     entry.keys = saved && saved.keys ? saved.keys : {}
@@ -222,7 +226,9 @@ function rememberLid(entry, lid, phone) {
   const to = phoneJid(phone)
   if (!from.endsWith('@lid') || !to) return
   if (!entry.lids) entry.lids = {}
+  if (!entry.phoneLids) entry.phoneLids = {}
   entry.lids[from] = to
+  entry.phoneLids[to] = from
   const saved = entry.chats && entry.chats[from]
   if (saved) {
     touchChat(entry, to, {
@@ -589,27 +595,24 @@ function note(entry, event) {
     const ids = Object.keys(entry.keys)
     if (ids.length > 500) delete entry.keys[ids[0]]
   }
-  try {
-    fs.appendFileSync(path.join(sessionDir(entry.id), 'events.jsonl'), JSON.stringify(row) + '\n')
-  } catch (e) {}
+  if (!entry.events) entry.events = []
+  entry.events.push(row)
+  if (entry.events.length > 8000) entry.events.splice(0, entry.events.length - 8000)
+  fs.appendFile(path.join(sessionDir(entry.id), 'events.jsonl'), JSON.stringify(row) + '\n', () => {})
 }
 
 function readEvents(entry, after) {
-  let raw = ''
-  try {
-    raw = fs.readFileSync(path.join(sessionDir(entry.id), 'events.jsonl'), 'utf8')
-  } catch (e) {
-    raw = ''
-  }
   const events = []
-  raw.split('\n').forEach((line) => {
-    if (!line) return
-    try {
-      const row = JSON.parse(line)
-      if (row && row.seq > after && row.generation === (entry.generation || 1)) events.push(row)
-    } catch (e) {}
-  })
-  return events.slice(0, 200)
+  const list = entry.events || []
+  const generation = entry.generation || 1
+  for (let i = 0; i < list.length; i++) {
+    const row = list[i]
+    if (row && row.seq > after && row.generation === generation) {
+      events.push(row)
+      if (events.length >= 200) break
+    }
+  }
+  return events
 }
 
 async function attachLids(entry) {
@@ -794,6 +797,8 @@ async function startSocketNow(id, expected) {
   const entry = existing || { status: 'AWAITING_QR', phone: null, qr: null, sock: null, retries: 0, inbox: [], chats: {} }
   entry.id = id
   loadSavedChats(entry)
+  entry.historyReady = historyIsComplete(dir)
+  entry.events = []
   entry.generation = (entry.generation || 0) + 1
   const savedChats = Object.keys(entry.chats || {}).length
   const registered = !!(state.creds && state.creds.registered)
@@ -908,6 +913,7 @@ async function startSocketNow(id, expected) {
     }))
     if (decision.complete) {
       try { fs.writeFileSync(path.join(sessionDir(entry.id), 'history.ready'), '100') } catch (e) {}
+      entry.historyReady = true
     }
   })
   sock.ev.on('chats.upsert', (chats) => {
@@ -1012,6 +1018,7 @@ async function startSocketNow(id, expected) {
       keepAddressBookFresh(entry, sock, dir)
       pullReadState(entry, sock, dir)
       watchRecentTyping(entry)
+      if (!entry.lidScan) attachLids(entry).catch(() => {})
       if (entry.recoverChats && !entry.historyAsked && typeof sock.resyncAppState === 'function') {
         entry.historyAsked = true
         sock.resyncAppState(['critical_block', 'critical_unblock_low', 'regular_high', 'regular_low', 'regular'], true)
@@ -1221,12 +1228,21 @@ async function pairingFor(id, phone, fresh) {
 }
 
 function lidForPhone(entry, phone) {
+  if (entry && entry.phoneLids && entry.phoneLids[phone]) return entry.phoneLids[phone]
   const lids = entry && entry.lids ? entry.lids : {}
   const keys = Object.keys(lids)
   for (let i = 0; i < keys.length; i++) {
     if (lids[keys[i]] === phone) return keys[i]
   }
   return ''
+}
+
+function cacheLidRows(entry, phone, rows) {
+  const row = rows && rows[0]
+  if (!row || !row.lid) return ''
+  const lid = String(row.lid).indexOf('@') === -1 ? String(row.lid) + '@lid' : String(row.lid).split(':')[0]
+  rememberLid(entry, lid, row.jid || phone)
+  return lid
 }
 
 async function resolveSendJid(entry, to) {
@@ -1242,16 +1258,18 @@ async function resolveSendJid(entry, to) {
   const known = lidForPhone(entry, phone)
   if (known) return known
   if (entry.sock && typeof entry.sock.onWhatsApp === 'function') {
-    try {
-      const rows = await entry.sock.onWhatsApp(phone)
-      const row = rows && rows[0]
-      if (row && row.lid) {
-        const lid = String(row.lid).indexOf('@') === -1 ? String(row.lid) + '@lid' : String(row.lid).split(':')[0]
-        rememberLid(entry, lid, row.jid || phone)
-        return lid
-      }
+    const lookup = entry.sock.onWhatsApp(phone).catch(() => null)
+    const raced = await Promise.race([
+      lookup,
+      new Promise((resolve) => setTimeout(() => resolve('slow'), 350)),
+    ])
+    lookup.then((rows) => cacheLidRows(entry, phone, rows)).catch(() => {})
+    if (raced && raced !== 'slow') {
+      const lid = cacheLidRows(entry, phone, raced)
+      if (lid) return lid
+      const row = raced[0]
       if (row && row.exists === false && digits.length >= 14) return lidKey
-    } catch (e) {}
+    }
   }
   if (digits.length >= 14 && !(entry.chats && entry.chats[phone])) return lidKey
   return phone
@@ -1517,7 +1535,6 @@ const server = http.createServer((req, res) => {
     }
     if (req.method === 'GET' && parts[2] === 'chats') {
       const entry = sessions.get(id) || { chats: {} }
-      attachLids(entry).catch(() => {})
       watchRecentTyping(entry)
       send(res, 200, { phone: entry.phone || null, read_ready: !!entry.readReady || !!entry.unreadReset, chats: chatRows(entry) })
       return
@@ -1536,7 +1553,7 @@ const server = http.createServer((req, res) => {
       const after = Number(url.searchParams.get('after') || 0)
       send(res, 200, {
         generation: entry.generation || 1,
-        history_ready: historyIsComplete(sessionDir(id)),
+        history_ready: !!entry.historyReady,
         events: readEvents(entry, after),
       })
       return
@@ -1581,7 +1598,6 @@ const server = http.createServer((req, res) => {
     }
     if (req.method === 'GET' && parts[2] === 'messages') {
       const entry = sessions.get(id) || { inbox: [] }
-      if (!entry.lidScan) attachLids(entry).catch(() => {})
       send(res, 200, { messages: entry.inbox || [] })
       return
     }

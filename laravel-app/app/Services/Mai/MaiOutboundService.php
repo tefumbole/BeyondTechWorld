@@ -158,39 +158,54 @@ class MaiOutboundService
 
     protected function copyToLinkedRecipient(MaiSession $from, $to, $text, $providerId)
     {
-        $digits = preg_replace('/\D+/', '', (string) $to);
-        $other = MaiSession::where('id', '!=', $from->id)
-            ->where('status', '!=', 'UNLINKED')
-            ->where(function ($query) use ($digits) {
-                $query->where('phone_number', $digits)->orWhere('expected_phone', $digits);
-            })
-            ->first();
-        if (! $other) {
-            return;
+        try {
+            app(CloudTenantContext::class)->withoutIsolation(function () use ($from, $to, $text, $providerId) {
+                $digits = preg_replace('/\D+/', '', (string) $to);
+                if ($digits === '') {
+                    return;
+                }
+                $plain = "REPLACE(REPLACE(REPLACE(IFNULL(%s, ''), '+', ''), ' ', ''), '-', '')";
+                $other = MaiSession::where('id', '!=', $from->id)
+                    ->where('status', '!=', 'UNLINKED')
+                    ->where(function ($query) use ($digits, $plain) {
+                        $query->whereRaw(sprintf($plain, 'phone_number').' = ?', [$digits])
+                            ->orWhereRaw(sprintf($plain, 'expected_phone').' = ?', [$digits]);
+                    })
+                    ->first();
+                if (! $other) {
+                    return;
+                }
+                $fromDigits = preg_replace('/\D+/', '', (string) ($from->phone_number ?: $from->expected_phone));
+                if ($fromDigits === '') {
+                    return;
+                }
+                $conversation = $this->conversation($other, $fromDigits);
+                if ($other->cloud_tenant_id && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'cloud_tenant_id')
+                    && (int) $conversation->cloud_tenant_id !== (int) $other->cloud_tenant_id) {
+                    $conversation->cloud_tenant_id = $other->cloud_tenant_id;
+                    $conversation->save();
+                }
+                if ($providerId !== '' && WhatsAppMessage::where('conversation_id', $conversation->id)->where('provider_message_id', $providerId)->exists()) {
+                    return;
+                }
+                $message = new WhatsAppMessage();
+                $message->conversation_id = $conversation->id;
+                $message->contact_id = $conversation->contact_id;
+                $message->direction = WhatsAppMessage::DIR_IN;
+                $message->type = 'TEXT';
+                $message->provider_message_id = $providerId !== '' ? $providerId : null;
+                $message->body = $text;
+                $message->status = WhatsAppMessage::STATUS_DELIVERED;
+                $message->sender_type = 'CONTACT';
+                $message->save();
+                $conversation->last_message = function_exists('mb_substr') ? mb_substr($text, 0, 191) : substr($text, 0, 191);
+                $conversation->last_activity_at = \Carbon\Carbon::now();
+                $conversation->last_incoming_at = \Carbon\Carbon::now();
+                $conversation->unread_count = (int) $conversation->unread_count + 1;
+                $conversation->save();
+            });
+        } catch (\Throwable $e) {
         }
-        $fromDigits = preg_replace('/\D+/', '', (string) ($from->phone_number ?: $from->expected_phone));
-        if ($fromDigits === '') {
-            return;
-        }
-        $conversation = $this->conversation($other, $fromDigits);
-        if ($providerId !== '' && WhatsAppMessage::where('conversation_id', $conversation->id)->where('provider_message_id', $providerId)->exists()) {
-            return;
-        }
-        $message = new WhatsAppMessage();
-        $message->conversation_id = $conversation->id;
-        $message->contact_id = $conversation->contact_id;
-        $message->direction = WhatsAppMessage::DIR_IN;
-        $message->type = 'TEXT';
-        $message->provider_message_id = $providerId !== '' ? $providerId : null;
-        $message->body = $text;
-        $message->status = WhatsAppMessage::STATUS_DELIVERED;
-        $message->sender_type = 'CONTACT';
-        $message->save();
-        $conversation->last_message = function_exists('mb_substr') ? mb_substr($text, 0, 191) : substr($text, 0, 191);
-        $conversation->last_activity_at = \Carbon\Carbon::now();
-        $conversation->last_incoming_at = \Carbon\Carbon::now();
-        $conversation->unread_count = (int) $conversation->unread_count + 1;
-        $conversation->save();
     }
 
     public function sendFile(MaiSession $session, $to, $kind, $name, $mime, $data, $idempotencyKey, $apiKey = null)
