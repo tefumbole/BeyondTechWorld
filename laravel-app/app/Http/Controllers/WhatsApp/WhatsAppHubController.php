@@ -359,6 +359,7 @@ class WhatsAppHubController extends Controller
                 $groups = [];
             }
         }
+        $groups = $this->mergeLiveGroups($groups, $this->liveGroupRows());
         $open = null;
         $messages = collect();
         $hasEarlier = false;
@@ -706,7 +707,7 @@ class WhatsAppHubController extends Controller
             } catch (\Throwable $e) {
             }
         }
-        $payload['items'] = $conversations->map(function ($row) use ($ownBook) {
+        $items = $conversations->map(function ($row) use ($ownBook) {
             $person = $ownBook
                 ? app(\App\Services\Mai\PersonalHub::class)->label($row->contact, $row)
                 : (optional($row->contact)->displayName() ?: 'WhatsApp');
@@ -732,9 +733,116 @@ class WhatsAppHubController extends Controller
                     : '',
                 'mode' => (string) $row->mode,
             ];
-        })->values();
+        })->values()->all();
+        foreach ($this->liveGroupRows() as $group) {
+            $stamp = isset($group['at']) ? (int) $group['at'] : 0;
+            $when = $stamp > 0 ? \Carbon\Carbon::createFromTimestamp($stamp) : null;
+            $items[] = [
+                'kind' => 'group',
+                'id' => 0,
+                'jid' => $group['jid'],
+                'name' => $group['name'],
+                'tone' => 0,
+                'phone' => '',
+                'preview' => $this->chatPreview(isset($group['preview']) ? $group['preview'] : ''),
+                'time' => $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '',
+                'at' => $when ? $when->toIso8601String() : '',
+                'unread' => isset($group['unread']) ? (int) $group['unread'] : 0,
+                'typing' => '',
+                'mode' => '',
+            ];
+        }
+        $payload['items'] = $items;
 
         return $payload;
+    }
+
+    protected function liveGroupRows()
+    {
+        $personal = $this->personalHub();
+        if ($personal) {
+            $rows = [];
+            $phone = $personal->phone_number ?: $personal->expected_phone;
+            foreach (app(\App\Services\Cloud\MaiWhatsAppEngine::class)->chats($phone) as $chat) {
+                if (substr((string) $chat['jid'], -5) !== '@g.us') {
+                    continue;
+                }
+                if ((int) $chat['at'] <= 0 && trim((string) $chat['preview']) === '') {
+                    continue;
+                }
+                $rows[] = [
+                    'jid' => $chat['jid'],
+                    'name' => $chat['name'] !== '' ? $chat['name'] : 'WhatsApp group',
+                    'members' => null,
+                    'preview' => $chat['preview'],
+                    'unread' => (int) $chat['unread'],
+                    'at' => (int) $chat['at'],
+                ];
+            }
+
+            return $rows;
+        }
+        if (! Schema::hasTable('whatsapp_groups') || ! Schema::hasTable('whatsapp_group_messages')) {
+            return [];
+        }
+        $latestIds = \App\WhatsApp\WhatsAppGroupMessage::query()
+            ->selectRaw('MAX(id) as id')
+            ->groupBy('group_id')
+            ->pluck('id');
+        if ($latestIds->isEmpty()) {
+            return [];
+        }
+        $messages = \App\WhatsApp\WhatsAppGroupMessage::whereIn('id', $latestIds)->get()->keyBy('group_id');
+        $rows = [];
+        foreach (\App\WhatsApp\WhatsAppGroup::whereIn('id', $messages->keys()->all())->get() as $group) {
+            $message = $messages->get($group->id);
+            if (! $message || substr((string) $group->group_jid, -5) !== '@g.us') {
+                continue;
+            }
+            $when = $message->message_at ?: $message->created_at;
+            $rows[] = [
+                'jid' => (string) $group->group_jid,
+                'name' => trim((string) $group->name) !== '' ? (string) $group->name : 'WhatsApp group',
+                'members' => null,
+                'preview' => (string) ($message->body ?: $message->derived_text),
+                'unread' => 0,
+                'at' => $when ? $when->getTimestamp() : 0,
+            ];
+        }
+
+        return $rows;
+    }
+
+    protected function mergeLiveGroups(array $groups, array $live)
+    {
+        $by = [];
+        foreach ($groups as $row) {
+            if (empty($row['jid'])) {
+                continue;
+            }
+            $by[$row['jid']] = $row;
+        }
+        foreach ($live as $row) {
+            if (empty($row['jid'])) {
+                continue;
+            }
+            $current = isset($by[$row['jid']]) ? $by[$row['jid']] : $row;
+            if (! empty($row['preview'])) {
+                $current['preview'] = $row['preview'];
+            }
+            if (isset($row['unread'])) {
+                $current['unread'] = (int) $row['unread'];
+            }
+            if (! empty($row['at'])) {
+                $current['at'] = (int) $row['at'];
+            }
+            if ((empty($current['name']) || $current['name'] === 'WhatsApp group') && ! empty($row['name'])) {
+                $current['name'] = $row['name'];
+            }
+            $by[$row['jid']] = $current;
+        }
+
+        return array_values($by);
     }
 
     /**

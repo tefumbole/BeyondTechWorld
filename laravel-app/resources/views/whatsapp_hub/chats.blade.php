@@ -39,6 +39,49 @@
     .lang-option { flex: none; width: 100%; border: 0; background: #f4f7fb; color: #16315c; border-radius: 12px; min-height: 42px; padding: 0 14px; text-align: left; font-weight: 700; cursor: pointer; }
     .lang-option.is-on { background: var(--wa-grad); color: #fff; }
     .lang-save { width: 100%; margin-top: 14px; border: 0; border-radius: 14px; min-height: 46px; background: var(--wa-grad); color: #fff; font-weight: 800; cursor: pointer; }
+    .settings-link { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 52px; margin-top: 8px; padding: 0 14px; border: 0; border-radius: 14px; background: #f4f7fb; color: #16315c; font-weight: 700; text-decoration: none; cursor: pointer; text-align: left; }
+    .settings-link span { color: #6b7a99; font-size: 13px; font-weight: 700; }
+    .theme-swatch { width: 18px; height: 18px; border-radius: 50%; margin-right: 10px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+    .chats-app.theme-black { --wa-ink: #e9edef; --wa-muted: #8696a0; --wa-line: #2a3942; background: #111b21; color: #e9edef; }
+    .chats-app.theme-black .chats-side,
+    .chats-app.theme-black .hub-screens,
+    .chats-app.theme-black .chats-search,
+    .chats-app.theme-black .chat-filters,
+    .chats-app.theme-black .chats-head,
+    .chats-app.theme-black .chats-compose,
+    .chats-app.theme-black .reply-bar { background: #111b21; color: #e9edef; }
+    .chats-app.theme-black .chats-thread { background: #0b141a; }
+    .chats-app.theme-black .chat-row:hover,
+    .chats-app.theme-black .chat-row.is-on { background: #202c33; }
+    .chats-app.theme-black .hub-screens a,
+    .chats-app.theme-black .hub-screens form.hub-signout button,
+    .chats-app.theme-black .chat-filters button:not(.is-on),
+    .chats-app.theme-black .hub-gear,
+    .chats-app.theme-black .chat-gear { background: #202c33; color: #e9edef; border-color: #2a3942; }
+    .chats-app.theme-black .chats-search input,
+    .chats-app.theme-black .chats-compose textarea { background: #202c33; color: #e9edef; }
+    .chats-app.theme-black .chat-name,
+    .chats-app.theme-black .chats-head h2 { color: #e9edef; }
+    .chats-app.theme-navy { --wa-ink: #e8eefc; --wa-muted: #b7c4e0; --wa-line: #243864; background: #0b1b3a; color: #e8eefc; }
+    .chats-app.theme-navy .chats-side,
+    .chats-app.theme-navy .hub-screens,
+    .chats-app.theme-navy .chats-search,
+    .chats-app.theme-navy .chat-filters,
+    .chats-app.theme-navy .chats-head,
+    .chats-app.theme-navy .chats-compose,
+    .chats-app.theme-navy .reply-bar { background: #0b1b3a; color: #e8eefc; }
+    .chats-app.theme-navy .chats-thread { background: #071226; }
+    .chats-app.theme-navy .chat-row:hover,
+    .chats-app.theme-navy .chat-row.is-on { background: #13284f; }
+    .chats-app.theme-navy .hub-screens a,
+    .chats-app.theme-navy .hub-screens form.hub-signout button,
+    .chats-app.theme-navy .chat-filters button:not(.is-on),
+    .chats-app.theme-navy .hub-gear,
+    .chats-app.theme-navy .chat-gear { background: #13284f; color: #e8eefc; border-color: #243864; }
+    .chats-app.theme-navy .chats-search input,
+    .chats-app.theme-navy .chats-compose textarea { background: #13284f; color: #e8eefc; }
+    .chats-app.theme-navy .chat-name,
+    .chats-app.theme-navy .chats-head h2 { color: #e8eefc; }
     @media (min-width: 801px) {
         .lang-sheet { align-items: center; padding: 24px; }
         .lang-card { border-radius: 24px; }
@@ -302,7 +345,13 @@
 @php
     $screen = $pane === 'calls' ? 'calls' : ($pane === 'chats' ? 'chats' : 'more');
 @endphp
-<div class="chats-app {{ ($open || $group || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech'], true)) ? 'has-open' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}">
+<div class="chats-app {{ ($open || $group || in_array($pane, ['announcements', 'help', 'briefing', 'apps', 'speech', 'updates'], true)) ? 'has-open' : '' }} {{ (!empty($personalHub) && $pane === 'announcements') ? 'is-announce' : '' }}" id="chatsApp">
+<script>
+try {
+    var savedTheme = localStorage.getItem('mai-theme');
+    if (savedTheme === 'black' || savedTheme === 'navy') document.getElementById('chatsApp').classList.add('theme-' + savedTheme);
+} catch (e) {}
+</script>
     <aside class="chats-side {{ !empty($personalHub) ? 'is-personal' : '' }}">
         <nav class="hub-screens">
             <a class="{{ $screen === 'chats' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}">Chats</a>
@@ -315,7 +364,7 @@
                 @csrf
                 <button type="submit">Sign out</button>
             </form>
-            <button type="button" class="hub-gear js-lang-settings" aria-label="Language settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+            <button type="button" class="hub-gear js-hub-settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
         </nav>
         <div class="hub-label">WhatsApp {{ $sessionPhone }}</div>
         @if(!empty($phoneLink['disconnected']))
@@ -352,8 +401,49 @@
 
                     return $aTime < $bTime ? 1 : -1;
                 })->values();
+                $chatList = [];
+                foreach ($conversations as $row) {
+                    $when = !empty($personalHub) ? $row->last_activity_at : ($row->last_activity_at ?: $row->updated_at);
+                    $chatList[] = ['kind' => 'person', 'at' => $when ? $when->getTimestamp() : 0, 'row' => $row];
+                }
+                foreach ($groups as $row) {
+                    $chatList[] = ['kind' => 'group', 'at' => isset($row['at']) ? (int) $row['at'] : 0, 'row' => $row];
+                }
+                usort($chatList, function ($a, $b) {
+                    if ($a['at'] === $b['at']) {
+                        return 0;
+                    }
+
+                    return $a['at'] < $b['at'] ? 1 : -1;
+                });
             @endphp
-            @foreach($conversations as $row)
+            @foreach($chatList as $entry)
+                @php $row = $entry['row']; @endphp
+                @if($entry['kind'] === 'group')
+                    @php
+                        $groupAt = !empty($row['at']) ? \Carbon\Carbon::createFromTimestamp((int) $row['at']) : null;
+                        $groupPreview = \App\WhatsApp\WhatsAppMessage::listPreview(isset($row['preview']) ? $row['preview'] : '');
+                        if ($groupPreview === '') {
+                            $groupPreview = $row['members'] === null ? 'WhatsApp group' : number_format($row['members']).' contacts';
+                        }
+                        $groupUnread = isset($row['unread']) ? (int) $row['unread'] : 0;
+                        $groupLive = $groupAt || trim((string) (isset($row['preview']) ? $row['preview'] : '')) !== '';
+                    @endphp
+                    <a class="chat-row {{ $group && $group['jid'] === $row['jid'] ? 'is-on' : '' }}" data-kind="group" data-jid="{{ $row['jid'] }}" data-live="{{ $groupLive ? '1' : '0' }}" data-read="{{ $groupUnread > 0 ? '0' : '1' }}" data-name="{{ strtolower($row['name'].' '.$groupPreview) }}" href="{{ route('whatsapp.chats', ['group' => $row['jid']]) }}">
+                        <span class="chat-avatar is-group">G</span>
+                        <span class="chat-main">
+                            <span class="chat-top">
+                                <span class="chat-name">{{ $row['name'] }}</span>
+                                @if($groupUnread > 0)<span class="chat-state">Unread</span>@endif
+                                <span class="chat-time" @if($groupAt) data-at="{{ $groupAt->toIso8601String() }}" @endif>{{ $groupAt ? $groupAt->format($groupAt->isToday() ? 'H:i' : 'M j') : 'Group' }}</span>
+                            </span>
+                            <span class="chat-bottom">
+                                <span class="chat-preview">{{ $groupPreview }}</span>
+                                @if($groupUnread > 0)<span class="chat-badge">{{ $groupUnread }}</span>@endif
+                            </span>
+                        </span>
+                    </a>
+                @else
                 @php
                     $person = !empty($personalHub)
                         ? app(\App\Services\Mai\PersonalHub::class)->label($row->contact, $row)
@@ -388,20 +478,7 @@
                         </span>
                     </span>
                 </a>
-            @endforeach
-            @foreach($groups as $row)
-                <a class="chat-row {{ $group && $group['jid'] === $row['jid'] ? 'is-on' : '' }}" data-kind="group" data-name="{{ strtolower($row['name']) }}" href="{{ route('whatsapp.chats', ['group' => $row['jid']]) }}">
-                    <span class="chat-avatar is-group">G</span>
-                    <span class="chat-main">
-                        <span class="chat-top">
-                            <span class="chat-name">{{ $row['name'] }}</span>
-                            <span class="chat-time">Group</span>
-                        </span>
-                        <span class="chat-bottom">
-                            <span class="chat-preview">{{ $row['members'] === null ? 'WhatsApp group' : number_format($row['members']).' contacts' }}</span>
-                        </span>
-                    </span>
-                </a>
+                @endif
             @endforeach
             @if(!empty($personalHub) && empty($historyReady))
                 <div class="chat-note">Your chats are still syncing.@if($historyProgress !== null) {{ (int) $historyProgress }}% received.@endif</div>
@@ -429,6 +506,23 @@
                     </a>
                 @empty
                     <div class="chats-empty"><strong>No calls yet</strong>When someone calls the WhatsApp line, it shows here.</div>
+                @endforelse
+            @elseif($pane === 'updates')
+                <div class="hub-label">Updates</div>
+                @forelse($updates as $update)
+                    @php $when = $update->created_at; $title = $update->subject ?: 'Announcement'; @endphp
+                    <a class="chat-row" data-name="{{ strtolower($title) }}" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.index') }}">
+                        <span class="chat-avatar"><i class="fa fa-bell"></i></span>
+                        <span class="chat-main">
+                            <span class="chat-top">
+                                <span class="chat-name">{{ $title }}</span>
+                                <span class="chat-time" @if($when) data-at="{{ $when->toIso8601String() }}" @endif>{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
+                            </span>
+                            <span class="chat-bottom"><span class="chat-preview">{{ \Illuminate\Support\Str::limit(trim(strip_tags((string) $update->body)), 80) }}</span></span>
+                        </span>
+                    </a>
+                @empty
+                    <div class="chats-empty"><strong>No updates yet</strong>Announcements you send show up here.</div>
                 @endforelse
             @else
                 @php
@@ -521,7 +615,7 @@
                     @if(preg_match('/^(237)?6[0-9]{8}$/', (string) $callDigits))
                         <button type="button" class="call-btn" id="threadUnmask" data-chat="{{ (int) $open->id }}">Unmask</button>
                     @endif
-                    <button type="button" class="chat-gear js-lang-settings" aria-label="Language settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+                    <button type="button" class="chat-gear js-hub-settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
                     <form method="POST" id="threadTranslate" action="{{ route('whatsapp.chats.translator', $open->id) }}">
                         @csrf
                         <button type="submit" class="is-translate {{ !empty($destination['enabled']) ? 'is-on' : '' }}" title="Translation for this chat only. Other chats keep their own language.">Translate</button>
@@ -913,8 +1007,8 @@
             </form>
         @else
             <div class="chats-empty">
-                <strong>Chats</strong>
-                Search a name on the left. A person opens the WhatsApp thread. A group opens so you can message it or create an announcement.
+                <strong>{{ $pane === 'updates' ? 'Updates' : 'Chats' }}</strong>
+                {{ $pane === 'updates' ? 'Announcements you send are listed on the left.' : 'Search a name on the left. A person opens the WhatsApp thread. A group with a new message appears in this list too.' }}
             </div>
         @endif
     </section>
@@ -931,7 +1025,7 @@
         </div>
         <div class="mode-switch">
             <a class="call-btn" id="threadCall" href="#" hidden><i class="fa fa-phone"></i> Call</a>
-            <button type="button" class="chat-gear js-lang-settings" aria-label="Language settings">⚙</button>
+            <button type="button" class="chat-gear js-hub-settings" aria-label="Settings">⚙</button>
             <form method="POST" id="threadTranslate" action="">@csrf<button type="submit" class="is-translate">Translate</button></form>
             <form method="POST" id="threadAi" action="">@csrf<button type="submit">AI</button></form>
             <form method="POST" id="threadHuman" action="">@csrf<button type="submit">Human</button></form>
@@ -982,6 +1076,30 @@
         'am' => 'amharic ethiopia',
     ];
 @endphp
+<div class="lang-sheet" id="hubSettings">
+    <div class="lang-card">
+        <header>
+            <h3>Settings</h3>
+            <button type="button" class="lang-close" data-close="hubSettings" aria-label="Close">×</button>
+        </header>
+        <p>Theme, language, and updates. Chats, calls, media, replies, and your MAI tools stay available.</p>
+        <button type="button" class="settings-link" id="openTheme">Theme <span>Light, black, or navy</span></button>
+        <button type="button" class="settings-link" id="openLanguage">Language <span>What you write, and the default reply</span></button>
+        <a class="settings-link" href="{{ route('whatsapp.chats', ['pane' => 'updates']) }}">Updates <span>Announcements and status</span></a>
+    </div>
+</div>
+<div class="lang-sheet" id="themeSettings">
+    <div class="lang-card">
+        <header>
+            <h3>Theme</h3>
+            <button type="button" class="lang-close" data-close="themeSettings" aria-label="Close">×</button>
+        </header>
+        <p>The choice stays on this browser.</p>
+        <button type="button" class="lang-option" data-theme="light"><span class="theme-swatch" style="background:#fff"></span>Light</button>
+        <button type="button" class="lang-option" data-theme="black"><span class="theme-swatch" style="background:#111b21"></span>Black</button>
+        <button type="button" class="lang-option" data-theme="navy"><span class="theme-swatch" style="background:#0b1b3a"></span>Navy</button>
+    </div>
+</div>
 <div class="lang-sheet" id="langSettings">
     <form class="lang-card" method="POST" action="{{ route('whatsapp.chats.settings') }}">
         @csrf
@@ -1127,7 +1245,9 @@ window.addEventListener('pageshow', function (event) {
             var kind = row.getAttribute('data-kind') || 'person';
             var read = row.getAttribute('data-read') === '1';
             var ok = !q || name.indexOf(q) !== -1;
-            if (filter === 'unread') ok = ok && kind === 'person' && !read;
+            var liveGroup = kind === 'group' && row.getAttribute('data-live') === '1';
+            if (filter === 'all' && kind === 'group') ok = ok && liveGroup;
+            if (filter === 'unread') ok = ok && !read && (kind === 'person' || liveGroup);
             if (filter === 'read') ok = ok && kind === 'person' && read;
             if (filter === 'groups') ok = ok && kind === 'group';
             row.style.display = ok ? '' : 'none';
@@ -1425,8 +1545,25 @@ window.addEventListener('pageshow', function (event) {
         var sheet = document.getElementById(id);
         if (sheet) sheet.classList.remove('is-on');
     }
-    document.querySelectorAll('.js-lang-settings').forEach(function (button) {
-        button.addEventListener('click', function () { openSheet('langSettings'); });
+    document.querySelectorAll('.js-hub-settings').forEach(function (button) {
+        button.addEventListener('click', function () { openSheet('hubSettings'); });
+    });
+    var openLanguage = document.getElementById('openLanguage');
+    var openTheme = document.getElementById('openTheme');
+    if (openLanguage) openLanguage.addEventListener('click', function () { closeSheet('hubSettings'); openSheet('langSettings'); });
+    if (openTheme) openTheme.addEventListener('click', function () { closeSheet('hubSettings'); openSheet('themeSettings'); });
+    function applyHubTheme(theme) {
+        var app = document.getElementById('chatsApp');
+        if (!app) return;
+        app.classList.remove('theme-black', 'theme-navy');
+        if (theme === 'black' || theme === 'navy') app.classList.add('theme-' + theme);
+        document.querySelectorAll('#themeSettings .lang-option').forEach(function (option) {
+            option.classList.toggle('is-on', option.getAttribute('data-theme') === theme);
+        });
+        try { localStorage.setItem('mai-theme', theme || 'light'); } catch (e) {}
+    }
+    document.querySelectorAll('#themeSettings .lang-option').forEach(function (option) {
+        option.addEventListener('click', function () { applyHubTheme(option.getAttribute('data-theme') || 'light'); });
     });
     var openReply = document.getElementById('openReplyLang');
     if (openReply) openReply.addEventListener('click', function () { openSheet('replyLang'); });
@@ -1628,14 +1765,29 @@ window.addEventListener('pageshow', function (event) {
         });
         var after = head;
         ordered.forEach(function (item) {
-            var row = list.querySelector('.chat-row[data-id="' + item.id + '"]');
+            var isGroup = item.kind === 'group';
+            var row = null;
+            if (isGroup) {
+                var groupRows = list.querySelectorAll('.chat-row[data-kind="group"]');
+                for (var g = 0; g < groupRows.length; g++) {
+                    if (groupRows[g].getAttribute('data-jid') === item.jid) { row = groupRows[g]; break; }
+                }
+            } else {
+                row = list.querySelector('.chat-row[data-id="' + item.id + '"]');
+            }
             if (!row) {
                 row = document.createElement('a');
                 row.className = 'chat-row';
-                row.setAttribute('data-kind', 'person');
-                row.setAttribute('data-id', item.id);
+                row.setAttribute('data-kind', isGroup ? 'group' : 'person');
+                if (isGroup) {
+                    row.setAttribute('data-jid', item.jid || '');
+                    row.setAttribute('data-live', '1');
+                } else {
+                    row.setAttribute('data-id', item.id);
+                }
             }
-            row.href = chatPage + '?chat=' + item.id;
+            row.href = isGroup ? (chatPage + '?group=' + encodeURIComponent(item.jid || '')) : (chatPage + '?chat=' + item.id);
+            if (isGroup) row.setAttribute('data-live', '1');
             var unread = (openChat && String(item.id) === String(openChat)) ? 0 : (item.unread > 0 ? item.unread : 0);
             row.setAttribute('data-read', unread > 0 ? '0' : '1');
             row.setAttribute('data-name', (item.name + ' ' + (item.phone || '')).toLowerCase());
@@ -1643,11 +1795,11 @@ window.addEventListener('pageshow', function (event) {
             var badge = unread > 0 ? '<span class="chat-badge">' + unread + '</span>' : '';
             var state = unread > 0 ? '<span class="chat-state">Unread</span>' : '';
             var ai = item.mode === 'AI' ? '<span class="chat-ai">AI </span>' : '';
-            var initial = (item.name || 'W').charAt(0).toUpperCase();
+            var initial = isGroup ? 'G' : (item.name || 'W').charAt(0).toUpperCase();
             var when = item.at && window.hubListTime ? window.hubListTime(item.at) : (item.time || '');
             var typingLabel = item.typing === 'recording' ? 'recording a voice note…' : (item.typing === 'typing' ? 'typing…' : '');
             var preview = typingLabel ? '<span class="chat-preview is-typing">' + esc(typingLabel) + '</span>' : '<span class="chat-preview">' + ai + esc(item.preview || '') + '</span>';
-            row.innerHTML = '<span class="chat-avatar" data-tone="' + (item.tone || 0) + '">' + esc(initial) + '</span><span class="chat-main"><span class="chat-top"><span class="chat-name">' + esc(item.name) + '</span>' + state + '<span class="chat-time"' + (item.at ? ' data-at="' + esc(item.at) + '"' : '') + '>' + esc(when) + '</span></span><span class="chat-bottom">' + preview + badge + '</span></span>';
+            row.innerHTML = '<span class="chat-avatar' + (isGroup ? ' is-group' : '') + '"' + (isGroup ? '' : ' data-tone="' + (item.tone || 0) + '"') + '>' + esc(initial) + '</span><span class="chat-main"><span class="chat-top"><span class="chat-name">' + esc(item.name) + '</span>' + state + '<span class="chat-time"' + (item.at ? ' data-at="' + esc(item.at) + '"' : '') + '>' + esc(when) + '</span></span><span class="chat-bottom">' + preview + badge + '</span></span>';
             var next = after ? after.nextSibling : list.firstChild;
             if (next !== row) list.insertBefore(row, next);
             after = row;
@@ -2624,8 +2776,8 @@ window.addEventListener('pageshow', function (event) {
             showChatList(false);
             return;
         }
-        var gear = event.target.closest && event.target.closest('.js-lang-settings');
-        if (gear) openSheet('langSettings');
+        var gear = event.target.closest && event.target.closest('.js-hub-settings');
+        if (gear) openSheet('hubSettings');
         var replyPick = event.target.closest && event.target.closest('#openReplyLang');
         if (replyPick) openSheet('replyLang');
     });
