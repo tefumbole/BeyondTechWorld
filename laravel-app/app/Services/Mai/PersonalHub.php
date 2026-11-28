@@ -88,6 +88,7 @@ class PersonalHub
                     if ($existing) {
                         if ((int) $existing->conversation_id === (int) $conversation->id) {
                             $this->raiseStatus($existing, $status);
+                            $this->keepHistoryFile($session, $existing, $row);
                         }
                         continue;
                     }
@@ -105,6 +106,7 @@ class PersonalHub
                         $same->save();
                     }
                     $this->raiseStatus($same, $status);
+                    $this->keepHistoryFile($session, $same, $row);
                     continue;
                 }
                 $key = 'mai-live:'.$session->id.':'.substr(sha1($from.'|'.$row['text'].'|'.$row['at']), 0, 40);
@@ -116,9 +118,16 @@ class PersonalHub
                 $message->conversation_id = $conversation->id;
                 $message->contact_id = $conversation->contact_id;
                 $message->direction = ! empty($row['from_me']) ? WhatsAppMessage::DIR_OUT : WhatsAppMessage::DIR_IN;
-                $message->type = 'TEXT';
+                $message->type = $this->historyType($row);
                 $message->provider_message_id = $providerId !== '' ? $providerId : $key;
                 $message->body = $row['text'];
+                $stored = $this->historyFile($session, $row);
+                if ($stored !== '') {
+                    $message->media_json = json_encode([
+                        'stored' => $stored,
+                        'name' => $row['text'] !== '' ? $row['text'] : $message->type,
+                    ]);
+                }
                 $message->status = $status;
                 $message->sender_type = ! empty($row['from_me']) ? 'ECHO' : 'CONTACT';
                 $message->created_at = $stamp;
@@ -295,16 +304,56 @@ class PersonalHub
         return $session;
     }
 
+    protected function historyType(array $row)
+    {
+        $type = isset($row['type']) ? strtoupper((string) $row['type']) : 'TEXT';
+        if (! in_array($type, ['TEXT', 'IMAGE', 'STICKER', 'AUDIO', 'VIDEO', 'DOCUMENT'], true)) {
+            return 'TEXT';
+        }
+
+        return $type;
+    }
+
+    protected function historyFile($session, array $row)
+    {
+        if (empty($row['file'])) {
+            return '';
+        }
+
+        return app(MaiInboxStore::class)->storeMedia($session, $row['file']);
+    }
+
+    protected function keepHistoryFile($session, WhatsAppMessage $message, array $row)
+    {
+        $type = $this->historyType($row);
+        $stored = $this->historyFile($session, $row);
+        $changed = false;
+        if ($type !== 'TEXT' && strtoupper((string) $message->type) === 'TEXT') {
+            $message->type = $type;
+            $changed = true;
+        }
+        if ($stored !== '') {
+            $media = $message->media();
+            if (empty($media['stored'])) {
+                $media['stored'] = $stored;
+                $media['name'] = isset($row['text']) && $row['text'] !== '' ? $row['text'] : $type;
+                $message->media_json = json_encode($media);
+                $changed = true;
+            }
+        }
+        if ($changed) {
+            $message->save();
+        }
+    }
+
     public function label($contact, $conversation = null)
     {
         if ($conversation && $conversation->mai_session_id && \Illuminate\Support\Facades\Schema::hasTable('mai_peers')) {
             $name = app(MaiIdentity::class)->display($conversation, $contact);
-            if ($name !== '' && $name !== 'WhatsApp') {
-                return $name;
-            }
             $own = trim((string) $conversation->peer_label);
-            if ($own !== '' && $own !== 'WhatsApp') {
-                return $own;
+            $best = app(MaiIdentity::class)->prefer($name, $own);
+            if ($best !== '' && $best !== 'WhatsApp') {
+                return $best;
             }
 
             return $name;

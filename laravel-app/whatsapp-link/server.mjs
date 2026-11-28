@@ -474,7 +474,11 @@ function rememberMessage(entry, msg, live) {
   }
 }
 
-function mediaExt(kind) {
+function mediaExt(kind, message) {
+  if (kind === 'DOCUMENT' && message && message.documentMessage && message.documentMessage.fileName) {
+    const ext = String(message.documentMessage.fileName).split('.').pop()
+    if (ext && /^[a-z0-9]{1,5}$/i.test(ext)) return ext.toLowerCase()
+  }
   if (kind === 'IMAGE') return 'jpg'
   if (kind === 'VIDEO') return 'mp4'
   if (kind === 'AUDIO') return 'ogg'
@@ -505,7 +509,7 @@ function queueMedia(entry, msg, kind, done) {
 
 async function saveMedia(entry, msg, kind) {
   if (!entry || !kind || typeof downloadMediaMessage !== 'function') return ''
-  const name = String(msg.key && msg.key.id ? msg.key.id : Date.now()).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80) + '.' + mediaExt(kind)
+  const name = String(msg.key && msg.key.id ? msg.key.id : Date.now()).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80) + '.' + mediaExt(kind, unwrapMessage(msg.message))
   const dir = path.join(sessionDir(entry.id), 'media')
   const full = path.join(dir, name)
   if (fs.existsSync(full) && fs.statSync(full).size > 0) {

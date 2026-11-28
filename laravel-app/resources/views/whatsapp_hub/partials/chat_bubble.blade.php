@@ -34,12 +34,15 @@
     @if(!empty($quote))<span class="quote">{!! $linkify($quote) !!}</span>@endif
     @if(($type === 'IMAGE' || $type === 'STICKER') && $mediaUrl !== '')
         <img class="chat-photo" src="{{ $mediaUrl }}" alt="{{ $fileLabel }}" loading="lazy" decoding="async" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{className:'aside',textContent:this.alt||'Photo'}))">
+        <a class="chat-file" href="{{ $mediaUrl }}" download="{{ $fileLabel }}">Download {{ $fileLabel }}</a>
     @elseif($type === 'AUDIO' && $mediaUrl !== '')
         <audio controls preload="none" src="{{ $mediaUrl }}"></audio>
+        <a class="chat-file" href="{{ $mediaUrl }}" download="{{ $fileLabel }}">Download {{ $fileLabel }}</a>
     @elseif($type === 'VIDEO' && $mediaUrl !== '')
         <video controls preload="none" src="{{ $mediaUrl }}"></video>
+        <a class="chat-file" href="{{ $mediaUrl }}" download="{{ $fileLabel }}">Download {{ $fileLabel }}</a>
     @elseif($mediaUrl !== '' && in_array($type, ['DOCUMENT', 'LOCATION'], true))
-        <a class="chat-file" href="{{ $mediaUrl }}" target="_blank" rel="noopener">{{ $fileLabel }}</a>
+        <a class="chat-file" href="{{ $mediaUrl }}" download="{{ $fileLabel }}" target="_blank" rel="noopener">Download {{ $fileLabel }}</a>
     @elseif(in_array($type, ['IMAGE', 'STICKER', 'AUDIO', 'VIDEO', 'DOCUMENT', 'LOCATION'], true) && $text === '')
         <span class="aside">{{ $fileLabel }}</span>
     @endif

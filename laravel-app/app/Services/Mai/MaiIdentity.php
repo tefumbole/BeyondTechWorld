@@ -29,10 +29,13 @@ class MaiIdentity
         }
         $saved = $this->clip(isset($row['saved_name']) ? $row['saved_name'] : '');
         $profile = $this->clip(isset($row['profile_name']) ? $row['profile_name'] : '');
-        if ($saved !== '') {
+        $named = $this->clip(isset($row['name']) ? $row['name'] : '');
+        $best = $this->fuller($this->fuller($saved, $profile), $named);
+        if ($best !== '') {
             $current = trim((string) $peer->saved_name);
-            if ($current === '' || strlen($saved) >= strlen($current)) {
-                $peer->saved_name = $saved;
+            $chosen = $this->fuller($current, $best);
+            if ($chosen !== '' && $chosen !== $current) {
+                $peer->saved_name = $chosen;
             }
         }
         if ($profile !== '' && $profile !== $saved) {
@@ -58,11 +61,11 @@ class MaiIdentity
             return 'WhatsApp';
         }
         $peer = $this->peerFor($conversation, $contact);
-        if ($peer && trim((string) $peer->saved_name) !== '') {
-            return trim((string) $peer->saved_name);
-        }
-        if ($peer && trim((string) $peer->profile_name) !== '') {
-            return trim((string) $peer->profile_name);
+        $saved = $peer ? trim((string) $peer->saved_name) : '';
+        $profile = $peer ? trim((string) $peer->profile_name) : '';
+        $best = $this->fuller($saved, $profile);
+        if ($best !== '') {
+            return $best;
         }
         $phone = $peer ? preg_replace('/\D/', '', (string) $peer->phone_digits) : '';
         if ($phone !== '' && strlen($phone) >= 8 && strlen($phone) <= 13) {
@@ -169,6 +172,39 @@ class MaiIdentity
         }
 
         return $phone;
+    }
+
+    public function prefer($primary, $alternate)
+    {
+        $chosen = $this->fuller($primary, $alternate);
+
+        return $chosen !== '' ? $chosen : trim((string) $primary);
+    }
+
+    protected function fuller($saved, $other)
+    {
+        $saved = trim((string) $saved);
+        $other = trim((string) $other);
+        if ($saved === '' || $saved === 'WhatsApp') {
+            return ($other === '' || $other === 'WhatsApp') ? '' : $other;
+        }
+        if ($other === '' || $other === 'WhatsApp') {
+            return $saved;
+        }
+        $short = $this->plain($saved);
+        $long = $this->plain($other);
+        if ($short !== '' && $long !== '' && strlen($long) > strlen($short) && stripos($long, $short) !== false) {
+            return $other;
+        }
+
+        return $saved;
+    }
+
+    protected function plain($value)
+    {
+        $value = trim((string) preg_replace('/[^\p{L}\p{N}\s.]+/u', ' ', (string) $value));
+
+        return trim((string) preg_replace('/\s+/', ' ', $value));
     }
 
     protected function clip($value)

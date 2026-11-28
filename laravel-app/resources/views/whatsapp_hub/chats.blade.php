@@ -253,8 +253,8 @@
     .file-clear { width: 22px; height: 22px; border: 0; border-radius: 50%; background: #9b1c1c; color: #fff; font-size: 14px; font-weight: 800; line-height: 1; cursor: pointer; flex: none; }
     .bubble { position: relative; }
     .bubble-more { position: absolute; top: 4px; right: 4px; z-index: 2; width: 26px; height: 26px; border: 0; border-radius: 8px; background: rgba(255,255,255,.9); color: #16315c; font-size: 18px; font-weight: 900; line-height: 1; cursor: pointer; box-shadow: 0 1px 3px rgba(15,31,61,.15); }
-    .chats-compose { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 18px; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); position: relative; }
-    .chats-compose textarea { flex: 1 1 100%; order: -1; border: 1px solid transparent; border-radius: 18px; background: #f1f4fa; color: var(--wa-ink); min-height: 112px; max-height: 220px; padding: 14px 16px; resize: vertical; font-size: 16px; line-height: 1.4; transition: border-color .18s, box-shadow .18s, background-color .18s; }
+    .chats-compose { display: flex; align-items: flex-end; flex-wrap: nowrap; gap: 8px; padding: 10px 12px; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--wa-line); position: relative; }
+    .chats-compose textarea { flex: 1 1 auto; order: 0; border: 1px solid transparent; border-radius: 18px; background: #f1f4fa; color: var(--wa-ink); min-height: 44px; max-height: 120px; padding: 12px 14px; resize: none; font-size: 16px; line-height: 1.4; transition: border-color .18s, box-shadow .18s, background-color .18s; }
     .chats-compose textarea:focus { outline: none; background: #fff; border-color: #9cc2ff; box-shadow: 0 0 0 4px rgba(21, 101, 192, .12); }
     .chats-compose button[type="submit"] { border: 0; border-radius: 50%; width: 46px; height: 46px; background: linear-gradient(135deg, #25d366, #128c7e); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; flex: none; box-shadow: 0 6px 16px rgba(18, 140, 126, .35); transition: transform .15s, box-shadow .15s; }
     .chats-compose button[type="submit"]:hover { transform: scale(1.06); box-shadow: 0 8px 20px rgba(18, 140, 126, .45); }
@@ -294,7 +294,8 @@
         .chats-stream { padding: 8px 12px 12px; }
         .bubble { max-width: 90%; }
         .chats-compose { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
-        .chats-compose textarea { min-height: 132px; max-height: 240px; }
+        .chats-compose { flex-wrap: wrap; }
+        .chats-compose textarea { flex: 1 1 160px; min-height: 44px; max-height: 96px; }
         .chats-head { padding: 8px 10px; flex-direction: column; align-items: stretch; gap: 8px; }
         .chats-head-person { width: 100%; flex: none; }
         .chats-head-person h2, .chats-head-person p { white-space: normal; }
@@ -2506,9 +2507,13 @@ window.addEventListener('pageshow', function (event) {
         var use = document.getElementById('transcribeUse');
         var prompt = document.getElementById('transcribePrompt');
         var ask = document.getElementById('transcribeAsk');
-        if (sheet) sheet.setAttribute('data-kind', 'general');
+        if (sheet) sheet.setAttribute('data-kind', 'chat');
+        var personName = (document.getElementById('threadName') || {}).textContent || '';
+        personName = personName.replace(/\s+/g, ' ').trim();
         var scope = sheet ? sheet.querySelector('.ask-scope') : null;
-        if (scope) scope.textContent = 'Mbole AI · any question';
+        var heading = sheet ? sheet.querySelector('h3') : null;
+        if (heading) heading.textContent = personName || 'MAI';
+        if (scope) scope.textContent = personName ? ('Chat with ' + personName) : 'This chat';
         if (result) { result.hidden = true; result.textContent = ''; }
         if (use) use.hidden = true;
         var draft = document.getElementById('chatBody');
@@ -2517,7 +2522,7 @@ window.addEventListener('pageshow', function (event) {
         if (ask) { ask.disabled = false; ask.textContent = 'MAI'; }
         clearAskFile();
         var statusNode = document.getElementById('transcribeStatus');
-        if (statusNode) statusNode.textContent = 'Ask MAI anything. This is not limited to the open chat.';
+        if (statusNode) statusNode.textContent = personName ? ('Ask about the chat with ' + personName + ', or ask anything else.') : 'Ask about this chat, or ask anything else.';
         paintRecentChat();
         openSheet('transcribeSheet');
         if (typed) {

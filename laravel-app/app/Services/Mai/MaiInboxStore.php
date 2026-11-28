@@ -264,6 +264,11 @@ class MaiInboxStore
         $message->save();
     }
 
+    public function storeMedia(MaiSession $session, $file)
+    {
+        return $this->keepFile($session, $file);
+    }
+
     protected function keepFile(MaiSession $session, $file)
     {
         $file = str_replace('\\', '/', trim((string) $file));

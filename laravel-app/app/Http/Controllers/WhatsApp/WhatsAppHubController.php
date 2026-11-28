@@ -1482,16 +1482,7 @@ class WhatsAppHubController extends Controller
 
             return $this->answerAboutMessage($row, $instruction, false, $material);
         }
-        if ((string) $request->input('scope') === 'general') {
-            return $this->answerAbout(
-                '(No chat context. Answer the request on its own.)',
-                $instruction,
-                'You are MAI, a helpful assistant. Answer any question clearly and directly. You are not limited to the current WhatsApp chat. If a file is attached, use it. Do not invent private account facts. Keep answers short and useful.',
-                true,
-                $material
-            );
-        }
-        $rows = WhatsAppMessage::visible()->where('conversation_id', $id)->orderByDesc('id')->limit(120)->get()->reverse()->values();
+        $rows = WhatsAppMessage::visible()->where('conversation_id', $id)->orderByDesc('id')->limit(400)->get()->reverse()->values();
         $translator = app(\App\Services\WhatsApp\WhatsAppTranslator::class);
         $latestAudio = null;
         foreach ($rows as $row) {
@@ -1524,6 +1515,10 @@ class WhatsAppHubController extends Controller
                     $line = '';
                 }
             }
+            $fileName = trim($row->chatMediaName());
+            if ($fileName !== '' && stripos($line, $fileName) === false) {
+                $line = trim($line.' ['.$type.' file: '.$fileName.']');
+            }
             if ($line === '') {
                 continue;
             }
@@ -1542,7 +1537,16 @@ class WhatsAppHubController extends Controller
             $text = '(No text in this chat yet.)';
         }
 
-        return $this->answerAbout($text, $instruction, 'You answer only about the current WhatsApp chat. You cannot see the rest of the company system, other chats, accounts, or records. Use the messages from this chat, the photos from this chat, and a file only when one is attached to this question. Read amounts, names, and dates that are visible in those photos. If the answer is not in this chat or that file, say it is not in this chat. Do not invent facts, names, prices, or medical details. When the request asks for a reply, write only the message that can be sent. When it asks for a summary or a list, write that clearly.', true, $material);
+        $conversation = WhatsAppConversation::with('contact')->find($id);
+        $person = 'this chat';
+        if ($conversation) {
+            $person = $this->personalHub()
+                ? app(\App\Services\Mai\PersonalHub::class)->label($conversation->contact, $conversation)
+                : (optional($conversation->contact)->displayName() ?: 'this chat');
+        }
+        $clock = \Carbon\Carbon::now('Africa/Douala')->format('l j F Y, H:i');
+
+        return $this->answerAbout($text, $instruction, 'You are MAI. This chat is with '.$person.'. Use the whole chat below, including photos, voice notes, and named documents, when the question is about the chat. Also answer ordinary questions that are not about the chat. The current time in Bamenda, Cameroon is '.$clock.' (West Africa Time, UTC+1). If a file is attached to the question, use it. Do not invent prices, names, or private account facts. When the request asks for a reply, write only the message that can be sent. When it asks for a summary or a list, write that clearly.', true, $material);
     }
 
     public function askChatMessage(Request $request, $id, $message)
