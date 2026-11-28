@@ -7,13 +7,15 @@ use Illuminate\Console\Command;
 
 class SyncLetterhead extends Command
 {
-    protected $signature = 'app:sync-letterhead';
+    protected $signature = 'app:sync-letterhead {--default : Use the Beyond letterhead for letters with no organization}';
 
     protected $description = 'Install Beyond letterhead header/footer into public/logo and General Settings';
 
     public function handle()
     {
-        $assets = Letterhead::ensureSynced();
+        $assets = $this->option('default')
+            ? Letterhead::restoreDefault()
+            : Letterhead::ensureSynced();
         $this->info('Letterhead header: '.($assets['header_file'] ?: 'missing'));
         $this->info('Letterhead footer: '.($assets['footer_file'] ?: 'missing'));
         $this->info('Watermark: '.($assets['watermark_file'] ?: 'missing'));

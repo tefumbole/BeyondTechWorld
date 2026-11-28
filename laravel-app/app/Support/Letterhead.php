@@ -315,6 +315,28 @@ class Letterhead
     }
 
     /**
+     * Point the default Beyond letter (no organization) at the committed letterhead.
+     * An organization's own header and footer are left as they are.
+     */
+    public static function restoreDefault()
+    {
+        $settings = GeneralSetting::query()->orderByDesc('id')->first();
+        if (! $settings) {
+            return self::resolve(null);
+        }
+
+        if (self::installBeyondAsset(self::BEYOND_HEADER)) {
+            $settings->email_header = self::BEYOND_HEADER;
+        }
+        if (self::installBeyondAsset(self::BEYOND_FOOTER)) {
+            $settings->email_footer = self::BEYOND_FOOTER;
+        }
+        $settings->save();
+
+        return self::resolve($settings->fresh());
+    }
+
+    /**
      * Alpha Bridge / legacy API letterheads must not be used on Beyond.
      */
     protected static function isForeignLetterhead($filename)
