@@ -69,7 +69,7 @@ class PersonalHub
                 if (substr($from, -5) === '@g.us') {
                     continue;
                 }
-                $digits = preg_replace('/\D/', '', strtok($from, '@'));
+                $digits = $identity->chatPhone($session, preg_replace('/\D/', '', strtok($from, '@')));
                 if ($digits === '' || strlen($digits) < 8 || strlen($digits) > 15) {
                     continue;
                 }
@@ -166,6 +166,7 @@ class PersonalHub
                     $alias = $identity->aliasPhone($session, $chat['lid'].'@lid');
                     $store = $alias !== '' ? $alias : $chat['lid'];
                 }
+                $store = $identity->chatPhone($session, $store);
                 if ($store === '' || strlen($store) < 8 || strlen($store) > 15) {
                     continue;
                 }
@@ -252,6 +253,7 @@ class PersonalHub
                     }
                 }
             }
+            $this->foldDuplicates($session);
             if ($engine->readReady()) {
                 $open = WhatsAppConversation::where('mai_session_id', $session->id)
                     ->where('unread_count', '>', 0)
@@ -267,6 +269,68 @@ class PersonalHub
                 }
             }
         });
+    }
+
+    /**
+     * One saved person is one chat. A thread stored under a lid moves onto the
+     * phone number that lid is already tied to, and the extra row is removed.
+     */
+    public function foldDuplicates(MaiSession $session)
+    {
+        app(CloudTenantContext::class)->withoutIsolation(function () use ($session) {
+            $identity = app(MaiIdentity::class);
+            $outbound = app(MaiOutboundService::class);
+            $rows = WhatsAppConversation::where('mai_session_id', $session->id)->with('contact')->get();
+            foreach ($rows as $row) {
+                $fresh = WhatsAppConversation::where('mai_session_id', $session->id)->where('id', $row->id)->first();
+                if (! $fresh) {
+                    continue;
+                }
+                $digits = preg_replace('/\D/', '', (string) optional($fresh->contact)->normalized_phone);
+                $canonical = $identity->chatPhone($session, $digits);
+                if ($canonical === '' || $canonical === $digits || MaiBusinessLine::is($canonical)) {
+                    continue;
+                }
+                $keeper = $outbound->conversation($session, $canonical);
+                if (! $keeper || (int) $keeper->id === (int) $fresh->id) {
+                    continue;
+                }
+                $this->moveInto($fresh, $keeper);
+            }
+        });
+    }
+
+    protected function moveInto(WhatsAppConversation $from, WhatsAppConversation $keeper)
+    {
+        $messages = WhatsAppMessage::where('conversation_id', $from->id)->orderBy('id')->get();
+        foreach ($messages as $message) {
+            $providerId = (string) $message->provider_message_id;
+            if ($providerId !== '' && WhatsAppMessage::where('conversation_id', $keeper->id)->where('provider_message_id', $providerId)->where('id', '!=', $message->id)->exists()) {
+                $message->delete();
+                continue;
+            }
+            $message->conversation_id = $keeper->id;
+            $message->contact_id = $keeper->contact_id;
+            $message->save();
+        }
+        if ($from->last_activity_at && (! $keeper->last_activity_at || $from->last_activity_at->gt($keeper->last_activity_at))) {
+            $keeper->last_activity_at = $from->last_activity_at;
+            if (trim((string) $from->last_message) !== '') {
+                $keeper->last_message = $from->last_message;
+            }
+        }
+        if ($from->last_incoming_at && (! $keeper->last_incoming_at || $from->last_incoming_at->gt($keeper->last_incoming_at))) {
+            $keeper->last_incoming_at = $from->last_incoming_at;
+        }
+        if ((int) $from->unread_count > (int) $keeper->unread_count) {
+            $keeper->unread_count = (int) $from->unread_count;
+        }
+        $label = app(MaiIdentity::class)->display($keeper->fresh() ?: $keeper, $keeper->contact);
+        if ($label !== '' && $label !== 'WhatsApp' && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'peer_label')) {
+            $keeper->peer_label = function_exists('mb_substr') ? mb_substr($label, 0, 191) : substr($label, 0, 191);
+        }
+        $keeper->save();
+        $from->delete();
     }
 
     public function groups(MaiSession $session)

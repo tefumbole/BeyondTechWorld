@@ -118,6 +118,24 @@ class MaiIdentity
         return $best;
     }
 
+    /**
+     * The phone a chat should be stored under. A lid that is already tied to a
+     * saved number uses that number, so the same person is not a second chat.
+     */
+    public function chatPhone(MaiSession $session, $digits)
+    {
+        $digits = preg_replace('/\D/', '', (string) $digits);
+        if ($digits === '' || strlen($digits) < 8 || strlen($digits) > 15) {
+            return '';
+        }
+        $alias = $this->aliasPhone($session, $digits.'@lid');
+        if ($alias !== '' && $alias !== $digits && strlen($alias) >= 8 && strlen($alias) <= 13 && ! MaiBusinessLine::is($alias)) {
+            return $alias;
+        }
+
+        return $digits;
+    }
+
     public function aliasPhone(MaiSession $session, $jid)
     {
         $jid = (string) $jid;

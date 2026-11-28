@@ -311,6 +311,69 @@ class MaiContactIsolationTest extends TestCase
         $this->assertSame(['250794006160'], $identity->searchAliases('250794006160'));
     }
 
+    public function test_a_lid_thread_and_its_phone_thread_become_one_chat()
+    {
+        $session = $this->linked(34, 'p237670000034');
+        $other = $this->linked(35, 'p237670000035');
+        $phoneContact = new WhatsAppContact();
+        $phoneContact->normalized_phone = '250788004793';
+        $phoneContact->display_phone = '+250788004793';
+        $phoneContact->wa_name = 'PA Nasrah Umwali';
+        $phoneContact->save();
+        $lidContact = new WhatsAppContact();
+        $lidContact->normalized_phone = '155512345465';
+        $lidContact->display_phone = '155512345465';
+        $lidContact->wa_name = 'Nasrah';
+        $lidContact->save();
+        $phoneChat = $this->chat($phoneContact, $session, 'PA Nasrah Umwali');
+        $phoneChat->last_message = 'good afternoon sir';
+        $phoneChat->last_activity_at = '2026-11-27 10:00:00';
+        $phoneChat->save();
+        $lidChat = $this->chat($lidContact, $session, 'Nasrah');
+        $lidChat->last_message = 'good afternoon sir';
+        $lidChat->last_activity_at = '2026-11-28 14:25:00';
+        $lidChat->unread_count = 2;
+        $lidChat->save();
+        $otherChat = $this->chat($lidContact, $other, 'Nasrah');
+        $kept = new WhatsAppMessage();
+        $kept->conversation_id = $lidChat->id;
+        $kept->contact_id = $lidContact->id;
+        $kept->direction = WhatsAppMessage::DIR_IN;
+        $kept->type = 'TEXT';
+        $kept->body = 'kept on the phone chat';
+        $kept->provider_message_id = 'mai-only-lid';
+        $kept->save();
+        MaiPeer::create([
+            'mai_session_id' => $session->id,
+            'remote_jid' => '155512345465@lid',
+            'phone_digits' => '155512345465',
+            'lid' => '155512345465',
+            'saved_name' => 'Nasrah',
+            'profile_name' => 'Nasrah',
+        ]);
+        MaiPeer::create([
+            'mai_session_id' => $session->id,
+            'remote_jid' => '250788004793@s.whatsapp.net',
+            'phone_digits' => '250788004793',
+            'lid' => '155512345465',
+            'saved_name' => 'PA Nasrah Umwali',
+            'profile_name' => 'Nasrah',
+        ]);
+
+        app(\App\Services\Mai\PersonalHub::class)->foldDuplicates($session);
+
+        $this->assertSame(1, WhatsAppConversation::where('mai_session_id', $session->id)->count());
+        $this->assertNull(WhatsAppConversation::find($lidChat->id));
+        $phone = WhatsAppConversation::find($phoneChat->id);
+        $this->assertSame('PA Nasrah Umwali', $phone->peer_label);
+        $this->assertSame(2, (int) $phone->unread_count);
+        $this->assertSame(1, WhatsAppMessage::where('conversation_id', $phone->id)->count());
+        $this->assertSame('kept on the phone chat', WhatsAppMessage::where('provider_message_id', 'mai-only-lid')->value('body'));
+        $this->assertSame($phone->id, (int) WhatsAppMessage::where('provider_message_id', 'mai-only-lid')->value('conversation_id'));
+        $this->assertNotNull(WhatsAppConversation::find($otherChat->id));
+        $this->assertSame('Nasrah', $otherChat->fresh()->peer_label);
+    }
+
     public function test_a_scoped_repair_cannot_see_another_session_when_queries_are_isolated()
     {
         config(['cloud.isolate_queries' => true]);
