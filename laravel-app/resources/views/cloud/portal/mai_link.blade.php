@@ -123,6 +123,10 @@
             window.location = data.redirect;
             return;
         }
+        if (data && data.status === 'CONNECTING' && !data.qr) {
+            showWait('Opening Whats MAI…');
+            return;
+        }
         if (data && data.status === 'CONNECTED') {
             if (ready) ready.classList.remove('is-off');
             if (open) open.href = @json(route('whatsapp.mai.inbox'));
@@ -130,6 +134,9 @@
             return;
         }
         if (data && data.qr) {
+            var current = document.getElementById('link-qr');
+            var stillGood = shownAt && (Date.now() - shownAt) < QR_LIFE && current && current.src && current.src.indexOf('data:image') === 0 && !current.classList.contains('is-off');
+            if (stillGood) return;
             showQr(data.qr, data.qr_age_ms || 0);
             if (err) err.classList.add('is-off');
             return;
@@ -188,9 +195,8 @@
             .then(function (response) { return response.json(); })
             .then(function (data) {
                 paint(data);
-                if (shownAt && Date.now() - shownAt >= QR_LIFE) {
-                    var refresh = document.getElementById('qr-refresh');
-                    if (refresh) refresh.classList.remove('is-off');
+                if (shownAt && Date.now() - shownAt >= QR_LIFE && !(data && data.status === 'CONNECTED')) {
+                    refreshQr();
                 }
             })
             .catch(function () {});
@@ -202,22 +208,8 @@
         paintTimer();
     } else {
         showWait('Preparing the QR code');
-        var tries = 0;
-        var boot = setInterval(function () {
-            tries += 1;
-            tickStatus();
-            var qr = document.getElementById('link-qr');
-            if (qr && !qr.classList.contains('is-off')) {
-                clearInterval(boot);
-                return;
-            }
-            if (tries >= 6) {
-                clearInterval(boot);
-                refreshQr();
-            }
-        }, 1500);
     }
-    pollTimer = setInterval(tickStatus, 2500);
+    pollTimer = setInterval(tickStatus, 1000);
     tickTimer = setInterval(paintTimer, 1000);
     tickStatus();
 })();

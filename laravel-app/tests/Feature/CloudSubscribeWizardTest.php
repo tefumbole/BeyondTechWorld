@@ -320,7 +320,7 @@ class CloudSubscribeWizardTest extends TestCase
             ->assertOk()
             ->assertSee('Link WhatsApp')
             ->assertSee('QR code')
-            ->assertSee('Link code')
+            ->assertDontSee('Link code')
             ->assertSee('250794006160');
         $this->assertSame('POST', $seen[0][0]);
         $this->assertSame('/sessions', $seen[0][1]);
@@ -333,7 +333,7 @@ class CloudSubscribeWizardTest extends TestCase
         foreach ($seen as $row) {
             $paths[] = $row[1];
         }
-        $this->assertContains('/sessions/p250794006160?qr=1', $paths);
+        $this->assertContains('/sessions', $paths);
         $this->assertNotContains('/sessions/p250794006160/send', $paths);
     }
 

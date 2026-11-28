@@ -61,29 +61,7 @@ class MaiWhatsAppController extends Controller
         if (! $user) {
             return redirect()->to(url('/login?mai=1'));
         }
-        $state = app(MaiWhatsAppEngine::class)->pair($user->phone);
-        $code = isset($state['pairing_code']) ? (string) $state['pairing_code'] : '';
-        if ($code === '') {
-            $error = ! empty($state['error']) ? $state['error'] : 'The link code could not be created.';
-
-            return redirect()->route('whatsapp.mai.link')->with('not_permitted', $error)->with('link_tab', 'code');
-        }
-        $sent = false;
-        $body = "Whats MAI link code: ".$code."\nOn your phone, open WhatsApp, tap Linked devices, then Link with phone number, and enter this code.";
-        try {
-            $result = app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppTextWithLink($user->phone, $body);
-            $sent = is_array($result) && ! empty($result['success']) && empty($result['skipped']);
-        } catch (\Exception $e) {
-            $sent = false;
-        }
-        $notice = $sent
-            ? 'The link code was sent to this phone. Enter it in WhatsApp under Linked devices.'
-            : 'The link code is on this screen. It could not be delivered to the phone.';
-
-        return redirect()->route('whatsapp.mai.link')
-            ->with('message', $notice)
-            ->with('link_tab', 'code')
-            ->with('link_code', $code);
+        return redirect()->route('whatsapp.mai.link');
     }
 
     public function verifyLinkOtp(Request $request)
@@ -144,8 +122,6 @@ class MaiWhatsAppController extends Controller
         if (! $user) {
             return redirect()->to(url('/login?mai=1'));
         }
-        app(MaiWhatsAppEngine::class)->pair($user->phone);
-
         return redirect()->route('whatsapp.mai.link');
     }
 

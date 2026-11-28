@@ -92,7 +92,7 @@ class MaiPortalController extends Controller
         }
         $state = app(MaiLinkClient::class)->status($session->worker_session_id);
 
-        return redirect()->to('/mai')->with('message', 'Scan the QR or use the link code on this page.')->with('mai_qr', is_array($state) ? (isset($state['qr']) ? $state['qr'] : '') : '');
+        return redirect()->to('/mai')->with('message', 'Scan the QR code on this page.')->with('mai_qr', is_array($state) ? (isset($state['qr']) ? $state['qr'] : '') : '');
     }
 
     public function pair($publicId)
@@ -101,13 +101,7 @@ class MaiPortalController extends Controller
         if (! $session) {
             return redirect()->to('/mai');
         }
-        try {
-            app(MaiSessionService::class)->pair($session);
-        } catch (\RuntimeException $e) {
-            return response()->view('mai.closed', [], 404);
-        }
-
-        return redirect()->to('/mai')->with('message', 'Enter the link code in WhatsApp under Linked devices.');
+        return redirect()->to('/mai')->with('message', 'Scan the QR code. Linking with a phone number is not available.');
     }
 
     public function refresh($publicId)

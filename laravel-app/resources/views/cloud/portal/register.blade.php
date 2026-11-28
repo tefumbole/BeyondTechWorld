@@ -842,17 +842,28 @@
                 window.location = json.redirect;
                 return;
             }
+            if (json && json.status === 'CONNECTING' && !json.qr) {
+                if (wait) {
+                    wait.hidden = false;
+                    wait.textContent = 'Opening Whats MAI…';
+                }
+                if (image) image.hidden = true;
+                return;
+            }
             if (json && json.status === 'CONNECTED') {
                 window.location = '{{ route('whatsapp.mai.inbox') }}';
                 return;
             }
             if (json && json.qr && image) {
-                image.src = json.qr;
-                image.hidden = false;
-                if (wait) wait.hidden = true;
-                maiQrShownAt = Date.now() - (json.qr_age_ms || 0);
-                if (refresh) refresh.hidden = true;
-                paintMaiQrTimer();
+                var stillGood = maiQrShownAt && (Date.now() - maiQrShownAt) < QR_LIFE && image.src && image.src.indexOf('data:image') === 0 && !image.hidden;
+                if (!stillGood) {
+                    image.src = json.qr;
+                    image.hidden = false;
+                    if (wait) wait.hidden = true;
+                    maiQrShownAt = Date.now() - (json.qr_age_ms || 0);
+                    if (refresh) refresh.hidden = true;
+                    paintMaiQrTimer();
+                }
             } else if (wait && json && !json.qr) {
                 wait.hidden = false;
                 wait.textContent = (json.error) ? String(json.error) : (json.status === 'CONNECTING' ? 'Connecting your WhatsApp…' : 'Preparing the QR code…');
@@ -902,9 +913,15 @@
                 maiLinkTimer = setInterval(function () {
                     fetch('{{ route('whatsapp.mai.link.status') }}', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
                         .then(function (response) { return response.json(); })
-                        .then(paintMaiQr)
+                        .then(function (json) {
+                            paintMaiQr(json);
+                            if (maiQrShownAt && Date.now() - maiQrShownAt >= QR_LIFE && !(json && (json.status === 'CONNECTED' || json.redirect))) {
+                                var refresh = document.getElementById('mai-qr-refresh');
+                                if (refresh && !refresh.disabled) refresh.click();
+                            }
+                        })
                         .catch(function () {});
-                }, 2000);
+                }, 1000);
                 maiQrClock = setInterval(paintMaiQrTimer, 1000);
             });
         }

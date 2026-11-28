@@ -766,9 +766,13 @@ async function startSocketNow(id, expected) {
   const version = await clientVersion()
   if (!entry.chats) entry.chats = {}
   if (expected) entry.expected = expected
-  const keptQr = entry.qr || null
+  let keptQr = entry.qr || null
   entry.registered = !!(state.creds && state.creds.registered)
   entry.status = entry.status === 'CONNECTED' ? 'CONNECTED' : (entry.registered && !keptQr ? 'CONNECTING' : 'AWAITING_QR')
+  if (entry.scanned && entry.status !== 'CONNECTED') {
+    entry.status = 'CONNECTING'
+    keptQr = null
+  }
   entry.error = null
   entry.qr = keptQr
   entry.pairing = null
@@ -779,6 +783,7 @@ async function startSocketNow(id, expected) {
     logger,
     printQRInTerminal: false,
     browser: Browsers.ubuntu('Chrome'),
+    qrTimeout: 60000,
     syncFullHistory: shouldSyncFullHistory(entry.registered, historyIsComplete(dir)),
     markOnlineOnConnect: false,
     getMessage: async (key) => {
@@ -896,13 +901,23 @@ async function startSocketNow(id, expected) {
   })
   sock.ev.on('connection.update', async (update) => {
     if (!current()) return
-    if (update.qr) {
-      const image = await QRCode.toDataURL(update.qr)
-      if (!current()) return
-      entry.qr = image
-      entry.qrAt = Date.now()
-      entry.status = 'AWAITING_QR'
+    if (update.isNewLogin) {
+      entry.scanned = true
+      entry.status = 'CONNECTING'
+      entry.qr = null
       entry.error = null
+    }
+    if (update.qr && !entry.scanned) {
+      const held = entry.qr && entry.qrAt && (Date.now() - entry.qrAt) < 60000 && !entry.replaceQr
+      if (!held) {
+        const image = await QRCode.toDataURL(update.qr)
+        if (!current()) return
+        entry.qr = image
+        entry.qrAt = Date.now()
+        entry.replaceQr = false
+        entry.status = 'AWAITING_QR'
+        entry.error = null
+      }
     }
     if (update.connection === 'open') {
       entry.status = 'CONNECTED'
@@ -949,13 +964,31 @@ async function startSocketNow(id, expected) {
         return
       }
       const restart = code === DisconnectReason.restartRequired || code === 515
+      if (entry.scanned || entry.registered) {
+        entry.status = 'CONNECTING'
+        entry.qr = null
+        entry.retries = 0
+        setTimeout(() => {
+          startSocket(id).catch(() => {
+            entry.status = 'ERROR'
+            entry.error = 'WhatsApp linked, but this computer could not open it. Refresh this page.'
+          })
+        }, 300)
+        return
+      }
+      const held = entry.qr && entry.qrAt && (Date.now() - entry.qrAt) < 60000
+      if (held) {
+        entry.status = 'AWAITING_QR'
+        return
+      }
       if (!restart) entry.retries += 1
       if (entry.retries > 8) {
         entry.status = 'ERROR'
         entry.error = entry.qr ? '' : 'The QR code could not be created. Refresh this page.'
         return
       }
-      entry.status = entry.qr ? 'AWAITING_QR' : (entry.registered ? 'CONNECTING' : 'AWAITING_QR')
+      entry.status = entry.qr ? 'AWAITING_QR' : 'AWAITING_QR'
+      entry.replaceQr = true
       setTimeout(() => {
         startSocket(id).catch(() => {
           entry.status = 'ERROR'
@@ -985,17 +1018,17 @@ function waitForQr(entry, ms) {
 async function forceQr(id) {
   const expected = id.indexOf('p') === 0 ? id.slice(1) : ''
   const existing = sessions.get(id)
-  if (existing && existing.status === 'CONNECTED') {
+  if (existing && (existing.status === 'CONNECTED' || existing.scanned)) {
     return publicState(existing, true)
   }
-  // Fresh QR already in flight — wait for it instead of wiping again.
-  if (existing && existing.sock && existing.status === 'AWAITING_QR' && !existing.registered) {
-    if (!existing.qr) await waitForQr(existing, 10000)
-    if (existing.qr) {
-      existing.qrAt = existing.qrAt || Date.now()
-      return publicState(existing, true)
-    }
+  if (existing && existing.qr && existing.qrAt && (Date.now() - existing.qrAt) < 60000) {
+    return publicState(existing, true)
   }
+  if (existing && existing.sock && existing.status === 'AWAITING_QR' && !existing.qr) {
+    await waitForQr(existing, 10000)
+    if (existing.qr) return publicState(existing, true)
+  }
+  if (existing) existing.replaceQr = true
   if (existing && existing.sock) {
     existing.generation = (existing.generation || 0) + 1
     const previous = existing.sock

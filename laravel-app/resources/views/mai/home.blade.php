@@ -19,9 +19,7 @@
     @foreach($sessions as $session)
         <section>
             <h2>{{ $session->expected_phone }} — {{ $session->status }}</h2>
-            @if($session->pairing_code)<p>Link code: {{ $session->pairing_code }}</p>@endif
             @if($session->last_error)<p>{{ $session->last_error }}</p>@endif
-            <form method="POST" action="{{ url('/mai/sessions/'.$session->public_id.'/pair') }}">@csrf<button type="submit">Show link code</button></form>
             <form method="POST" action="{{ url('/mai/sessions/'.$session->public_id.'/refresh') }}">@csrf<button type="submit">Check link</button></form>
             <form method="POST" action="{{ url('/mai/sessions/'.$session->public_id.'/disconnect') }}">@csrf<button type="submit">Unlink</button></form>
             <form method="POST" action="{{ url('/mai/sessions/'.$session->public_id.'/send') }}">

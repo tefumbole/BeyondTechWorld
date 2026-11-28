@@ -17,7 +17,7 @@
             <span id="company-link-phone"></span>
         @endif
     </p>
-    <img id="company-link-qr" alt="WhatsApp link code" style="width:220px;height:220px;{{ $companyLink['awaiting'] ? '' : 'display:none' }}" />
+    <img id="company-link-qr" alt="WhatsApp QR code" style="width:220px;height:220px;{{ $companyLink['awaiting'] ? '' : 'display:none' }}" />
     @if(!$companyLink['connected'])
         <form method="POST" action="{{ route('whatsapp.link.start') }}" style="margin-top:8px">
             @csrf

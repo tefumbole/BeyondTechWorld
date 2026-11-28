@@ -16,15 +16,12 @@ class CloudWhatsAppConnectController extends Controller
     {
         $tenant = $request->attributes->get('cloudTenant');
         try {
-            $link = $request->input('link') === 'code' ? 'code' : 'qr';
-            app(CloudWhatsAppConnectService::class)->begin($tenant, $request->user(), $link);
+            app(CloudWhatsAppConnectService::class)->begin($tenant, $request->user(), 'qr');
         } catch (\Exception $e) {
             return redirect()->route('cloud.messaging')->with('not_permitted', $e->getMessage());
         }
 
-        $notice = $request->input('link') === 'code'
-            ? 'Use the link code in WhatsApp under Linked devices. If no code is shown, scan the QR from Link a device.'
-            : 'Scan the QR from WhatsApp, Linked devices. It is not connected until the number matches.';
+        $notice = 'Scan the QR from WhatsApp, Linked devices. It is not connected until the number matches.';
 
         return redirect()->route('cloud.messaging')->with('message', $notice);
     }
