@@ -57,10 +57,12 @@ class MaiIdentity
         }
         $peer = $this->peerFor($conversation, $contact);
         $saved = $peer ? trim((string) $peer->saved_name) : '';
+        if ($saved !== '') {
+            return $saved;
+        }
         $profile = $peer ? trim((string) $peer->profile_name) : '';
-        $best = $this->fuller($saved, $profile);
-        if ($best !== '') {
-            return $best;
+        if ($profile !== '') {
+            return $profile;
         }
         $phone = $peer ? preg_replace('/\D/', '', (string) $peer->phone_digits) : '';
         if ($phone !== '' && strlen($phone) >= 8 && strlen($phone) <= 13) {
@@ -90,30 +92,30 @@ class MaiIdentity
         }
         $phone = preg_replace('/\D/', '', (string) optional($contact)->normalized_phone);
         $query = MaiPeer::where('mai_session_id', (int) $conversation->mai_session_id);
-        if ($phone !== '') {
-            $mapped = $this->mappedPeer($query, $phone);
-            if ($mapped) {
-                return $mapped;
-            }
-            $found = (clone $query)->where('phone_digits', $phone)->first();
-            if ($found) {
-                return $found;
-            }
-            $found = (clone $query)->where('remote_jid', $phone.'@s.whatsapp.net')->first();
-            if ($found) {
-                return $found;
-            }
-            $found = (clone $query)->where('remote_jid', $phone.'@g.us')->first();
-            if ($found) {
-                return $found;
-            }
-            $found = (clone $query)->where('lid', $phone)->first();
-            if ($found) {
-                return $found;
+        if ($phone === '') {
+            return null;
+        }
+        $candidates = (clone $query)->where(function ($rows) use ($phone) {
+            $rows->where('phone_digits', $phone)
+                ->orWhere('remote_jid', $phone.'@s.whatsapp.net')
+                ->orWhere('remote_jid', $phone.'@g.us')
+                ->orWhere('lid', $phone);
+        })->get();
+        $best = null;
+        foreach ($candidates as $row) {
+            if ($this->preferPeer($row, $best)) {
+                $best = $row;
             }
         }
+        if ($best && trim((string) $best->saved_name) !== '') {
+            return $best;
+        }
+        $mapped = $this->mappedPeer($query, $phone);
+        if ($mapped) {
+            return $mapped;
+        }
 
-        return null;
+        return $best;
     }
 
     public function aliasPhone(MaiSession $session, $jid)
@@ -134,14 +136,53 @@ class MaiIdentity
             return null;
         }
         $rows = (clone $query)->where('lid', $phone)->get();
+        $best = null;
         foreach ($rows as $row) {
             $digits = preg_replace('/\D/', '', (string) $row->phone_digits);
-            if ($digits !== '' && $digits !== $phone && strlen($digits) >= 8 && strlen($digits) <= 13 && trim((string) $row->saved_name) !== '') {
-                return $row;
+            if ($digits === '' || $digits === $phone || strlen($digits) < 8 || strlen($digits) > 13 || trim((string) $row->saved_name) === '') {
+                continue;
+            }
+            if ($this->preferPeer($row, $best)) {
+                $best = $row;
             }
         }
 
-        return null;
+        return $best;
+    }
+
+    protected function preferPeer($candidate, $current)
+    {
+        if (! $candidate) {
+            return false;
+        }
+        if (! $current) {
+            return true;
+        }
+        $candidateBook = $this->addressBookSaved($candidate);
+        $currentBook = $this->addressBookSaved($current);
+        if ($candidateBook !== $currentBook) {
+            return $candidateBook;
+        }
+        $candidateSaved = $this->distinctSaved($candidate);
+        $currentSaved = $this->distinctSaved($current);
+        if ($candidateSaved !== $currentSaved) {
+            return $candidateSaved;
+        }
+
+        return false;
+    }
+
+    protected function addressBookSaved($peer)
+    {
+        return substr((string) $peer->remote_jid, -15) === '@s.whatsapp.net' && trim((string) $peer->saved_name) !== '';
+    }
+
+    protected function distinctSaved($peer)
+    {
+        $saved = trim((string) $peer->saved_name);
+        $profile = trim((string) $peer->profile_name);
+
+        return $saved !== '' && $saved !== $profile;
     }
 
     protected function attachLid(MaiSession $session, MaiPeer $peer)
@@ -155,7 +196,9 @@ class MaiIdentity
         if (! $other || (int) $other->id === (int) $peer->id) {
             return;
         }
-        if (trim((string) $peer->saved_name) === '' && trim((string) $other->saved_name) !== '') {
+        $otherSaved = trim((string) $other->saved_name);
+        $otherProfile = trim((string) $other->profile_name);
+        if (trim((string) $peer->saved_name) === '' && $otherSaved !== '' && $otherSaved !== $otherProfile) {
             $peer->saved_name = $other->saved_name;
         }
         if (trim((string) $peer->profile_name) === '' && trim((string) $other->profile_name) !== '') {
@@ -257,6 +300,27 @@ class MaiIdentity
         $value = trim((string) preg_replace('/[^\p{L}\p{N}\s.]+/u', ' ', (string) $value));
 
         return trim((string) preg_replace('/\s+/', ' ', $value));
+    }
+
+    public function searchAliases($digits)
+    {
+        $digits = preg_replace('/\D/', '', (string) $digits);
+        if ($digits === '' || strpos($digits, '237') !== 0) {
+            return $digits === '' ? [] : [$digits];
+        }
+        $national = substr($digits, 3);
+        $other = '';
+        if (strlen($national) === 8 && strpos('5679', $national[0]) !== false) {
+            $other = '6'.$national;
+        } elseif (strlen($national) === 9 && $national[0] === '6' && strpos('5679', $national[1]) !== false) {
+            $other = substr($national, 1);
+        }
+        $aliases = [$digits];
+        if ($other !== '') {
+            $aliases[] = '237'.$other;
+        }
+
+        return array_values(array_unique($aliases));
     }
 
     protected function clip($value)

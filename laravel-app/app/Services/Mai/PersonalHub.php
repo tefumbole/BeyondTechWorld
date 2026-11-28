@@ -238,25 +238,14 @@ class PersonalHub
                 }
                 foreach ($book as $digits => $person) {
                     $savedName = trim((string) $person['saved_name']);
-                    $label = function_exists('mb_substr') ? mb_substr($savedName, 0, 191) : substr($savedName, 0, 191);
-                    $conversation = isset($byPhone[$digits]) ? $byPhone[$digits] : $outbound->conversation($session, $digits);
-                    $current = trim((string) $conversation->peer_label);
-                    if ($current === $label || (strlen($current) > strlen($label) && stripos($current, $label) !== false)) {
-                        $identity->remember($session, [
-                            'jid' => $digits.'@s.whatsapp.net',
-                            'phone' => $digits,
-                            'saved_name' => $current !== '' ? $current : $savedName,
-                            'profile_name' => isset($person['profile_name']) ? $person['profile_name'] : '',
-                        ]);
-                        continue;
-                    }
                     $identity->remember($session, [
                         'jid' => $digits.'@s.whatsapp.net',
                         'phone' => $digits,
-                        'saved_name' => strlen($label) >= strlen($current) ? $savedName : $current,
+                        'saved_name' => $savedName,
                         'profile_name' => isset($person['profile_name']) ? $person['profile_name'] : '',
                     ]);
-                    $next = strlen($label) >= strlen($current) ? $label : $current;
+                    $conversation = isset($byPhone[$digits]) ? $byPhone[$digits] : $outbound->conversation($session, $digits);
+                    $next = $identity->display($conversation, $conversation->contact);
                     if (\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'peer_label') && $next !== '' && (string) $conversation->peer_label !== $next) {
                         $conversation->peer_label = $next;
                         $conversation->save();

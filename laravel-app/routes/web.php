@@ -911,6 +911,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/chats/{id}/messages/{message}/edit', 'WhatsApp\WhatsAppHubController@editChatMessage')->name('whatsapp.chats.edit');
     Route::post('/admin/whatsapp/chats/{id}/messages/{message}/delete', 'WhatsApp\WhatsAppHubController@deleteChatMessage')->name('whatsapp.chats.delete');
     Route::post('/admin/whatsapp/chats/{id}/messages/{message}/star', 'WhatsApp\WhatsAppHubController@starChatMessage')->name('whatsapp.chats.star');
+    Route::post('/admin/whatsapp/chats/{id}/messages/{message}/translate', 'WhatsApp\WhatsAppHubController@translateChatMessage')->name('whatsapp.chats.translate');
     Route::post('/admin/whatsapp/chats/{id}/messages/{message}/forward', 'WhatsApp\WhatsAppHubController@forwardChatMessage')->name('whatsapp.chats.forward');
     Route::post('/admin/whatsapp/chats/{id}/messages/{message}/ask', 'WhatsApp\WhatsAppHubController@askChatMessage')->name('whatsapp.chats.ask');
     Route::get('/admin/whatsapp/conversations', 'WhatsApp\WhatsAppHubController@conversations')->name('whatsapp.conversations');

@@ -239,11 +239,110 @@ class MaiContactIsolationTest extends TestCase
 
         $this->assertSame('PA Nasrah Umwali', app(MaiIdentity::class)->display($lidChat->fresh(), $lidContact->fresh()));
         $this->artisan('mai:repair-labels', ['--session' => 32])
+            ->expectsOutput('examined=1')
+            ->expectsOutput('propose id='.$lidChat->id.' from=Nasrah to=PA Nasrah Umwali')
             ->expectsOutput('rebuilt=1 cleared=0 kept=0 dry=no')
             ->assertExitCode(0);
         $this->assertSame('PA Nasrah Umwali', $lidChat->fresh()->peer_label);
         $this->assertSame(1, WhatsAppMessage::where('conversation_id', $lidChat->id)->count());
         $this->assertSame(1, WhatsAppConversation::where('mai_session_id', $session->id)->count());
+    }
+
+    public function test_a_profile_saved_on_the_lid_does_not_beat_the_address_book()
+    {
+        $session = $this->linked(33, 'p237670000033');
+        $phoneContact = $this->contact('');
+        $phoneContact->normalized_phone = '250788004793';
+        $phoneContact->display_phone = '+250788004793';
+        $phoneContact->wa_name = 'PA Nasrah Umwali';
+        $phoneContact->save();
+        $lidContact = new WhatsAppContact();
+        $lidContact->normalized_phone = '155512345465';
+        $lidContact->display_phone = '155512345465';
+        $lidContact->wa_name = 'Nasrah';
+        $lidContact->save();
+        $phoneChat = $this->chat($phoneContact, $session, 'PA Nasrah Umwali');
+        $lidChat = $this->chat($lidContact, $session, 'Nasrah');
+        $kept = new WhatsAppMessage();
+        $kept->conversation_id = $lidChat->id;
+        $kept->contact_id = $lidContact->id;
+        $kept->direction = WhatsAppMessage::DIR_IN;
+        $kept->type = 'TEXT';
+        $kept->body = 'kept';
+        $kept->provider_message_id = 'mai-two-threads';
+        $kept->save();
+        MaiPeer::create([
+            'mai_session_id' => $session->id,
+            'remote_jid' => '155512345465@lid',
+            'phone_digits' => '250788004793',
+            'lid' => '155512345465',
+            'saved_name' => 'Nasrah',
+            'profile_name' => 'Nasrah',
+        ]);
+        MaiPeer::create([
+            'mai_session_id' => $session->id,
+            'remote_jid' => '250788004793@s.whatsapp.net',
+            'phone_digits' => '250788004793',
+            'lid' => '155512345465',
+            'saved_name' => 'PA Nasrah Umwali',
+            'profile_name' => 'Nasrah',
+        ]);
+        $identity = app(MaiIdentity::class);
+        $this->assertSame('PA Nasrah Umwali', $identity->display($phoneChat->fresh(), $phoneContact->fresh()));
+        $this->assertSame('PA Nasrah Umwali', $identity->display($lidChat->fresh(), $lidContact->fresh()));
+        $this->artisan('mai:repair-labels', ['--session' => $session->id, '--dry-run' => true])
+            ->expectsOutput('examined=2')
+            ->expectsOutput('propose id='.$lidChat->id.' from=Nasrah to=PA Nasrah Umwali')
+            ->expectsOutput('rebuilt=1 cleared=0 kept=1 dry=yes')
+            ->assertExitCode(0);
+        $this->assertSame('Nasrah', $lidChat->fresh()->peer_label);
+        $this->assertSame('PA Nasrah Umwali', $phoneChat->fresh()->peer_label);
+        $this->assertSame(1, WhatsAppMessage::where('conversation_id', $lidChat->id)->count());
+        $this->assertSame(2, WhatsAppConversation::where('mai_session_id', $session->id)->count());
+
+        $identity->remember($session, [
+            'jid' => '250788004793@s.whatsapp.net',
+            'phone' => '250788004793',
+            'saved_name' => 'Ann',
+        ]);
+        $this->assertSame('Ann', $identity->display($phoneChat->fresh(), $phoneContact->fresh()));
+        $this->assertSame(['237675321739', '23775321739'], $identity->searchAliases('237675321739'));
+        $this->assertSame(['23775321739', '237675321739'], $identity->searchAliases('23775321739'));
+        $this->assertSame(['250794006160'], $identity->searchAliases('250794006160'));
+    }
+
+    public function test_a_scoped_repair_cannot_see_another_session_when_queries_are_isolated()
+    {
+        config(['cloud.isolate_queries' => true]);
+        Schema::table('whatsapp_conversations', function (Blueprint $table) {
+            $table->unsignedInteger('cloud_tenant_id')->nullable();
+        });
+        $built = app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation(function () {
+            $ada = $this->linked(41, 'p237670000041');
+            $bola = $this->linked(42, 'p237670000042');
+            $contact = $this->contact('Hidden');
+            app(MaiIdentity::class)->remember($ada, [
+                'jid' => '237699000333@s.whatsapp.net',
+                'phone' => '237699000333',
+                'saved_name' => 'Ada Only',
+            ]);
+
+            return [
+                $ada,
+                $this->chat($contact, $ada, 'Old Ada'),
+                $this->chat($contact, $bola, 'Old Bola'),
+            ];
+        });
+        $ada = $built[0];
+        $adaChat = $built[1];
+        $bolaChat = $built[2];
+        $this->assertSame(0, WhatsAppConversation::query()->count());
+        $this->artisan('mai:repair-labels', ['--session' => $ada->id, '--dry-run' => true])
+            ->expectsOutput('examined=1')
+            ->expectsOutput('propose id='.$adaChat->id.' from=Old Ada to=Ada Only')
+            ->assertExitCode(0);
+        $this->assertSame('Old Ada', WhatsAppConversation::withoutGlobalScopes()->find($adaChat->id)->peer_label);
+        $this->assertSame('Old Bola', WhatsAppConversation::withoutGlobalScopes()->find($bolaChat->id)->peer_label);
     }
 
     public function test_a_lid_is_not_turned_into_a_phone_number()
@@ -298,7 +397,19 @@ class MaiContactIsolationTest extends TestCase
         Cache::put('wa.address_book.v2', ['237699000333' => 'Owner Book'], now()->addDay());
 
         $this->artisan('mai:repair-labels', ['--dry-run' => true])
-            ->expectsOutput('rebuilt=1 cleared=1 kept=1 dry=yes')
+            ->expectsOutput('Pass --session=ID so the repair stays on one connection.')
+            ->assertExitCode(1);
+        $this->artisan('mai:repair-labels', ['--dry-run' => true, '--session' => $ada->id])
+            ->expectsOutput('examined=1')
+            ->expectsOutput('rebuilt=1 cleared=0 kept=0 dry=yes')
+            ->assertExitCode(0);
+        $this->artisan('mai:repair-labels', ['--dry-run' => true, '--session' => $bola->id])
+            ->expectsOutput('examined=1')
+            ->expectsOutput('rebuilt=0 cleared=1 kept=0 dry=yes')
+            ->assertExitCode(0);
+        $this->artisan('mai:repair-labels', ['--dry-run' => true, '--session' => $same->id])
+            ->expectsOutput('examined=1')
+            ->expectsOutput('rebuilt=0 cleared=0 kept=1 dry=yes')
             ->assertExitCode(0);
         $this->assertSame('Owner Book', $adaChat->fresh()->peer_label);
         $this->assertSame('Owner Book', $contact->fresh()->wa_name);
@@ -307,8 +418,14 @@ class MaiContactIsolationTest extends TestCase
         $this->assertSame('Owner Book', Cache::get('wa.book.237699000333'));
         $this->assertSame(['237699000333' => 'Owner Book'], Cache::get('wa.address_book.v2'));
 
-        $this->artisan('mai:repair-labels')
-            ->expectsOutput('rebuilt=1 cleared=1 kept=1 dry=no')
+        $this->artisan('mai:repair-labels', ['--session' => $ada->id])
+            ->expectsOutput('rebuilt=1 cleared=0 kept=0 dry=no')
+            ->assertExitCode(0);
+        $this->artisan('mai:repair-labels', ['--session' => $bola->id])
+            ->expectsOutput('rebuilt=0 cleared=1 kept=0 dry=no')
+            ->assertExitCode(0);
+        $this->artisan('mai:repair-labels', ['--session' => $same->id])
+            ->expectsOutput('rebuilt=0 cleared=0 kept=1 dry=no')
             ->assertExitCode(0);
         $this->assertSame('Ada Name', $adaChat->fresh()->peer_label);
         $this->assertSame('+237699000333', $bolaChat->fresh()->peer_label);
@@ -318,8 +435,14 @@ class MaiContactIsolationTest extends TestCase
         $this->assertSame('Owner Book', Cache::get('wa.book.237699000333'));
         $this->assertSame(['237699000333' => 'Owner Book'], Cache::get('wa.address_book.v2'));
 
-        $this->artisan('mai:repair-labels')
-            ->expectsOutput('rebuilt=0 cleared=0 kept=3 dry=no')
+        $this->artisan('mai:repair-labels', ['--session' => $ada->id])
+            ->expectsOutput('rebuilt=0 cleared=0 kept=1 dry=no')
+            ->assertExitCode(0);
+        $this->artisan('mai:repair-labels', ['--session' => $bola->id])
+            ->expectsOutput('rebuilt=0 cleared=0 kept=1 dry=no')
+            ->assertExitCode(0);
+        $this->artisan('mai:repair-labels', ['--session' => $same->id])
+            ->expectsOutput('rebuilt=0 cleared=0 kept=1 dry=no')
             ->assertExitCode(0);
         $this->assertSame('Owner Book', Cache::get('wa.book.237699000333'));
     }
@@ -729,6 +852,44 @@ class MaiContactIsolationTest extends TestCase
         $this->assertSame('Nasrah', app(\App\Services\Mai\PersonalHub::class)->label($contact, $chat));
         $this->assertNull(WhatsAppContact::where('normalized_phone', '237655000222')->first());
         $this->assertNull(WhatsAppContact::where('normalized_phone', '237675321739')->first());
+    }
+
+    public function test_a_shorter_address_book_rename_replaces_the_stored_label()
+    {
+        $session = $this->linked(14, 'p23767000014');
+        $contact = new WhatsAppContact();
+        $contact->normalized_phone = '250788001589';
+        $contact->display_phone = '+250788001589';
+        $contact->wa_name = 'Tefu Ngwayu';
+        $contact->save();
+        $chat = $this->chat($contact, $session, 'Tefu Ngwayu');
+        app(MaiIdentity::class)->remember($session, [
+            'jid' => '250788001589@s.whatsapp.net',
+            'phone' => '250788001589',
+            'saved_name' => 'Tefu Ngwayu',
+        ]);
+        config(['cloud.whatsapp.link_transport' => function ($method, $path) {
+            if (strpos($path, '/contacts') !== false) {
+                return ['contacts' => [[
+                    'phone' => '250788001589',
+                    'saved_name' => 'Don Hump',
+                    'name' => 'Don Hump',
+                    'saved' => true,
+                ]]];
+            }
+            if (strpos($path, '/chats') !== false) {
+                return ['read_ready' => true, 'chats' => []];
+            }
+
+            return ['generation' => 1, 'events' => []];
+        }]);
+
+        app(\App\Services\Mai\PersonalHub::class)->sync($session, false);
+
+        $peer = MaiPeer::where('mai_session_id', $session->id)->where('remote_jid', '250788001589@s.whatsapp.net')->first();
+        $this->assertSame('Don Hump', $peer->saved_name);
+        $this->assertSame('Don Hump', $chat->fresh()->peer_label);
+        $this->assertSame(1, WhatsAppConversation::where('mai_session_id', $session->id)->count());
     }
 
     public function test_an_edit_uses_the_linked_socket()

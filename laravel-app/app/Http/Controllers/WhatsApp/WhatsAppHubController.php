@@ -526,12 +526,41 @@ class WhatsAppHubController extends Controller
             }
         }
 
+        $directory = [];
+        if ($personal && Schema::hasTable('mai_peers')) {
+            $knownPhones = [];
+            foreach ($conversations as $row) {
+                $digits = preg_replace('/\D/', '', (string) optional($row->contact)->normalized_phone);
+                if ($digits !== '') {
+                    $knownPhones[$digits] = true;
+                }
+            }
+            $identity = app(\App\Services\Mai\MaiIdentity::class);
+            foreach (\App\Mai\MaiPeer::where('mai_session_id', $personal->id)->where('remote_jid', 'like', '%@s.whatsapp.net')->orderBy('saved_name')->limit(200)->get() as $peer) {
+                $digits = preg_replace('/\D/', '', (string) $peer->phone_digits);
+                $name = trim((string) $peer->saved_name);
+                if ($name === '' || isset($knownPhones[$digits]) || strlen($digits) < 8 || strlen($digits) > 13) {
+                    continue;
+                }
+                $distinct = $name !== trim((string) $peer->profile_name);
+                if (isset($directory[$digits]) && ! ($distinct && empty($directory[$digits]['distinct']))) {
+                    continue;
+                }
+                $directory[$digits] = [
+                    'name' => $name,
+                    'phone' => $digits,
+                    'aliases' => implode(' ', $identity->searchAliases($digits)),
+                    'distinct' => $distinct,
+                ];
+            }
+        }
+
         return response()
             ->view('whatsapp_hub.chats', compact(
                 'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
                 'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter', 'translatorOn', 'sessionPhone',
                 'translatorLanguages', 'destination', 'staffLanguage', 'defaultReply', 'enterSends', 'personalHub', 'announce', 'historyReady', 'historyProgress',
-                'briefs', 'maiAppLink'
+                'briefs', 'maiAppLink', 'directory'
             ))
             ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
     }
@@ -587,6 +616,9 @@ class WhatsAppHubController extends Controller
             ? app(\App\Services\Mai\PersonalHub::class)->label($contact, $conversation)
             : ($contact ? $contact->displayName() : 'WhatsApp');
         $digits = preg_replace('/\D/', '', (string) ($contact ? $contact->normalized_phone : ''));
+        if (strlen($digits) < 8 || strlen($digits) > 13) {
+            $digits = '';
+        }
         $destination = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->destinationFor($conversation->id);
         $staff = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->staffLanguage();
         $defaultReply = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->defaultReply();
@@ -1259,6 +1291,32 @@ class WhatsAppHubController extends Controller
     public function starChatMessage(Request $request, $id, $message)
     {
         return $this->messageAction($request, $id, $message, 'star');
+    }
+
+    public function translateChatMessage(Request $request, $id, $message)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.view', 'whatsapp.reply', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $conversation = $this->inboxConversation($id);
+        if (! $conversation) {
+            return response()->json(['ok' => false, 'error' => 'That chat is not open.'], 404);
+        }
+        $row = WhatsAppMessage::where('conversation_id', $conversation->id)->where('id', (int) $message)->first();
+        if (! $row) {
+            return response()->json(['ok' => false, 'error' => 'That message is not in this chat.'], 404);
+        }
+        $meta = $row->translationMeta();
+        $existing = trim((string) (isset($meta['english']) ? $meta['english'] : (isset($meta['staff']) ? $meta['staff'] : '')));
+        if ($existing !== '') {
+            return response()->json(['ok' => true, 'text' => $existing, 'sent' => false]);
+        }
+        $parsed = app(\App\Services\WhatsApp\WhatsAppTranslator::class)->toStaffText((string) $row->body);
+        if (! $parsed || trim((string) $parsed['english']) === '') {
+            return response()->json(['ok' => false, 'error' => 'This message could not be translated.', 'sent' => false]);
+        }
+
+        return response()->json(['ok' => true, 'text' => $parsed['english'], 'sent' => false]);
     }
 
     public function forwardChatMessage(Request $request, $id, $message)

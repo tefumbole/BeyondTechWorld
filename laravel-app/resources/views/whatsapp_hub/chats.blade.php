@@ -26,13 +26,15 @@
     .more-menu, .new-chat { position: absolute; z-index: 40; top: 62px; right: 10px; width: min(240px, calc(100% - 20px)); background: #fff; border: 1px solid #e6ebf5; border-radius: 14px; box-shadow: 0 12px 32px rgba(15, 31, 61, .16); }
     .more-menu[hidden], .new-chat[hidden] { display: none !important; }
     .more-menu { display: flex; flex-direction: column; padding: 6px; }
-    .more-menu button, .more-menu form { margin: 0; }
-    .more-menu button { width: 100%; min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: #111b21; text-align: left; padding: 0 12px; font-weight: 700; cursor: pointer; }
-    .more-menu button:hover { background: #f4f7fb; }
+    .more-menu button, .more-menu form, .more-menu a { margin: 0; }
+    .more-menu button, .more-menu a { display: block; width: 100%; min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: #111b21; text-align: left; padding: 10px 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
+    .more-menu button:hover, .more-menu a:hover { background: #f4f7fb; color: #111b21; }
     .new-chat { left: 10px; right: 10px; width: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
     .new-chat label { margin: 0; font-size: 12px; font-weight: 800; color: #667781; }
     .new-chat input { width: 100%; min-height: 44px; border: 1px solid #d7e0ea; border-radius: 12px; padding: 0 12px; font-size: 16px; }
     .new-chat button { min-height: 44px; border: 0; border-radius: 12px; background: #2f6bff; color: #fff; font-weight: 800; cursor: pointer; }
+    .new-chat-list { max-height: 220px; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
+    .new-chat-list button { background: #f4f7fb; color: #111b21; text-align: left; padding: 0 12px; }
     .hub-gear, .chat-gear { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #e7edf5; background: #fff; color: #1565c0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(15,31,61,.08); }
     .hub-install { width: auto; min-width: 52px; padding: 0 12px; border-radius: 999px; font-weight: 800; font-size: 13px; }
     .hub-gear svg, .chat-gear svg { width: 18px; height: 18px; }
@@ -110,6 +112,9 @@
     @media (min-width: 801px) {
         .lang-sheet { align-items: center; padding: 24px; }
         .lang-card { border-radius: 24px; }
+        .chat-rail { display: flex; flex-direction: column; width: 84px; flex: none; background: #0b1b3a; color: #fff; padding: 14px 6px; gap: 4px; }
+        .chat-rail a, .chat-rail button { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 6px; border: 0; border-radius: 12px; background: transparent; color: #d6deee; font-size: 11px; font-weight: 700; text-align: center; text-decoration: none; }
+        .chat-rail a.is-on, .chat-rail a:hover, .chat-rail button:hover { background: #16315f; color: #fff; }
     }
     .hub-label { padding: 14px 16px 4px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--wa-muted); }
     .chats-side { position: relative; z-index: 1; width: 400px; max-width: 42vw; flex: 0 0 400px; display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; border-right: 1px solid var(--wa-line); background: #fff; }
@@ -174,6 +179,7 @@
     .chats-head-person h2, .chats-head-person p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .load-earlier { align-self: center; border: 0; background: #fff; color: #1565c0; border-radius: 999px; min-height: 32px; padding: 0 16px; font-weight: 700; cursor: pointer; margin: 10px 0; box-shadow: 0 3px 10px rgba(15,31,61,.1); }
     .chat-live { display: none; background: linear-gradient(90deg, #fff4d6, #ffe7b3); color: #7a5b10; text-align: center; font-size: 13px; font-weight: 700; padding: 6px 10px; }
+    .chat-live button { margin-left: 8px; min-height: 32px; border: 0; border-radius: 999px; background: #7a5b10; color: #fff; font-weight: 700; padding: 0 12px; }
     .typing-line, .chat-preview.is-typing { color: #128c7e; font-weight: 700; }
     .typing-line { margin: 0 18px 4px; font-size: 13px; }
     .typing-line[hidden] { display: none !important; }
@@ -394,6 +400,12 @@ try {
     if (savedTheme === 'black' || savedTheme === 'navy') document.getElementById('chatsApp').classList.add('theme-' + savedTheme);
 } catch (e) {}
 </script>
+    <nav class="chat-rail" aria-label="Whats MAI">
+        <a class="{{ $pane === 'chats' || $pane === '' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats') }}">Chats</a>
+        <a class="{{ $pane === 'calls' ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
+        <a class="{{ $pane === 'announcements' ? 'is-on' : '' }}" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.index') }}">Announcements</a>
+        <button type="button" class="js-hub-settings">Settings</button>
+    </nav>
     <aside class="chats-side {{ !empty($personalHub) ? 'is-personal' : '' }}">
         @php
             $statusDigits = preg_replace('/\D/', '', (string) $sessionPhone);
@@ -420,6 +432,9 @@ try {
                 </button>
             </div>
             <div class="more-menu" id="moreMenu" hidden>
+                <a href="{{ route('whatsapp.chats') }}">Chats</a>
+                <a href="{{ route('whatsapp.chats', ['pane' => 'calls']) }}">Calls</a>
+                <a href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.index') }}">Announcements</a>
                 <button type="button" id="hubInstall">App</button>
                 <button type="button" class="js-hub-settings">Settings</button>
                 <form method="POST" action="{{ url('/logout') }}">
@@ -430,7 +445,12 @@ try {
             <form class="new-chat" id="newChat" method="POST" action="{{ route('whatsapp.chats.start') }}" hidden>
                 @csrf
                 <label for="newChatPhone">WhatsApp number</label>
-                <input id="newChatPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="250794006160" required>
+                <input id="newChatPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Search a saved contact or number" required>
+                <div class="new-chat-list" id="newChatList">
+                    @foreach(($directory ?? []) as $person)
+                        <button type="button" data-phone="{{ $person['phone'] }}" data-name="{{ strtolower($person['name'].' '.$person['phone'].' '.$person['aliases']) }}">{{ $person['name'] }}</button>
+                    @endforeach
+                </div>
                 <button type="submit">Open chat</button>
             </form>
         </header>
@@ -524,10 +544,12 @@ try {
                     if ($preview === '' && !empty($personalHub)) {
                         $preview = $rowPhone;
                     }
+                    $rowDigits = preg_replace('/\D/', '', (string) optional($row->contact)->normalized_phone);
+                    $rowAliases = implode(' ', app(\App\Services\Mai\MaiIdentity::class)->searchAliases($rowDigits));
                     $rowUnread = (int) $row->id === $openId ? 0 : (int) $row->unread_count;
                     $tone = sprintf('%u', crc32(strtolower($person))) % 8;
                 @endphp
-                <a class="chat-row {{ (int) $row->id === $openId ? 'is-on' : '' }}" data-id="{{ $row->id }}" data-kind="person" data-read="{{ $rowUnread > 0 ? '0' : '1' }}" data-name="{{ strtolower($person.' '.$rowPhone) }}" href="{{ route('whatsapp.chats', ['chat' => $row->id]) }}">
+                <a class="chat-row {{ (int) $row->id === $openId ? 'is-on' : '' }}" data-id="{{ $row->id }}" data-kind="person" data-read="{{ $rowUnread > 0 ? '0' : '1' }}" data-name="{{ strtolower($person.' '.$rowPhone.' '.$rowAliases) }}" href="{{ route('whatsapp.chats', ['chat' => $row->id]) }}">
                     <span class="chat-avatar" data-tone="{{ $tone }}">{{ mb_strtoupper(mb_substr($person, 0, 1)) }}</span>
                     <span class="chat-main">
                         <span class="chat-top">
@@ -678,8 +700,12 @@ try {
                     </div>
                 </div>
                 <div class="mode-switch">
-                    @php $callDigits = preg_replace('/\D/', '', (string) optional($open->contact)->normalized_phone); @endphp
-                    <a class="call-btn" id="threadCall" href="{{ $callDigits !== '' ? 'tel:+'.$callDigits : '#' }}" @if($callDigits === '') hidden @endif><i class="fa fa-phone"></i> Call</a>
+                    @php
+                        $callDigits = preg_replace('/\D/', '', (string) optional($open->contact)->normalized_phone);
+                        $canDial = strlen($callDigits) >= 8 && strlen($callDigits) <= 13;
+                    @endphp
+                    <a class="call-btn" id="threadCall" href="{{ $canDial ? 'tel:+'.$callDigits : '#' }}" @if(! $canDial) hidden @endif>Call by phone</a>
+                    <a class="call-btn" id="threadWhatsApp" href="{{ $canDial ? 'https://wa.me/'.$callDigits : '#' }}" target="_blank" rel="noopener" @if(! $canDial) hidden @endif>Open in WhatsApp</a>
                     @if(preg_match('/^(237)?6[0-9]{8}$/', (string) $callDigits))
                         <button type="button" class="call-btn" id="threadUnmask" data-chat="{{ (int) $open->id }}">Unmask</button>
                     @endif
@@ -710,7 +736,7 @@ try {
                 }
             @endphp
             @if($liveNote)<div class="chat-note" id="chatNote">{{ $liveNote }}</div>@endif
-            <div class="chat-live" id="chatLive">Reconnecting…</div>
+            <div class="chat-live" id="chatLive">Could not refresh. <button type="button" id="chatRetry">Retry</button></div>
             <div class="chats-stream" id="chatStream">
                 @if(!empty($hasEarlier) && $messages->first())
                     <button type="button" class="load-earlier" id="loadEarlier" data-before="{{ $messages->first()->id }}">Earlier messages</button>
@@ -1094,7 +1120,8 @@ try {
             </div>
         </div>
         <div class="mode-switch">
-            <a class="call-btn" id="threadCall" href="#" hidden><i class="fa fa-phone"></i> Call</a>
+            <a class="call-btn" id="threadCall" href="#" hidden>Call by phone</a>
+            <a class="call-btn" id="threadWhatsApp" href="#" target="_blank" rel="noopener" hidden>Open in WhatsApp</a>
             <button type="button" class="chat-gear js-hub-settings" aria-label="Settings">⚙</button>
             <form method="POST" id="threadTranslate" action="">@csrf<button type="submit" class="is-translate">Translate</button></form>
             <form method="POST" id="threadAi" action="">@csrf<button type="submit">AI</button></form>
@@ -1102,7 +1129,7 @@ try {
             <a class="announce-btn" href="{{ !empty($personalHub) ? route('whatsapp.chats', ['pane' => 'announcements']) : route('announcements.compose') }}">Announcements</a>
         </div>
     </header>
-    <div class="chat-live" id="chatLive">Reconnecting…</div>
+    <div class="chat-live" id="chatLive">Could not refresh. <button type="button" id="chatRetry">Retry</button></div>
     <div class="chats-stream" id="chatStream"></div>
     @if($canReply)
     <div class="reply-bar"><button type="button" class="reply-pick" id="openReplyLang"><span>Reply in</span><strong id="threadReplyName">Off</strong></button></div>
@@ -1232,6 +1259,7 @@ try {
         <button type="button" data-act="pin">Pin</button>
         <button type="button" data-act="forward">Forward</button>
         <button type="button" data-act="copy">Copy</button>
+        <button type="button" data-act="translate">Translate</button>
         <button type="button" data-act="edit">Edit</button>
         <button type="button" data-act="info">Info</button>
         <hr>
@@ -2028,9 +2056,14 @@ window.addEventListener('pageshow', function (event) {
             avatar.setAttribute('data-tone', chat.tone || 0);
         }
         var call = document.getElementById('threadCall');
+        var whatsApp = document.getElementById('threadWhatsApp');
         if (call) {
             if (chat.digits) { call.href = 'tel:+' + chat.digits; call.hidden = false; }
             else call.hidden = true;
+        }
+        if (whatsApp) {
+            if (chat.digits) { whatsApp.href = 'https://wa.me/' + chat.digits; whatsApp.hidden = false; }
+            else whatsApp.hidden = true;
         }
         function setAction(id, url) {
             var form = document.getElementById(id);
@@ -2399,6 +2432,8 @@ window.addEventListener('pageshow', function (event) {
             : 'On a Mac, Chrome shows Install in the address bar. Safari: File, then Add to Dock. No App Store.');
     });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
+    var retry = document.getElementById('chatRetry');
+    if (retry) retry.addEventListener('click', function () { misses = 0; poll(); });
     window.addEventListener('focus', function () { poll(); });
     function liveReady() { return true; }
     function clearQuote() {
@@ -3012,6 +3047,15 @@ window.addEventListener('pageshow', function (event) {
                 closeMessageMenu();
                 return;
             }
+            if (action === 'translate') {
+                var infoBox = document.getElementById('msgInfoText');
+                if (infoBox) infoBox.textContent = 'Translating this message…';
+                showMenuPane('msgInfo');
+                messagePost(id, 'translate').then(function (payload) {
+                    if (infoBox) infoBox.textContent = (payload && payload._ok && payload.text) ? payload.text : ((payload && payload.error) || 'This message could not be translated.');
+                });
+                return;
+            }
             if (action === 'copy') {
                 var copied = messageBody(activeMessage);
                 if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(copied);
@@ -3243,6 +3287,22 @@ window.addEventListener('pageshow', function (event) {
         moreMenu.hidden = !open;
         moreOpen.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
+    var newChatList = document.getElementById('newChatList');
+    var newChatPhone = document.getElementById('newChatPhone');
+    if (newChatPhone && newChatList) {
+        newChatPhone.addEventListener('input', function () {
+            var query = newChatPhone.value.toLowerCase().replace(/\s+/g, '');
+            newChatList.querySelectorAll('button').forEach(function (button) {
+                var name = (button.getAttribute('data-name') || '').toLowerCase().replace(/\s+/g, '');
+                button.hidden = query !== '' && name.indexOf(query) === -1;
+            });
+        });
+        newChatList.addEventListener('click', function (event) {
+            var button = event.target.closest ? event.target.closest('button') : null;
+            if (!button) return;
+            newChatPhone.value = button.getAttribute('data-phone') || '';
+        });
+    }
     if (newChatOpen && newChat) newChatOpen.addEventListener('click', function (event) {
         event.stopPropagation();
         var open = newChat.hidden;
